@@ -1,0 +1,53 @@
+package rs.koffi
+
+import kotlin.js.JsAny
+import kotlin.js.JsNumber
+import kotlin.js.toJsNumber
+
+// External declaration for JS FinalizationRegistry
+private external class FinalizationRegistry(cleanupCallback: (JsAny?) -> Unit) : JsAny {
+    fun register(target: JsAny, heldValue: JsAny)
+}
+
+actual abstract class KoffiHandleBase actual constructor(
+    actual override val handleId: Long
+) : KoffiHandle {
+
+    actual override var isClosed: Boolean = false
+        private set
+
+    init {
+        // Register this handle with the finalizer
+        val heldValue = handleId.toDouble().toJsNumber()
+        finalizerRegistry?.register(this.asJsAny(), heldValue)
+    }
+
+    actual override fun close() {
+        if (!isClosed) {
+            isClosed = true
+            KoffiRuntime.releaseHandle?.invoke(handleId)
+        }
+    }
+
+    companion object {
+        private fun KoffiHandleBase.asJsAny(): JsAny = this.unsafeCast()
+
+        private val finalizerRegistry: FinalizationRegistry? by lazy {
+            try {
+                createFinalizationRegistry { heldValue ->
+                    if (heldValue != null) {
+                        val num = heldValue.unsafeCast<JsNumber>()
+                        val id = num.toDouble().toLong()
+                        KoffiRuntime.releaseHandle?.invoke(id)
+                    }
+                }
+            } catch (e: Throwable) {
+                null
+            }
+        }
+
+        private fun createFinalizationRegistry(callback: (JsAny?) -> Unit): FinalizationRegistry {
+            return js("new FinalizationRegistry(callback)")
+        }
+    }
+}

@@ -1,0 +1,13 @@
+[package]
+name = "koffi-test-crate"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+koffi = { workspace = true }
+koffi-macros = { workspace = true }
+koffi-runtime = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }

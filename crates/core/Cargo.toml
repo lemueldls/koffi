@@ -1,0 +1,10 @@
+[package]
+name = "koffi"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+koffi-macros = { workspace = true }
+
+[lints]
+workspace = true
