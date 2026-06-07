@@ -1,30 +1,36 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 
-/// Marks a function, struct impl block, or trait impl for export to Kotlin.
+/// Export a free function or impl block to Kotlin.
 ///
-/// Under the hood, this is a pass-through attribute that does not modify the Rust code itself.
-/// The `koffi-bindgen` CLI tool will parse the AST of the source files to locate these annotations.
+/// Options:
+/// - `name = "camelCaseName"` - override the generated Kotlin name
+/// - `blocking` - run in a blocking coroutine dispatcher (`Dispatchers.IO`)
+/// - `deprecated = "message"` - emit `@Deprecated` in Kotlin.
 #[proc_macro_attribute]
 pub fn export(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-/// Marks a struct or enum as a transparent, serializable FFI type.
-/// The type must implement `Clone` and be composed of FFI-safe / postcard-serializable types.
+/// Mark a struct as an opaque handle.
+///
+/// Options:
+/// - `mutable` - store in `Arc<RwLock<T>>`; enables &mut self methods.
 #[proc_macro_attribute]
 pub fn data(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-/// Marks a struct as an opaque handle (never inspected by Kotlin directly).
-/// It is managed by a thread-safe global registry and passed around as a `u64` handle ID.
+/// Mark a struct or enum as a transparent, postcard-serializable data type.
+/// The type must implement `serde::Serialize + serde::DeserializeOwned + Clone`.
 #[proc_macro_attribute]
 pub fn opaque(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-/// Sets the Kotlin package/namespace namespace for generated declarations.
+/// Set the Kotlin package namespace for all declarations in this file.
+///
+/// Usage: `#![koffi::namespace("com.example.mylib")]`.
 #[proc_macro_attribute]
 pub fn namespace(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
