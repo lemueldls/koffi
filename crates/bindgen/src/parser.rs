@@ -341,11 +341,11 @@ pub fn parse_crate(
                             .collect::<Vec<_>>()
                     );
                     let is_opaque = has_koffi_attr(&item_struct.attrs, "opaque");
-                    let is_type = has_koffi_attr(&item_struct.attrs, "type");
-                    if is_opaque || is_type {
+                    let is_data = has_koffi_attr(&item_struct.attrs, "data");
+                    if is_opaque || is_data {
                         let name = item_struct.ident.to_string();
                         let mut fields = Vec::new();
-                        if is_type {
+                        if is_data {
                             // Extract fields for serialization
                             for field in &item_struct.fields {
                                 let f_name = field
@@ -367,7 +367,7 @@ pub fn parse_crate(
                     }
                 }
                 syn::Item::Enum(item_enum) => {
-                    if has_koffi_attr(&item_enum.attrs, "type") {
+                    if has_koffi_attr(&item_enum.attrs, "data") {
                         let name = item_enum.ident.to_string();
                         let mut variants = Vec::new();
                         for variant in &item_enum.variants {
