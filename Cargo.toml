@@ -7,18 +7,14 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-koffi = { path = "crates/core" }
-koffi-macros = { path = "crates/macros" }
-koffi-runtime = { path = "crates/runtime" }
-# koffi-ir       = { path = "crates/ir" }
-koffi-bindgen = { path = "crates/bindgen" }
-# koffi-build    = { path = "crates/build" }
-
 askama = { version = "0.16.0", features = ["with-num-traits"] }
 cargo_metadata = { version = "0.23.1" }
-clap = { version = "4.6.1", features = ["derive"] }
 dashmap = { version = "6.2.1" }
+facet = { version = "0.46.5" }
+facet-error = { version = "0.46.5" }
+figue = { version = "4.0.4" }
 heck = { version = "0.5.0" }
+indicatif = { version = "0.18.4" }
 postcard = { version = "1.1.3", features = ["use-std"] }
 prettyplease = { version = "0.2" }
 quote = { version = "1.0" }
@@ -27,6 +23,16 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 syn = { version = "2.0", features = ["full", "extra-traits"] }
 thiserror = { version = "2.0" }
+tracing = { version = "0.1" }
+tracing-indicatif = { version = "0.3" }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+koffi = { path = "crates/core" }
+koffi-bindgen = { path = "crates/bindgen" }
+koffi-build = { path = "crates/build" }
+koffi-ir = { path = "crates/ir" }
+koffi-macros = { path = "crates/macros" }
+koffi-runtime = { path = "crates/runtime" }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

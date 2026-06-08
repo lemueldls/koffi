@@ -3,6 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use cargo_metadata::Package;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FFIType {
     Bool,
@@ -297,13 +299,17 @@ fn find_rs_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
 }
 
 pub fn parse_crate(
-    crate_path: &Path,
-    default_package: Option<String>,
+    package: &Package,
+    namespace: String,
 ) -> Result<CrateInterface, Box<dyn std::error::Error>> {
-    let src_dir = crate_path.join("src");
+    let src_dir = package
+        .manifest_path
+        .parent()
+        .unwrap()
+        .join("src")
+        .into_std_path_buf();
     let rs_files = find_rs_files(&src_dir)?;
 
-    let mut namespace = default_package.unwrap_or_else(|| "generated".to_string());
     let mut structs = Vec::new();
     let mut enums = Vec::new();
     let mut functions = Vec::new();
@@ -311,16 +317,6 @@ pub fn parse_crate(
     for file_path in rs_files {
         let content = fs::read_to_string(&file_path)?;
         let file = syn::parse_file(&content)?;
-
-        // Check file level namespace attribute
-        for attr in &file.attrs {
-            if has_koffi_attr(std::slice::from_ref(attr), "namespace")
-                && let syn::Meta::List(meta_list) = &attr.meta
-                && let Ok(s) = meta_list.parse_args::<syn::LitStr>()
-            {
-                namespace = s.value();
-            }
-        }
 
         for item in file.items {
             match item {
