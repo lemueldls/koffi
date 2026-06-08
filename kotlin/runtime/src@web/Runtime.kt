@@ -1,19 +1,26 @@
 package rs.koffi
 
+import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.js.JsAny
 import kotlin.js.JsNumber
 import kotlin.js.toJsNumber
 
 // External declaration for JS FinalizationRegistry
+@OptIn(ExperimentalWasmJsInterop::class)
 private external class FinalizationRegistry(cleanupCallback: (JsAny?) -> Unit) : JsAny {
     fun register(target: JsAny, heldValue: JsAny)
 }
 
+@OptIn(ExperimentalWasmJsInterop::class)
+private fun newFinalizationRegistry(callback: (JsAny?) -> Unit): FinalizationRegistry =
+    js("new FinalizationRegistry(callback)")
+
+@OptIn(ExperimentalWasmJsInterop::class)
 actual abstract class KoffiHandleBase actual constructor(
     actual override val handleId: Long
 ) : KoffiHandle {
 
-    actual override var isClosed: Boolean = false
+    actual final override var isClosed: Boolean = false
         private set
 
     init {
@@ -30,7 +37,7 @@ actual abstract class KoffiHandleBase actual constructor(
     }
 
     companion object {
-        private fun KoffiHandleBase.asJsAny(): JsAny = this.unsafeCast()
+        private fun KoffiHandleBase.asJsAny(): JsAny = this.toJsReference()
 
         private val finalizerRegistry: FinalizationRegistry? by lazy {
             try {
@@ -47,7 +54,7 @@ actual abstract class KoffiHandleBase actual constructor(
         }
 
         private fun createFinalizationRegistry(callback: (JsAny?) -> Unit): FinalizationRegistry {
-            return js("new FinalizationRegistry(callback)")
+            return newFinalizationRegistry(callback)
         }
     }
 }

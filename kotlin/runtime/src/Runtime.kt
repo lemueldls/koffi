@@ -25,7 +25,10 @@ object KoffiRuntime {
  */
 expect abstract class KoffiHandleBase(handleId: Long) : KoffiHandle {
     override val handleId: Long
-    override val isClosed: Boolean
+
+    final override var isClosed: Boolean
+        private set
+
     override fun close()
 }
 

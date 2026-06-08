@@ -9,7 +9,7 @@ actual abstract class KoffiHandleBase actual constructor(
     actual override val handleId: Long
 ) : KoffiHandle {
 
-    actual override var isClosed: Boolean = false
+    actual final override var isClosed: Boolean = false
         private set
 
     // Cleaner must not capture 'this'. We pass handleId as the state.

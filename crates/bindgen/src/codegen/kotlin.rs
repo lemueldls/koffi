@@ -169,6 +169,11 @@ pub fn generate_kotlin(
 
     fs::write(jvm_dir.join(&pkg_file), &jni_src)?;
 
+    // Generate Android JNI actuals
+    let android_dir = out_dir.join("src@android");
+    fs::create_dir_all(&android_dir)?;
+    fs::write(android_dir.join(&pkg_file), &jni_src)?;
+
     // Generate native cinterop actuals
     let native_dir = out_dir.join("src@native");
     fs::create_dir_all(&native_dir)?;
