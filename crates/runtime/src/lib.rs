@@ -1,3 +1,5 @@
+pub mod envelope;
+
 use std::{
     any::Any,
     panic::{UnwindSafe, catch_unwind},
@@ -58,13 +60,15 @@ impl HandleRegistry {
     }
 }
 
-/// Frees an opaque handle when the Kotlin garbage collector or manual close is triggered.
+/// Frees an opaque handle when the Kotlin garbage collector or manual close is
+/// triggered.
 #[unsafe(no_mangle)]
 pub extern "C" fn koffi_handle_release(handle_id: u64) {
     HandleRegistry::global().remove(handle_id);
 }
 
-/// A C-ABI safe byte buffer structure used for passing serialized data across the FFI boundary.
+/// A C-ABI safe byte buffer structure used for passing serialized data across
+/// the FFI boundary.
 #[repr(C)]
 pub struct KoffiByteBuf {
     pub ptr: *mut u8,
@@ -73,7 +77,8 @@ pub struct KoffiByteBuf {
 }
 
 impl KoffiByteBuf {
-    /// Create a `KoffiByteBuf` from a Rust Vec<u8>, transfering ownership to the caller.
+    /// Create a `KoffiByteBuf` from a Rust Vec<u8>, transfering ownership to
+    /// the caller.
     #[must_use]
     pub const fn new(mut vec: Vec<u8>) -> Self {
         let ptr = vec.as_mut_ptr();
@@ -84,10 +89,12 @@ impl KoffiByteBuf {
         Self { ptr, len, cap }
     }
 
-    /// Consume this `KoffiByteBuf` and reconstruct the original Vec<u8>, reclaiming memory ownership.
+    /// Consume this `KoffiByteBuf` and reconstruct the original Vec<u8>,
+    /// reclaiming memory ownership.
     ///
     /// # Safety
-    /// This is unsafe as it assumes the pointer was originally allocated by Vec.
+    /// This is unsafe as it assumes the pointer was originally allocated by
+    /// Vec.
     #[must_use]
     pub unsafe fn into_vec(self) -> Vec<u8> {
         if self.ptr.is_null() {
@@ -109,7 +116,8 @@ pub unsafe extern "C" fn koffi_free_byte_buf(buf: KoffiByteBuf) {
     }
 }
 
-/// Executes a closure, catching any Rust panics and converting them into a clean Result.
+/// Executes a closure, catching any Rust panics and converting them into a
+/// clean Result.
 pub fn catch_panic<F, R>(f: F) -> Result<R, String>
 where F: FnOnce() -> R + UnwindSafe {
     catch_unwind(f).map_err(|err| {

@@ -12,8 +12,6 @@ path = "src/main.rs"
 cargo_metadata.workspace = true
 facet.workspace = true
 figue.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

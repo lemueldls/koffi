@@ -3,13 +3,22 @@ use std::{fs, path::PathBuf};
 use cargo_metadata::MetadataCommand;
 use facet::Facet;
 use figue::{self as args, FigueBuiltins};
-use koffi_bindgen::{codegen, parser};
+use koffi_bindgen::{
+    build_steps::BuildSteps,
+    codegen::{self, copy_runtime, generate_all},
+    meta::collect_koffi_deps,
+    parser::{self, parse_crate},
+};
 use tracing::{Level, debug, info};
 
 #[derive(Facet, Debug)]
-pub struct Args {
+pub struct Cli {
     #[facet(args::subcommand)]
     pub command: Command,
+
+    /// Verbose logging (debug level).
+    #[facet(args::named, args::short = 'v')]
+    pub verbose: bool,
 
     /// --help / --version / --completions, for free.
     #[facet(flatten)]
@@ -21,127 +30,119 @@ pub struct Args {
 pub enum Command {
     /// Generate bindings.
     #[facet(rename = "gen")]
-    Generate {
-        /// Path to Rust crate root (Cargo.toml directory).
-        #[facet(args::positional, default = ".")]
-        crate_path: PathBuf,
-
-        /// Output directory.
-        #[facet(args::named, args::short = 'o', default = "generated")]
-        out: PathBuf,
-
-        /// Rerun on Rust source changes.
-        #[facet(args::named, args::short = 'w')]
-        watch: bool,
-
-        /// Print generated file list.
-        #[facet(args::named, args::short = 'v')]
-        verbose: bool,
-    },
+    Generate(GenerateArgs),
 
     /// Package platform artifacts.
     #[facet(rename = "pack")]
     Package {},
 }
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cli: Args = figue::from_std_args().unwrap();
+#[derive(Facet, Debug)]
+pub struct GenerateArgs {
+    /// Path to Rust crate root (Cargo.toml directory).
+    #[facet(args::positional, default = ".")]
+    pub crate_path: PathBuf,
+
+    /// Output directory.
+    #[facet(args::named, args::short = 'o', default = "generated")]
+    pub out: PathBuf,
+
+    /// Path to the koffi-runtime crate (required when building the glue crate).
+    #[facet(args::named, args::short = 'r', default = "crates/runtime")]
+    pub runtime_path: PathBuf,
+
+    /// Rerun on Rust source changes.
+    #[facet(args::named, args::short = 'w')]
+    pub watch: bool,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli: Cli = figue::from_std_args().unwrap();
+
+    tracing_subscriber::fmt()
+        .with_max_level(if cli.verbose {
+            Level::DEBUG
+        } else {
+            Level::INFO
+        })
+        .init();
 
     match cli.command {
-        Command::Generate {
-            crate_path,
-            out,
-            watch,
-            verbose,
-        } => {
-            tracing_subscriber::fmt()
-                .with_max_level(if verbose { Level::DEBUG } else { Level::INFO })
-                .init();
+        Command::Generate(args) => {
+            let crate_manifest = args.crate_path.join("Cargo.toml");
 
-            debug!("Scanning crate at {}...", crate_path.display());
+            let deps = collect_koffi_deps(&crate_manifest)?;
 
-            // Resolve package name from Cargo.toml
-            let cargo_toml_path = crate_path.join("Cargo.toml");
+            for dep in &deps {
+                info!(
+                    "Found koffi dep: {} v{}",
+                    dep.package.name, dep.package.version
+                );
 
-            let mut cmd = MetadataCommand::new();
-            cmd.manifest_path(cargo_toml_path);
-            let metadata = cmd.exec()?;
-            let root_package = metadata.root_package().ok_or("No root package found")?;
-            let crate_name = root_package.name.replace('-', "_");
+                let crate_path = dep
+                    .package
+                    .manifest_path
+                    .parent()
+                    .map_or_else(|| PathBuf::from("."), |p| p.as_std_path().to_path_buf());
+                let crate_name = dep.package.name.to_string();
+                let version = dep.package.version.to_string();
 
-            let koffi_meta = root_package.metadata.get("koffi");
-            let namespace = koffi_meta
-                .and_then(|m| m.get("namespace"))
-                .and_then(|n| n.as_str())
-                .unwrap_or("generated");
-            debug!("Found namespace: {namespace}");
+                let ir = parse_crate(
+                    &crate_path,
+                    &dep.workspace_root,
+                    crate_name,
+                    version,
+                    &dep.koffi_meta,
+                    &[],
+                )?;
 
-            // Parse Rust crate AST
-            let ir = parser::parse_crate(root_package, namespace.to_owned())?;
-            debug!(
-                "Found {} structs, {} enums, {} exported functions",
-                ir.structs.len(),
-                ir.enums.len(),
-                ir.functions.len()
-            );
+                let out_dir = std::path::absolute(&args.out)?;
+                let runtime_path = std::path::absolute(&args.runtime_path)?;
 
-            // Generate Kotlin KMP bindings
-            info!("Generating Kotlin bindings into {}...", out.display());
-            codegen::kotlin::generate_kotlin(&ir, &out, &crate_name)?;
+                let paths = generate_all(&ir, &out_dir, &crate_path, &runtime_path)?;
 
-            // Generate Rust FFI glue
-            info!("Generating Rust glue code into {}...", out.display());
-            codegen::rust::generate_rust(&ir, &out, &crate_name)?;
+                if cli.verbose {
+                    debug!(
+                        "generated kotlin common at {}",
+                        paths.kotlin_common.display()
+                    );
+                    debug!("generated kotlin jvm at {}", paths.kotlin_jvm.display());
+                    debug!(
+                        "generated kotlin native at {}",
+                        paths.kotlin_native.display()
+                    );
+                    debug!(
+                        "generated kotlin loader at {}",
+                        paths.kotlin_loader.display()
+                    );
+                    debug!(
+                        "generated rust jni glue at {}",
+                        paths.rust_jni_glue.display()
+                    );
+                    debug!(
+                        "generated rust cabi glue at {}",
+                        paths.rust_cabi_glue.display()
+                    );
+                    debug!("generated c header at {}", paths.c_header.display());
+                    debug!("generated cinterop def at {}", paths.cinterop_def.display());
+                    debug!(
+                        "generated glue cargo toml at {}",
+                        paths.glue_cargo_toml.display()
+                    );
+                }
 
-            // Generate Cargo.toml and src/lib.rs for the glue crate
-            let absolute_crate_path = fs::canonicalize(&crate_path)?;
-            let absolute_crate_path_str = absolute_crate_path.to_str().unwrap().replace('\\', "/");
+                let kotlin_runtime_path = PathBuf::from("kotlin/runtime");
+                copy_runtime(&kotlin_runtime_path, &out_dir)?;
 
-            // Try to resolve the runtime path relative to workspace
-            let mut runtime_path = PathBuf::from("crates/runtime");
-            if runtime_path.exists() {
-                runtime_path = fs::canonicalize(runtime_path)?;
-            } else {
-                // Fallback relative to the current workspace root
-                todo!()
+                let steps = BuildSteps {
+                    crate_path: args.crate_path.clone(),
+                    out_dir: out_dir.clone(),
+                    glue_path: out_dir.join("rust"),
+                    crate_ident: ir.crate_name.replace('-', "_"),
+                    lib_name: format!("{}_koffi_glue", ir.crate_name.replace('-', "_")),
+                };
+                steps.run_desktop()?;
             }
-            let absolute_runtime_path_str = runtime_path.to_str().unwrap().replace('\\', "/");
-
-            let glue_cargo_toml = format!(
-                "[package]\n\
-                name = \"{}-koffi-glue\"\n\
-                version = \"0.1.0\"\n\
-                edition = \"2024\"\n\n\
-                [lib]\n\
-                crate-type = [\"cdylib\", \"staticlib\"]\n\n\
-                [dependencies]\n\
-                {} = {{ path = \"{}\" }}\n\
-                koffi-runtime = {{ path = \"{}\" }}\n\
-                jni = {{ version = \"0.22.4\", optional = true }}\n\
-                postcard = \"1.1.3\"\n\
-                serde = {{ version = \"1.0\", features = [\"derive\"] }}\n\n\
-                [features]\n\
-                android = [\"jni\"]\n\
-                ios = []\n\
-                desktop = [\"jni\"]\n",
-                crate_name,
-                crate_name.replace('-', "_"),
-                absolute_crate_path_str,
-                absolute_runtime_path_str
-            );
-
-            fs::write(out.join("rust/Cargo.toml"), glue_cargo_toml)?;
-
-            let glue_lib_rs = "\
-                #[cfg(feature = \"android\")]\n\
-                pub mod jni_glue;\n\n\
-                #[cfg(feature = \"desktop\")]\n\
-                pub mod jni_glue;\n\n\
-                pub mod cabi_glue;\n";
-
-            fs::write(out.join("rust/src/lib.rs"), glue_lib_rs)?;
-
-            debug!("Bindings generation completed successfully!");
         }
         Command::Package { .. } => {}
     }

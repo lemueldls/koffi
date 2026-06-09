@@ -1,7 +1,19 @@
 package rs.koffi
 
+fun <T> serialize(value: T, writer: KoffiWriter.(T) -> Unit): ByteArray {
+    val w = KoffiWriter()
+    w.writer(value)
+    return w.toByteArray()
+}
+
+fun <T> deserialize(bytes: ByteArray, reader: KoffiReader.() -> T): T {
+    val r = KoffiReader(bytes)
+    val actualHash = r.readULong()
+    return r.reader()
+}
+
 /**
- * A fast, reflection-free binary writer utilizing the Postcard binary format spec.
+ * A binary writer utilizing the Postcard binary format spec.
  */
 class KoffiWriter(initialCapacity: Int = 128) {
     private var buffer = ByteArray(initialCapacity)
@@ -96,7 +108,7 @@ class KoffiWriter(initialCapacity: Int = 128) {
 }
 
 /**
- * A fast, reflection-free binary reader utilizing the Postcard binary format spec.
+ * A binary reader utilizing the Postcard binary format spec.
  */
 class KoffiReader(private val buffer: ByteArray) {
     private var position = 0

@@ -1,8 +1,5 @@
 #![allow(dead_code)]
 
-// #![feature(prelude_import)]
-// #![koffi::namespace("rs.koffi.test")]
-
 // Primitive FFI
 #[koffi::export]
 pub fn add_i32(a: i32, b: i32) -> i32 {
@@ -20,10 +17,12 @@ pub fn greet_user(name: &str) -> String {
     format!("Hello, {}!", name)
 }
 
+/// Documentation comment test
 #[koffi::export]
 pub fn reverse_byte_array(bytes: &[u8]) -> Vec<u8> {
     let mut reversed = bytes.to_vec();
     reversed.reverse();
+
     reversed
 }
 
@@ -51,9 +50,9 @@ impl DatabaseConnection {
         self.open
     }
 
-    pub fn close(&mut self) {
-        self.open = false;
-    }
+    // pub fn close(&mut self) {
+    //     self.open = false;
+    // }
 }
 
 // Transparent Structs (Postcard Serialized) FFI
@@ -74,10 +73,10 @@ pub fn create_profile(id: u64, username: &str, is_admin: bool) -> UserProfile {
     }
 }
 
-#[koffi::export]
-pub fn format_profile(profile: UserProfile) -> String {
-    format!(
-        "User #{} ({}): admin={}",
-        profile.id, profile.username, profile.is_admin
-    )
-}
+// #[koffi::export]
+// pub fn format_profile(profile: UserProfile) -> String {
+//     format!(
+//         "User #{} ({}): admin={}",
+//         profile.id, profile.username, profile.is_admin
+//     )
+// }

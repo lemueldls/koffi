@@ -25,12 +25,14 @@ pub struct TypeRef {
 }
 
 impl TypeRef {
-    /// The canonical string form used in generated code comments and error messages.
+    /// The canonical string form used in generated code comments and error
+    /// messages.
     #[must_use]
     pub fn qualified_name(&self) -> String {
         let mut parts = vec![self.crate_id.name.replace('-', "_")];
         parts.extend(self.module_path.clone());
         parts.push(self.name.clone());
+
         parts.join("::")
     }
 }
@@ -38,9 +40,6 @@ impl TypeRef {
 /// The primary type enum. Every variant is either a primitive that maps
 /// directly to a JVM/C type, a standard-library type resolved by its
 /// fully-qualified path, or a user type referenced by [`TypeRef`].
-///
-/// `Custom(String)` from the original design is gone. All user types are
-/// either `Opaque` or `Data` with a complete [`TypeRef`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FFIType {
     Bool,
@@ -128,5 +127,12 @@ impl FFIType {
             }
             _ => vec![],
         }
+    }
+
+    /// True if this type needs an additional `size` parameter in the C header
+    /// for array length.
+    #[must_use]
+    pub const fn needs_len_param(&self) -> bool {
+        matches!(self, Self::Bytes)
     }
 }
