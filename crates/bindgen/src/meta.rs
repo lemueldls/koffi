@@ -47,6 +47,7 @@ pub struct KoffiFeatureMeta {
 
 impl KoffiPackageMeta {
     /// Resolved schema path (defaults to "koffi/schema.json").
+    #[must_use]
     pub fn schema_path(&self, crate_root: &Path) -> PathBuf {
         crate_root.join(
             self.schema
@@ -113,13 +114,12 @@ fn collect_recursive(
     }
 
     // Recurse into dependencies
-    if let Some(resolve) = &metadata.resolve {
-        if let Some(node) = resolve.nodes.iter().find(|n| &n.id == pkg_id) {
+    if let Some(resolve) = &metadata.resolve
+        && let Some(node) = resolve.nodes.iter().find(|n| &n.id == pkg_id) {
             for dep_id in &node.dependencies {
                 collect_recursive(dep_id, metadata, visited, out)?;
             }
         }
-    }
 
     Ok(())
 }

@@ -62,11 +62,11 @@ pub fn parse_syn(
     // is treated as a crate-level override (rare; outer attr on mod preferred).
     {
         let source = fs::read_to_string(&entry)?;
-        let file = syn::parse_file(&source).map_err(|e| BindgenError::SyntaxError(e))?;
+        let file = syn::parse_file(&source)?;
         if let Some(ns) = file_level_namespace(&file.attrs) {
             ctx.push_namespace(ns);
         }
-        ctx.file_stack.push(entry.clone());
+        ctx.file_stack.push(entry);
         visit_items(&file.items, &mut ctx, &src_dir)?;
         ctx.file_stack.pop();
     }
@@ -80,8 +80,6 @@ pub fn parse_syn(
         functions: ctx.functions,
     })
 }
-
-// ────────────────────────
 
 /// Walk the entire source tree starting from `entry` and collect every type
 /// annotated with `#[koffi::opaque]` or `#[koffi::data]`.
@@ -118,7 +116,7 @@ fn collect_in_file(
         ))
     })?;
 
-    let file = syn::parse_file(&source).map_err(|e| BindgenError::SyntaxError(e))?;
+    let file = syn::parse_file(&source)?;
 
     collect_in_items(&file.items, src_dir, decls, visited)
 }
@@ -144,16 +142,12 @@ fn collect_in_items(
                 }
             }
             syn::Item::Mod(m) => {
-                match &m.content {
-                    Some((_, inner)) => {
-                        collect_in_items(inner, src_dir, decls, visited)?;
-                    }
-                    None => {
-                        let mod_name = m.ident.to_string();
-                        if let Some((child_path, child_src)) = resolve_mod_file(src_dir, &mod_name)
-                        {
-                            collect_in_file(&child_path, &child_src, decls, visited)?;
-                        }
+                if let Some((_, inner)) = &m.content {
+                    collect_in_items(inner, src_dir, decls, visited)?;
+                } else {
+                    let mod_name = m.ident.to_string();
+                    if let Some((child_path, child_src)) = resolve_mod_file(src_dir, &mod_name) {
+                        collect_in_file(&child_path, &child_src, decls, visited)?;
                     }
                 }
             }
@@ -195,46 +189,40 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
         ctx.push_namespace(ns.clone());
     }
 
-    match &m.content {
-        // Inline module: recurse directly.
-        Some((_, inner_items)) => {
-            visit_items(inner_items, ctx, src_dir)?;
-        }
+    if let Some((_, inner_items)) = &m.content {
+        visit_items(inner_items, ctx, src_dir)?;
+    } else {
+        let mod_name = m.ident.to_string();
+        if let Some((child_path, child_src_dir)) = resolve_mod_file(src_dir, &mod_name) {
+            let source = fs::read_to_string(&child_path).map_err(|e| {
+                BindgenError::IoError(io::Error::new(
+                    e.kind(),
+                    format!("{}: {}", child_path.display(), e),
+                ))
+            })?;
+            let file = syn::parse_file(&source)?;
 
-        // File-backed module: find the file and recurse.
-        None => {
-            let mod_name = m.ident.to_string();
-            if let Some((child_path, child_src_dir)) = resolve_mod_file(src_dir, &mod_name) {
-                let source = fs::read_to_string(&child_path).map_err(|e| {
-                    BindgenError::IoError(io::Error::new(
-                        e.kind(),
-                        format!("{}: {}", child_path.display(), e),
-                    ))
-                })?;
-                let file = syn::parse_file(&source).map_err(|e| BindgenError::SyntaxError(e))?;
-
-                // A file-level inner namespace attr applies if no outer attr was found
-                // on the mod declaration in the parent file.
-                let child_ns = if ns_override.is_none() {
-                    file_level_namespace(&file.attrs)
-                } else {
-                    None
-                };
-                if let Some(ref ns) = child_ns {
-                    ctx.push_namespace(ns.clone());
-                }
-
-                ctx.file_stack.push(child_path);
-                visit_items(&file.items, ctx, &child_src_dir)?;
-                ctx.file_stack.pop();
-
-                if child_ns.is_some() {
-                    ctx.pop_namespace();
-                }
+            // A file-level inner namespace attr applies if no outer attr was found
+            // on the mod declaration in the parent file.
+            let child_ns = if ns_override.is_none() {
+                file_level_namespace(&file.attrs)
+            } else {
+                None
+            };
+            if let Some(ref ns) = child_ns {
+                ctx.push_namespace(ns.clone());
             }
-            // Unknown module (external, generated, or cfg-gated) — skip
-            // silently.
+
+            ctx.file_stack.push(child_path);
+            visit_items(&file.items, ctx, &child_src_dir)?;
+            ctx.file_stack.pop();
+
+            if child_ns.is_some() {
+                ctx.pop_namespace();
+            }
         }
+        // Unknown module (external, generated, or cfg-gated) — skip
+        // silently.
     }
 
     if ns_override.is_some() {
@@ -475,7 +463,7 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
         }
 
         let rust_name = method.sig.ident.to_string();
-        let name = impl_args
+        let _name = impl_args
             .name
             .clone()
             .unwrap_or_else(|| AsLowerCamelCase(&rust_name).to_string());
@@ -780,8 +768,8 @@ fn replace_self(ty: FFIType, parent: &str, type_decls: &TypeDeclarationMap) -> F
     }
 }
 
-fn detect_receiver(rec: &syn::Receiver) -> ReceiverType {
-    if let Some(_) = &rec.reference {
+const fn detect_receiver(rec: &syn::Receiver) -> ReceiverType {
+    if rec.reference.is_some() {
         if rec.mutability.is_some() {
             ReceiverType::RefMut
         } else {
@@ -794,16 +782,19 @@ fn detect_receiver(rec: &syn::Receiver) -> ReceiverType {
 
 /// Returns `true` if any attribute in `attrs` matches `koffi::<name>` or just
 /// `<name>` (for when the macro is in scope).
+#[must_use]
 pub fn has_koffi_attr(attrs: &[syn::Attribute], name: &str) -> bool {
     get_koffi_attr(attrs, name).is_some()
 }
 
 /// Returns the first attribute matching `koffi::<name>` or `<name>`.
+#[must_use]
 pub fn get_koffi_attr(attrs: &[syn::Attribute], name: &str) -> Option<syn::Attribute> {
     attrs
         .iter()
         .find(|attr| {
             let segs = &attr.path().segments;
+
             match segs.len() {
                 1 => segs[0].ident == name || segs[0].ident == format!("r#{name}"),
                 2 => {
@@ -817,6 +808,7 @@ pub fn get_koffi_attr(attrs: &[syn::Attribute], name: &str) -> Option<syn::Attri
 }
 
 /// Parse the arguments of a `#[koffi::export(...)]` attribute.
+#[must_use]
 pub fn parse_export_args(attr: &syn::Attribute) -> ExportArgs {
     let mut args = ExportArgs::default();
     let list = match &attr.meta {
@@ -835,11 +827,12 @@ pub fn parse_export_args(attr: &syn::Attribute) -> ExportArgs {
             }
         } else if meta.path.is_ident("blocking") {
             args.blocking = true;
-        } else if meta.path.is_ident("deprecated") {
-            if let Ok(s) = meta.value()?.parse::<syn::LitStr>() {
-                args.deprecated = Some(s.value());
-            }
+        } else if meta.path.is_ident("deprecated")
+            && let Ok(s) = meta.value()?.parse::<syn::LitStr>()
+        {
+            args.deprecated = Some(s.value());
         }
+
         Ok(())
     });
 
@@ -847,6 +840,7 @@ pub fn parse_export_args(attr: &syn::Attribute) -> ExportArgs {
 }
 
 /// Extract the namespace from a `#[koffi::namespace("...")]` outer attribute.
+#[must_use]
 pub fn attrs_get_namespace(attrs: &[syn::Attribute]) -> Option<String> {
     attrs.iter().find_map(|attr| {
         let segs = &attr.path().segments;
@@ -855,9 +849,11 @@ pub fn attrs_get_namespace(attrs: &[syn::Attribute]) -> Option<String> {
             2 => segs[0].ident == "koffi" && segs[1].ident == "namespace",
             _ => false,
         };
+
         if !is_ns {
             return None;
         }
+
         attr.parse_args::<syn::LitStr>().ok().map(|s| s.value())
     })
 }
@@ -866,6 +862,7 @@ pub fn attrs_get_namespace(attrs: &[syn::Attribute]) -> Option<String> {
 /// `#![koffi::namespace("com.example")]`
 ///
 /// This is a fallback; prefer outer attributes on `mod` declarations.
+#[must_use]
 pub fn file_level_namespace(attrs: &[syn::Attribute]) -> Option<String> {
     attrs.iter().find_map(|attr| {
         if !matches!(attr.style, syn::AttrStyle::Inner(_)) {
@@ -877,6 +874,7 @@ pub fn file_level_namespace(attrs: &[syn::Attribute]) -> Option<String> {
 }
 
 /// Collect `///`/`/**` doc comments into a single string.
+#[must_use]
 pub fn extract_doc(attrs: &[syn::Attribute]) -> Option<String> {
     let lines: Vec<String> = attrs
         .iter()
@@ -884,13 +882,13 @@ pub fn extract_doc(attrs: &[syn::Attribute]) -> Option<String> {
             if !attr.path().is_ident("doc") {
                 return None;
             }
-            if let syn::Meta::NameValue(nv) = &attr.meta {
-                if let syn::Expr::Lit(el) = &nv.value {
-                    if let syn::Lit::Str(s) = &el.lit {
-                        return Some(s.value().trim().to_string());
-                    }
-                }
+            if let syn::Meta::NameValue(nv) = &attr.meta
+                && let syn::Expr::Lit(el) = &nv.value
+                && let syn::Lit::Str(s) = &el.lit
+            {
+                return Some(s.value().trim().to_string());
             }
+
             None
         })
         .filter(|s| !s.is_empty())
@@ -910,13 +908,17 @@ fn has_serde_skip(attrs: &[syn::Attribute]) -> bool {
         if !attr.path().is_ident("serde") {
             return false;
         }
+
         let mut found = false;
+
         let _ = attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("skip") || meta.path.is_ident("skip_serializing") {
                 found = true;
             }
+
             Ok(())
         });
+
         found
     })
 }
@@ -929,6 +931,7 @@ fn has_serde_skip(attrs: &[syn::Attribute]) -> bool {
 /// Checks:
 ///   1. `<src_dir>/<name>.rs`
 ///   2. `<src_dir>/<name>/mod.rs`
+#[must_use]
 pub fn resolve_mod_file(src_dir: &Path, name: &str) -> Option<(PathBuf, PathBuf)> {
     let flat = src_dir.join(format!("{name}.rs"));
     if flat.exists() {
@@ -962,7 +965,7 @@ fn path_last(tp: &syn::TypePath) -> String {
         .segments
         .last()
         .map(|s| s.ident.to_string())
-        .unwrap_or(String::new())
+        .unwrap_or_default()
 }
 
 // The above has a lifetime issue; use a standalone helper:
@@ -985,7 +988,8 @@ fn pat_ident(pat: &syn::Pat) -> Option<String> {
 
 /// Create a placeholder `TypeRef` with an empty `crate_id`.
 /// Phase 2 replaces these with fully-qualified refs.
-pub fn placeholder_type_ref(name: String) -> TypeRef {
+#[must_use]
+pub const fn placeholder_type_ref(name: String) -> TypeRef {
     TypeRef {
         crate_id: CrateId {
             name: String::new(),

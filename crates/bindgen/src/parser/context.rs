@@ -17,6 +17,7 @@ pub struct ParseContext {
 }
 
 impl ParseContext {
+    #[must_use]
     pub fn new(crate_namespace: String, type_decls: TypeDeclarationMap) -> Self {
         Self {
             namespace_stack: vec![crate_namespace],

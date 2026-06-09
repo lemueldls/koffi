@@ -1,11 +1,12 @@
 use std::{
     collections::HashMap,
     fs,
+    hash::BuildHasher,
     path::{Path, PathBuf},
 };
 
 use koffi_ir::{CrateId, CrateInterface, FFIType, TypeRef};
-use rustdoc_types::{Crate, Id, Item, ItemEnum, Type};
+use rustdoc_types::{Crate, Id, Type};
 
 use crate::{BindgenError, parser::PartialInterface};
 
@@ -53,10 +54,10 @@ fn build_path_index(krate: &Crate) -> HashMap<&Id, Vec<String>> {
 }
 
 /// Resolve a rustdoc `Type` to our `FFIType`.
-pub fn resolve_type(
+pub fn resolve_type<S: BuildHasher>(
     ty: &Type,
     krate: &Crate,
-    path_index: &HashMap<&Id, Vec<String>>,
+    path_index: &HashMap<&Id, Vec<String>, S>,
     dep_schemas: &[CrateInterface],
     local_ir: &PartialInterface,
 ) -> Result<FFIType, BindgenError> {
@@ -70,9 +71,14 @@ pub fn resolve_type(
                 .unwrap_or_default();
 
             // Is this a known std type?
-            if let Some(std_ty) =
-                resolve_std_type(path, &rp.args, krate, path_index, dep_schemas, local_ir)?
-            {
+            if let Some(std_ty) = resolve_std_type(
+                path,
+                rp.args.as_deref(),
+                krate,
+                path_index,
+                dep_schemas,
+                local_ir,
+            )? {
                 return Ok(std_ty);
             }
 
@@ -135,8 +141,8 @@ pub fn resolve_type(
 
 pub fn resolve_types(
     local_ir: PartialInterface,
-    rustdoc_json: &Path,
-    dep_schemas: &[CrateInterface],
+    _rustdoc_json: &Path,
+    _dep_schemas: &[CrateInterface],
 ) -> Result<CrateInterface, BindgenError> {
     // let rustdoc_str = fs::read_to_string(rustdoc_json)?;
     // let krate: Crate = serde_json::from_str(&rustdoc_str)?;
@@ -152,11 +158,11 @@ pub fn resolve_types(
     })
 }
 
-fn resolve_std_type(
+fn resolve_std_type<S: BuildHasher>(
     path: &[String],
-    args: &Option<Box<rustdoc_types::GenericArgs>>,
+    args: Option<&rustdoc_types::GenericArgs>,
     krate: &Crate,
-    path_index: &HashMap<&Id, Vec<String>>,
+    path_index: &HashMap<&Id, Vec<String>, S>,
     dep_schemas: &[CrateInterface],
     local_ir: &PartialInterface,
 ) -> Result<Option<FFIType>, BindgenError> {
@@ -214,21 +220,19 @@ fn primitive_to_ffi(name: &str) -> Result<FFIType, BindgenError> {
     })
 }
 
-fn single_generic(
-    args: &Option<Box<rustdoc_types::GenericArgs>>,
+fn single_generic<S: BuildHasher>(
+    args: Option<&rustdoc_types::GenericArgs>,
     krate: &Crate,
-    path_index: &HashMap<&Id, Vec<String>>,
+    path_index: &HashMap<&Id, Vec<String>, S>,
     dep_schemas: &[CrateInterface],
     local_ir: &PartialInterface,
 ) -> Result<FFIType, BindgenError> {
-    if let Some(generic_args) = args {
-        if let rustdoc_types::GenericArgs::AngleBracketed { args, .. } = generic_args.as_ref() {
-            if args.len() == 1 {
-                if let rustdoc_types::GenericArg::Type(ty) = &args[0] {
-                    return resolve_type(ty, krate, path_index, dep_schemas, local_ir);
-                }
-            }
-        }
+    if let Some(generic_args) = args
+        && let rustdoc_types::GenericArgs::AngleBracketed { args, .. } = generic_args
+        && args.len() == 1
+        && let rustdoc_types::GenericArg::Type(ty) = &args[0]
+    {
+        return resolve_type(ty, krate, path_index, dep_schemas, local_ir);
     }
 
     Err(BindgenError::UnsupportedType(
@@ -236,27 +240,23 @@ fn single_generic(
     ))
 }
 
-fn two_generics(
-    args: &Option<Box<rustdoc_types::GenericArgs>>,
+fn two_generics<S: BuildHasher>(
+    args: Option<&rustdoc_types::GenericArgs>,
     krate: &Crate,
-    path_index: &HashMap<&Id, Vec<String>>,
+    path_index: &HashMap<&Id, Vec<String>, S>,
     dep_schemas: &[CrateInterface],
     local_ir: &PartialInterface,
 ) -> Result<(FFIType, FFIType), BindgenError> {
-    if let Some(generic_args) = args {
-        if let rustdoc_types::GenericArgs::AngleBracketed { args, .. } = generic_args.as_ref() {
-            if args.len() == 2 {
-                if let (
-                    rustdoc_types::GenericArg::Type(ty1),
-                    rustdoc_types::GenericArg::Type(ty2),
-                ) = (&args[0], &args[1])
-                {
-                    let resolved1 = resolve_type(ty1, krate, path_index, dep_schemas, local_ir)?;
-                    let resolved2 = resolve_type(ty2, krate, path_index, dep_schemas, local_ir)?;
-                    return Ok((resolved1, resolved2));
-                }
-            }
-        }
+    if let Some(generic_args) = args
+        && let rustdoc_types::GenericArgs::AngleBracketed { args, .. } = generic_args
+        && args.len() == 2
+        && let (rustdoc_types::GenericArg::Type(ty1), rustdoc_types::GenericArg::Type(ty2)) =
+            (&args[0], &args[1])
+    {
+        let resolved1 = resolve_type(ty1, krate, path_index, dep_schemas, local_ir)?;
+        let resolved2 = resolve_type(ty2, krate, path_index, dep_schemas, local_ir)?;
+
+        return Ok((resolved1, resolved2));
     }
 
     Err(BindgenError::UnsupportedType(

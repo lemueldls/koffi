@@ -1,13 +1,12 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
-use cargo_metadata::MetadataCommand;
 use facet::Facet;
 use figue::{self as args, FigueBuiltins};
 use koffi_bindgen::{
     build_steps::BuildSteps,
-    codegen::{self, copy_runtime, generate_all},
+    codegen::{copy_runtime, generate_all},
     meta::collect_koffi_deps,
-    parser::{self, parse_crate},
+    parser::parse_crate,
 };
 use tracing::{Level, debug, info};
 
