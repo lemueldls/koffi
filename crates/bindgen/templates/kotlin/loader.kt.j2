@@ -1,0 +1,59 @@
+package {{ namespace }}
+
+/**
+ * Auto-generated native library loader for {{ pkg_pascal }}.
+ * Loads the correct .so / .dylib / .dll from classpath resources at runtime
+ * for JVM desktop targets. On Android, the JNI library is packaged in the APK
+ * and loaded by the system.
+ */
+internal object {{ pkg_pascal }}Loader {
+    @Volatile private var loaded = false
+
+    fun load() {
+        if (loaded) return
+        synchronized(this) {
+            if (loaded) return
+            loadNative("{{ lib_name }}")
+            loaded = true
+        }
+    }
+
+    private fun loadNative(name: String) {
+        // Android: loaded by the system from jniLibs/
+        if (isAndroid()) {
+            System.loadLibrary(name)
+            return
+        }
+
+        // JVM desktop: extract from classpath resources and load from temp file
+        val os   = System.getProperty("os.name").lowercase()
+        val arch = System.getProperty("os.arch").lowercase()
+        val (prefix, ext, classifier) = when {
+            "mac"  in os && "aarch64" in arch -> Triple("lib", "dylib", "darwin-aarch64")
+            "mac"  in os                      -> Triple("lib", "dylib", "darwin-x86_64")
+            "nux"  in os && "aarch64" in arch -> Triple("lib", "so",    "linux-aarch64")
+            "nux"  in os                      -> Triple("lib", "so",    "linux-x86_64")
+            "win"  in os                      -> Triple("",   "dll",   "windows-x86_64")
+            else -> error("Unsupported platform: $os / $arch")
+        }
+        val resourcePath = "/natives/$classifier/$prefix$name.$ext"
+        val stream = {{ pkg_pascal }}Loader::class.java
+            .getResourceAsStream(resourcePath)
+            ?: error("Native library not bundled: $resourcePath")
+
+        val tmp = kotlin.io.path.createTempFile(prefix + name, ".$ext").toFile()
+        tmp.deleteOnExit()
+        stream.use { input ->
+            tmp.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        System.load(tmp.absolutePath)
+    }
+
+    private fun isAndroid(): Boolean = try {
+        Class.forName("android.os.Build")
+        true
+    } catch (_: ClassNotFoundException) { false }
+}

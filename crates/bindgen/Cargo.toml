@@ -4,12 +4,21 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+askama.workspace = true
 cargo_metadata.workspace = true
+facet.workspace = true
 heck.workspace = true
+pathdiff.workspace = true
 prettyplease.workspace = true
 quote.workspace = true
+rustdoc-types.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 syn.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+koffi-ir.workspace = true
 
 [lints]
 workspace = true

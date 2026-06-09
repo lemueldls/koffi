@@ -1,0 +1,82 @@
+{#- commonMain: expect declarations -#}
+package {{ namespace }}
+
+import rs.koffi.KoffiHandleBase
+import rs.koffi.KoffiHandle
+import rs.koffi.serialize
+import rs.koffi.deserialize
+
+{# {%~ for i in ir.imports %}
+import {{ i | qualified_name }}
+{%- endfor %} #}
+
+{#~ Data types -#}
+{%- for s in ir.structs %}
+{%- if !s.is_opaque %}
+
+{%- if let Some(doc) = s.doc %}
+/**
+ * {{ doc }}
+ */
+{%- endif %}
+data class {{ s.name }}(
+{%- for field in s.fields %}
+    val {{ field.name | camel_case }}: {{ field.ty | kotlin_type }},
+{%- endfor %}
+)
+{%- endif %}
+{%- endfor %}
+
+{#- Enum / error types -#}
+{%~ for e in ir.enums %}
+{%- if let Some(doc) = e.doc %}
+/**
+ * {{ doc }}
+ */
+{%- endif %}
+sealed class {{ e.name }} : rs.koffi.KoffiError() {
+{%- for variant in e.variants %}
+{%- if variant.fields.is_empty() %}
+    object {{ variant.name }} : {{ e.name }}()
+{%- else %}
+    data class {{ variant.name }}(
+{%- for field in variant.fields %}
+        val {{ field.name | camel_case }}: {{ field.ty | kotlin_type }},
+{%- endfor %}
+    ) : {{ e.name }}()
+{%- endif %}
+{%- endfor %}
+}
+{%- endfor %}
+
+{#- Opaque handles -#}
+{%~ for s in ir.structs %}
+{%- if s.is_opaque %}
+{%- if let Some(doc) = s.doc %}
+/**
+ * {{ doc }}
+ */
+{%- endif %}
+expect class {{ s.name }} : rs.koffi.KoffiHandleBase {
+    private constructor(handleId: Long)
+{%- for f in ir.methods_of(s.name) %}
+    {%- if let Some(doc) = f.doc %}
+    /**
+    * {{ doc }}
+    */
+    {%- endif %}
+    {{ f.is_async | async_kw }}fun {{ f.name }}({{ f.params | params_common }}): {{ f.ret_ty | kotlin_type }}
+{%- endfor %}
+}
+{%- endif %}
+{%- endfor %}
+
+{#- Free functions -#}
+{%~ for f in ir.free_functions() %}
+{%- if let Some(doc) = f.doc %}
+/**
+ * {{ doc }}
+ */
+{%- endif %}
+expect {{ f.is_async | async_kw }}fun {{ f.name }}({{ f.params | params_common }}): {{ f.ret_ty | kotlin_type }}
+{%- endfor %}
