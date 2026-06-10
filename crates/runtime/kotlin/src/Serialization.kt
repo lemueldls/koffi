@@ -44,7 +44,7 @@ object KoffiSerializer {
 
 class KoffiSchemaMismatch(expected: ULong, actual: ULong) : KoffiError() {
     override val message = "Schema mismatch: expected 0x${expected.toString(16)}, " +
-            "got 0x${actual.toString(16)}. Regenerate bindings with koffi-bindgen."
+            "got 0x${actual.toString(16)}. Regenerate bindings with koffi."
 }
 
 /**
