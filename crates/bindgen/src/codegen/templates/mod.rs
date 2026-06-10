@@ -2,7 +2,6 @@ pub mod c;
 pub mod filters;
 pub mod kotlin;
 pub mod rust;
-pub mod util;
 
 use askama::Template;
 use koffi_ir::{CrateInterface, FFIType, ReceiverType};

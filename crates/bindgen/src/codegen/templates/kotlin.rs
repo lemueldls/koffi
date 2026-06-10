@@ -1,9 +1,8 @@
-use heck::{AsLowerCamelCase, AsPascalCase, AsSnakeCase};
+use heck::AsLowerCamelCase;
 use koffi_ir::{FFIType, FnInfo, ParamInfo};
 
-use crate::codegen::templates::util::needs_buf_read;
-
 /// Map [`FFIType`] to its Kotlin commonMain representation.
+#[must_use]
 pub fn kotlin_type(ty: &FFIType) -> String {
     match ty {
         FFIType::Bool => "Boolean".into(),
@@ -25,7 +24,7 @@ pub fn kotlin_type(ty: &FFIType) -> String {
             format!(
                 "rs.koffi.KoffiResult<{}, {}>",
                 kotlin_type(ok),
-                kotlin_type(err)
+                kotlin_type(err),
             )
         }
         FFIType::Vec(inner) => format!("List<{}>", kotlin_type(inner)),
@@ -36,8 +35,7 @@ pub fn kotlin_type(ty: &FFIType) -> String {
 }
 
 /// Map [`FFIType`] to its JNI wire type (what crosses the JNI boundary).
-/// Complex types become `ByteArray` (postcard-serialized).
-/// Opaque types become Long (handle ID).
+#[must_use]
 pub fn kotlin_jni_type(ty: &FFIType) -> String {
     match ty {
         FFIType::Bool => "Boolean".into(),
@@ -51,11 +49,12 @@ pub fn kotlin_jni_type(ty: &FFIType) -> String {
         FFIType::String => "String".into(),
         FFIType::Bytes => "ByteArray".into(),
         FFIType::Opaque(_) => "Long".into(),
-        _ => "ByteArray".into(), // postcard-serialized
+        _ => "ByteArray".into(),
     }
 }
 
 /// Format a parameter list for commonMain (Kotlin types).
+#[must_use]
 pub fn kotlin_params_common(params: &[ParamInfo]) -> String {
     params
         .iter()
@@ -65,75 +64,107 @@ pub fn kotlin_params_common(params: &[ParamInfo]) -> String {
 }
 
 /// Format a JNI parameter list (wire types), optionally prepending handleId.
-pub fn kotlin_params_jni(params: &[ParamInfo]) -> String {
-    let args: Vec<String> = params
-        .iter()
-        .map(|p| {
-            format!(
-                "{}: {}",
-                kotlin_sanitize_ident(&p.name),
-                kotlin_jni_type(&p.ty)
-            )
-        })
-        .collect();
-
-    args.join(", ")
-}
-
-pub const fn kotlin_async_kw(is_async: &bool) -> &'static str {
-    if *is_async { "suspend " } else { "" }
-}
-
-/// Generate the JNI method name used in the Kotlin JNI object.
-pub fn kotlin_jni_method_name(parent: &Option<String>, rust_name: &str) -> String {
-    let name = rust_name.trim_start_matches("r#");
-
-    match parent {
-        Some(s) => format!("koffi_struct_{s}_{name}"),
-        None => format!("koffi_fn_{name}"),
-    }
-}
-
-/// Emit the JNI call expression for a function return, including
-/// postcard deserialization for non-blittable return types.
-pub fn kotlin_jni_return_expr(
-    params: &[ParamInfo],
-    pkg: &str,
-    jni_name: &str,
-    ret: &FFIType,
-    has_receiver: bool,
-) -> String {
+#[must_use]
+pub fn kotlin_params_jni(params: &[ParamInfo], has_receiver: bool) -> String {
     let mut args = Vec::new();
     if has_receiver {
-        args.push("handleId".into());
+        args.push("handleId: Long".to_string());
     }
 
     for p in params {
+        args.push(format!(
+            "{}: {}",
+            kotlin_sanitize_ident(&p.name),
+            kotlin_jni_type(&p.ty)
+        ));
+    }
+    args.join(", ")
+}
+
+#[must_use]
+pub const fn kotlin_async_kw(is_async: bool) -> &'static str {
+    if is_async { "suspend " } else { "" }
+}
+
+/// Generate the JNI `external fun` name for a function.
+///
+/// The name is unique within the `{CrateIdent}Jni` object and is stable
+/// across recompilations (deterministic from the function's location).
+///
+/// Convention:
+/// - Free fn at root: `koffi_fn_{rust_name}`
+/// - Free fn in module: `koffi_fn_{mod1}_{mod2}_{rust_name}`
+/// - Method at root: `koffi_struct_{TypeName}_{rust_name}`
+/// - Method in module: `koffi_struct_{TypeName}_{mod1}_{mod2}_{rust_name}`
+///
+/// The `koffi_fn_` / `koffi_struct_` prefix prevents name collisions between
+/// a free function and a method that happen to share a name after module-path
+/// expansion.
+#[must_use]
+pub fn kotlin_jni_method_name(f: &FnInfo) -> String {
+    let raw = f.rust_name.trim_start_matches("r#");
+
+    let mod_suffix = if f.rust_module_path.is_empty() {
+        String::new()
+    } else {
+        format!("_{}", f.rust_module_path.join("_"))
+    };
+
+    match &f.parent_struct {
+        Some(parent) => format!("koffi_struct_{parent}{mod_suffix}_{raw}"),
+        None => format!("koffi_fn{mod_suffix}_{raw}"),
+    }
+}
+
+/// Emit the complete `return` statement for a Kotlin JVM/Android actual
+/// function, calling through the `{Pkg}Jni` internal object.
+///
+/// `jni_name` is the fully-prefixed external fun name (output of
+/// [`kotlin_jni_method_name`]). It is used directly with no further prefixing.
+#[must_use]
+pub fn kotlin_jni_return_expr(
+    f: &FnInfo,
+    pkg_pascal: &str,
+    jni_name: &str,
+    has_receiver: bool,
+) -> String {
+    let mut args = Vec::new();
+
+    if has_receiver {
+        args.push("handleId".to_string());
+    }
+
+    for p in &f.params {
         let name = kotlin_sanitize_ident(&p.name);
-        if p.ty.is_blittable() || p.ty == FFIType::String || p.ty == FFIType::Bytes {
-            args.push(name);
-        } else {
+        let serialized = !p.ty.is_blittable() && p.ty != FFIType::String && p.ty != FFIType::Bytes;
+        if serialized {
             args.push(format!("rs.koffi.KoffiSerializer.serialize({name})"));
+        } else {
+            args.push(name);
         }
     }
 
-    let name = jni_name.trim_start_matches("r#");
-    let call = format!("{pkg}Jni.{name}({})", args.join(", "));
+    // Call the external fun — jni_name already carries the full prefix.
+    let call = format!("{pkg_pascal}Jni.{jni_name}({})", args.join(", "));
 
-    if ret.is_blittable()
-        || *ret == FFIType::Unit
-        || *ret == FFIType::String
-        || *ret == FFIType::Bytes
+    // Wrap in deserialization for non-trivial returns.
+    if f.ret_ty.is_blittable()
+        || f.ret_ty == FFIType::Unit
+        || f.ret_ty == FFIType::String
+        || f.ret_ty == FFIType::Bytes
     {
         format!("return {call}")
+    } else if let FFIType::Opaque(r) = &f.ret_ty {
+        format!("return {}({call})", r.name)
     } else {
         format!("return rs.koffi.KoffiSerializer.deserialize({call})")
     }
 }
 
+/// Escape Kotlin hard keywords with backticks.
 #[must_use]
 pub fn kotlin_sanitize_ident(ident: &str) -> String {
-    static KOTLIN_KEYWORDS: [&str; 27] = [
+    const KOTLIN_KEYWORDS: &[&str] = &[
         "as",
         "break",
         "class",
@@ -163,10 +194,14 @@ pub fn kotlin_sanitize_ident(ident: &str) -> String {
         "while",
     ];
 
-    if KOTLIN_KEYWORDS.contains(&ident) {
-        format!("`{}`", AsLowerCamelCase(ident))
+    // Strip Rust raw-identifier prefix first.
+    let ident = ident.trim_start_matches("r#");
+    let camel = AsLowerCamelCase(ident).to_string();
+
+    if KOTLIN_KEYWORDS.contains(&camel.as_str()) {
+        format!("`{camel}`")
     } else {
-        AsLowerCamelCase(ident).to_string()
+        camel
     }
 }
 
@@ -296,8 +331,8 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
 
 fn kotlin_simple_return_convert(ty: &FFIType, call: &str) -> String {
     match ty {
-        FFIType::Unit => format!("{call}"),
-        FFIType::Bool => format!("{call}"),
+        FFIType::Unit => call.to_string(),
+        FFIType::Bool => call.to_string(),
         FFIType::I8 => format!("{call}.toByte()"),
         FFIType::U8 => format!("{call}.toUByte()"),
         FFIType::I16 => format!("{call}.toShort()"),
@@ -332,4 +367,9 @@ fn kotlin_buf_return_convert(ty: &FFIType, result_var: &str) -> String {
         }
         _ => kotlin_simple_return_convert(ty, result_var),
     }
+}
+
+#[must_use]
+pub const fn needs_buf_read(ty: &FFIType) -> bool {
+    matches!(ty, FFIType::String | FFIType::Bytes | FFIType::Data(_))
 }

@@ -5,22 +5,40 @@ import rs.koffi.KoffiHandleBase
 import rs.koffi.KoffiHandle
 import rs.koffi.KoffiSerializer
 
-{# {%~ for i in ir.imports %}
-import {{ i | qualified_name }}
-{%- endfor %} #}
+// ── JNI native declarations ───────────────────────────────────────────────────
+//
+// One `external fun` per exported function. The JNI symbol is derived from
+// the package, class name, and method name by the JVM at runtime.
+// Method names incorporate the Rust module path to guarantee uniqueness across
+// all functions in this crate, even when two modules export same-named items.
 
-{# JNI native declarations object -#}
 internal object {{ pkg_pascal }}Jni {
     init {
         {{ pkg_pascal }}Loader.load()
     }
-{% for f in ir.functions %}
-{%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}
+
+    // Free functions
+{%- for f in ir.free_functions() %}
+{%- let jni_name = f | kotlin_jni_method_name %}
     @JvmStatic
     external fun {{ jni_name }}(
-{%- if f.parent_struct.is_some() %}handleId: Long{% if !f.params.is_empty() %}, {% endif %}{% endif %}{{ f.params | kotlin_params_jni -}}
+        {{- f.params | kotlin_params_jni(&false) -}}
     ): {{ f.ret_ty | kotlin_jni_type }}
 {% endfor %}
+    // Methods on opaque handles
+{%- for s in ir.structs %}
+{%- if s.is_opaque %}
+{%- for f in ir.methods_of(s.name) %}
+{%- let jni_name = f | kotlin_jni_method_name %}
+    @JvmStatic
+    external fun {{ jni_name }}(
+{%- if f.receiver.is_some() %}handleId: Long{% if !f.params.is_empty() %}, {% endif %}{% endif %}
+        {{- f.params | kotlin_params_jni(&false) -}}
+    ): {{ f.ret_ty | kotlin_jni_type }}
+{% endfor %}
+{%- endif %}
+{%- endfor %}
+
     @JvmStatic
     external fun koffi_handle_release(handleId: Long)
 }
@@ -32,25 +50,29 @@ internal object {{ pkg_pascal }}Jni {
 actual class {{ s.name }} actual private constructor(handleId: Long) :
         rs.koffi.KoffiHandleBase(handleId) {
 {%- for f in ir.methods_of(s.name) %}
-{%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}
+{%- let jni_name = f | kotlin_jni_method_name %}
+{%- let has_receiver = f.receiver.is_some() %}
 
     actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
         {{- f.params | kotlin_params_common -}}
     ): {{ f.ret_ty | kotlin_type }} {
+{%- if has_receiver %}
         check(!isClosed) { "Handle has been closed" }
-        {{ f.params | kotlin_jni_return_expr(pkg_pascal, jni_name, f.ret_ty, true) }}
+{%- endif %}
+        {{ f | kotlin_jni_return_expr(pkg_pascal, jni_name, has_receiver) }}
     }
 {%- endfor %}
 }
 {%- endif %}
 {%- endfor %}
 
-{#- Free functions -#}
+{#- Free function actuals — iterate only free functions, not methods -#}
 {%- for f in ir.free_functions() %}
+{%- let jni_name = f | kotlin_jni_method_name %}
+
 actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
     {{- f.params | kotlin_params_common -}}
 ): {{ f.ret_ty | kotlin_type }} {
-    {%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}
-    {{ f.params | kotlin_jni_return_expr(pkg_pascal, jni_name, f.ret_ty, false) }}
+    {{ f | kotlin_jni_return_expr(pkg_pascal, jni_name, &false) }}
 }
 {%- endfor %}
