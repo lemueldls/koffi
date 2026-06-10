@@ -10,8 +10,8 @@
 /* Byte buffer returned by Rust for strings, byte slices, and serialized data. */
 typedef struct {
     uint8_t* ptr;
-    size_t   len;
-    size_t   cap;
+    size_t len;
+    size_t cap;
 } KoffiByteBuf;
 
 /* Release an opaque handle when the Kotlin GC/finalizer fires. */

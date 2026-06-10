@@ -210,126 +210,103 @@ pub fn kotlin_sanitize_ident(ident: &str) -> String {
 ///
 /// The generated code assumes the surrounding function is annotated with
 /// `@OptIn(ExperimentalForeignApi::class)` and is wrapped in the appropriate
-/// `memScoped {}` when heap-allocated values are involved.
+/// `try/finally` when pinned memory is involved.
 #[must_use]
 pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
-    let mut rust_call_args: Vec<String> = Vec::new();
+    let mut call_args: Vec<String> = Vec::new();
 
-    // If this is a method, the first C arg is the handle ID.
-    if f.parent_struct.is_some() {
-        rust_call_args.push("handleId.toULong()".into());
+    // Instance methods: pass handle ID as first C arg.
+    if f.receiver.is_some() {
+        call_args.push("handleId.toULong()".into());
     }
 
     for p in &f.params {
         let name = AsLowerCamelCase(&p.name).to_string();
         match &p.ty {
-            FFIType::String => {
-                // Pass as pointer + length pair inside withUtf8Bytes lambda.
-                // We collect these separately and wrap everything in memScoped.
-                rust_call_args.push(format!("{name}Ptr"));
-                rust_call_args.push(format!("{name}Len"));
+            FFIType::String | FFIType::Bytes | FFIType::Data(_) => {
+                call_args.push(format!("{name}Ptr"));
+                call_args.push(format!("{name}Len"));
             }
-            FFIType::Bytes => {
-                rust_call_args.push(format!("{name}Ptr"));
-                rust_call_args.push(format!("{name}Len"));
-            }
-            FFIType::Data(_) => {
-                // Serialized. Pass as pointer + length.
-                rust_call_args.push(format!("{name}Ptr"));
-                rust_call_args.push(format!("{name}Len"));
-            }
-            _ if p.ty.is_blittable() => {
-                rust_call_args.push(name);
-            }
-            FFIType::Opaque(_) => {
-                // Opaque params are handle IDs passed as ULong.
-                rust_call_args.push(format!("{name}.handleId.toULong()"));
-            }
-            _ => rust_call_args.push(name),
+            _ if p.ty.is_blittable() => call_args.push(name),
+            FFIType::Opaque(_) => call_args.push(format!("{name}.handleId.toULong()")),
+            _ => call_args.push(name),
         }
     }
 
-    // Build per-param setup lines for string/bytes/data params that need
-    // pinning or serialization.
-    let mut setup_lines: Vec<String> = Vec::new();
+    // Per-param setup: pinning + serialization for string/bytes/data params.
+    let mut setup: Vec<String> = Vec::new();
+    let mut pinned: Vec<String> = Vec::new();
+
     for p in &f.params {
         let name = AsLowerCamelCase(&p.name).to_string();
         match &p.ty {
             FFIType::String => {
-                setup_lines.push(format!("val {name}Bytes = {name}.encodeToByteArray()"));
-                setup_lines.push(format!("val {name}Pinned = {name}Bytes.pin()"));
-                setup_lines.push(format!(
+                setup.push(format!("val {name}Bytes = {name}.encodeToByteArray()"));
+                setup.push(format!("val {name}Pinned = {name}Bytes.pin()"));
+                setup.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
-                setup_lines.push(format!("val {name}Len = {name}Bytes.size.toULong()"));
+                setup.push(format!("val {name}Len = {name}Bytes.size.toULong()"));
+                pinned.push(format!("{name}Pinned"));
             }
             FFIType::Bytes => {
-                setup_lines.push(format!("val {name}Pinned = {name}.pin()"));
-                setup_lines.push(format!(
+                setup.push(format!("val {name}Pinned = {name}.pin()"));
+                setup.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
-                setup_lines.push(format!("val {name}Len = {name}.size.toULong()"));
+                setup.push(format!("val {name}Len = {name}.size.toULong()"));
+                pinned.push(format!("{name}Pinned"));
             }
             FFIType::Data(r) => {
                 let hash = r.schema_hash;
-                setup_lines.push(format!(
-                    "val {name}Bytes = KoffiSerializer.serialize({name}, 0x{hash:016x}_uL) {{ write{name}(it) }}"
+                let type_name = &r.name;
+                setup.push(format!(
+                    "val {name}Bytes = KoffiSerializer.serialize({name}, 0x{hash:016x}_uL) {{ write{type_name}(it) }}"
                 ));
-                setup_lines.push(format!("val {name}Pinned = {name}Bytes.pin()"));
-                setup_lines.push(format!(
+                setup.push(format!("val {name}Pinned = {name}Bytes.pin()"));
+                setup.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
-                setup_lines.push(format!("val {name}Len = {name}Bytes.size.toULong()"));
+                setup.push(format!("val {name}Len = {name}Bytes.size.toULong()"));
+                pinned.push(format!("{name}Pinned"));
             }
             _ => {}
         }
     }
 
-    // Collect pinned objects that need to be unpinned.
-    let pinned_names: Vec<String> = f
-        .params
-        .iter()
-        .filter(|p| matches!(p.ty, FFIType::String | FFIType::Bytes | FFIType::Data(_)))
-        .map(|p| format!("{}Pinned", AsLowerCamelCase(&p.name)))
-        .collect();
-
-    let call = format!("{c_sym}({})", rust_call_args.join(", "));
-
-    // Build the full return expression.
-    let needs_scope = !setup_lines.is_empty() || needs_buf_read(&f.ret_ty);
+    let call = format!("{c_sym}({})", call_args.join(", "));
+    let needs_scope = !setup.is_empty() || needs_buf_read(&f.ret_ty);
 
     if !needs_scope {
-        // Simple case: no setup, no heap reads.
-        let ret = kotlin_simple_return_convert(&f.ret_ty, &call);
+        let ret = simple_convert(&f.ret_ty, &call);
         return format!("return {ret}");
     }
 
-    // Complex case: use a try/finally block for pinned memory + buf reads.
-    let mut lines = Vec::new();
-    lines.extend(setup_lines);
-    lines.push(format!("val __result = {call}"));
+    let mut body = setup;
+    body.push(format!("val __result = {call}"));
 
-    // Unpin in finally.
-    let unpin_stmts: Vec<String> = pinned_names
-        .iter()
-        .map(|n| format!("{n}.unpin()"))
-        .collect();
-
-    let convert = kotlin_buf_return_convert(&f.ret_ty, "__result");
+    let convert = buf_convert(&f.ret_ty, "__result");
+    let unpin_stmts: Vec<String> = pinned.iter().map(|n| format!("{n}.unpin()")).collect();
 
     if unpin_stmts.is_empty() {
-        lines.push(format!("return {convert}"));
-        format!("run {{\n        {}\n    }}", lines.join("\n        "))
+        body.push(format!("return {convert}"));
+
+        format!("run {{\n        {}\n    }}", body.join("\n        "))
     } else {
-        let body = lines.join("\n        ");
-        let unpins = unpin_stmts.join("\n        ");
+        let b = body.join("\n        ");
+        let u = unpin_stmts.join("\n        ");
+
         format!(
-            "try {{\n        {body}\n        return {convert}\n    }} finally {{\n        {unpins}\n    }}"
+            "try {{\n        {b}\n        return {convert}\n    }} finally {{\n        {u}\n    }}"
         )
     }
 }
 
-fn kotlin_simple_return_convert(ty: &FFIType, call: &str) -> String {
+const fn needs_buf_read(ty: &FFIType) -> bool {
+    matches!(ty, FFIType::String | FFIType::Bytes | FFIType::Data(_))
+}
+
+fn simple_convert(ty: &FFIType, call: &str) -> String {
     match ty {
         FFIType::Unit => call.to_string(),
         FFIType::Bool => call.to_string(),
@@ -348,28 +325,20 @@ fn kotlin_simple_return_convert(ty: &FFIType, call: &str) -> String {
     }
 }
 
-fn kotlin_buf_return_convert(ty: &FFIType, result_var: &str) -> String {
+fn buf_convert(ty: &FFIType, var: &str) -> String {
     match ty {
         FFIType::String => {
-            format!(
-                "run {{ val bytes = readAndFreeByteBuf({result_var}); bytes.decodeToString() }}"
-            )
+            format!("run {{ val bytes = readAndFreeByteBuf({var}); bytes.decodeToString() }}")
         }
-        FFIType::Bytes => {
-            format!("readAndFreeByteBuf({result_var})")
-        }
+        FFIType::Bytes => format!("readAndFreeByteBuf({var})"),
         FFIType::Data(r) => {
             let hash = r.schema_hash;
-            let name = &r.name;
+            let type_name = &r.name;
+
             format!(
-                "KoffiSerializer.deserialize(readAndFreeByteBuf({result_var}), 0x{hash:016x}_uL) {{ read{name}() }}"
+                "KoffiSerializer.deserialize(readAndFreeByteBuf({var}), 0x{hash:016x}_uL) {{ read{type_name}() }}"
             )
         }
-        _ => kotlin_simple_return_convert(ty, result_var),
+        _ => simple_convert(ty, var),
     }
-}
-
-#[must_use]
-pub const fn needs_buf_read(ty: &FFIType) -> bool {
-    matches!(ty, FFIType::String | FFIType::Bytes | FFIType::Data(_))
 }

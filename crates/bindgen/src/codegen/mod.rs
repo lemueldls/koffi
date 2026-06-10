@@ -109,7 +109,6 @@ pub fn generate_all(
         &templates::KotlinNativeTemplate {
             crate_ident: &crate_ident,
             namespace: &ir.namespace,
-            cinterop_pkg: &format!("{crate_ident}.cinterop"),
             ir,
         },
         &kotlin_dir
@@ -160,19 +159,23 @@ pub fn generate_all(
         &rust_src.join("wasm_glue.rs"),
     )?;
 
+    let include_dir = cinterop.clone();
+
     let header_path = write_template(
         &templates::CHeaderTemplate {
             crate_ident: &crate_ident,
             guard: &guard,
             ir,
         },
-        &cinterop.join(format!("{crate_ident}.h")),
+        &include_dir.join(format!("{crate_ident}.h")),
     )?;
 
     let def_path = write_template(
         &templates::CinteropDefTemplate {
             crate_ident: &crate_ident,
+            namespace: &ir.namespace,
             lib_name: &lib_name,
+            include_dir: &include_dir.display().to_string(),
         },
         &cinterop.join(format!("{crate_ident}.def")),
     )?;

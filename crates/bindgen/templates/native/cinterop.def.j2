@@ -3,10 +3,16 @@
 language = C
 headers = {{ crate_ident }}.h
 headerFilter = {{ crate_ident }}.h
-
-staticLibraries.iosArm64          = lib{{ lib_name }}.a
-staticLibraries.iosSimulatorArm64 = lib{{ lib_name }}.a
-staticLibraries.iosX64            = lib{{ lib_name }}.a
-
-libraryPaths = .
-compilerOpts = -Wall -Wextra
+package = {{ namespace }}.cinterop
+compilerOpts = -Wall -Wextra -I"{{ include_dir }}"
+staticLibraries = lib{{ lib_name }}.a
+libraryPaths.mingw_x64 = "{{ include_dir }}/windows-x86_64"
+libraryPaths.ios_x64 = "{{ include_dir }}/ios-x86_64"
+libraryPaths.ios_arm64 = "{{ include_dir }}/ios-aarch64"
+libraryPaths.ios_simulator_arm64 = "{{ include_dir }}/ios-simulator-aarch64"
+libraryPaths.android_arm64 = "{{ include_dir }}/android-aarch64"
+libraryPaths.android_x64 = "{{ include_dir }}/android-x86_64"
+libraryPaths.macos_arm64 = "{{ include_dir }}/macos-aarch64"
+libraryPaths.macos_x64 = "{{ include_dir }}/apple-x86_64"
+libraryPaths.linux_arm64 = "{{ include_dir }}/linux-aarch64"
+libraryPaths.linux_x64 = "{{ include_dir }}/linux-x86_64"

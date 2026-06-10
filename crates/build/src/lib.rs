@@ -196,6 +196,7 @@ impl Builder {
                 "koffi-build: no [package.metadata.koffi] found in {} or its dependencies",
                 manifest.display(),
             );
+
             return Ok(());
         }
 
@@ -295,6 +296,7 @@ fn emit_rerun_directives(manifest_dir: &Path) {
 fn walkdir_rs(dir: impl AsRef<Path>) -> std::io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     walk_rs_inner(dir.as_ref(), &mut out)?;
+
     Ok(out)
 }
 
@@ -308,6 +310,7 @@ fn walk_rs_inner(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
             out.push(path);
         }
     }
+
     Ok(())
 }
 

@@ -6,11 +6,12 @@ import rs.koffi.KoffiHandle
 import rs.koffi.KoffiRuntime
 import rs.koffi.KoffiSerializer
 import kotlinx.cinterop.*
-import {{ cinterop_pkg }}.*
+import {{ namespace }}.cinterop.*
 
 // Wire up the Kotlin/Native handle-release callback to the C-ABI symbol.
 // This runs once when the object is first accessed.
 
+@OptIn(ExperimentalForeignApi::class)
 private val _runtimeInit: Unit = run {
     KoffiRuntime.releaseHandle = { handleId ->
         koffi_handle_release(handleId.toULong())
@@ -59,14 +60,6 @@ private fun <R> ByteArray.withPinnedBytes(block: (ptr: CPointer<UByteVar>, len: 
 
 {%- for s in ir.structs %}
 {%- if s.is_opaque %}
-
-{%- if !s.doc.is_empty() %}
-/**
- {%- for line in s.doc %}
- *{{ line }}
- {%- endfor %}
- */
-{%- endif %}
 @OptIn(ExperimentalForeignApi::class)
 actual class {{ s.name }} actual private constructor(handleId: Long) :
         rs.koffi.KoffiHandleBase(handleId) {
@@ -74,13 +67,6 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 {%- for f in ir.methods_of(s.name) %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
 
-    {%- if !f.doc.is_empty() %}
-    /**
-     {%- for line in f.doc %}
-     *{{ line }}
-     {%- endfor %}
-     */
-    {%- endif %}
     actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
         {{- f.params | kotlin_params_common -}}
     ): {{ f.ret_ty | kotlin_type }} {
@@ -94,14 +80,6 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 
 {%~ for f in ir.free_functions() %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
-
-{%- if !f.doc.is_empty() %}
-/**
- {%- for line in f.doc %}
- *{{ line }}
- {%- endfor %}
- */
-{%- endif %}
 @OptIn(ExperimentalForeignApi::class)
 actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
     {{- f.params | kotlin_params_common -}}

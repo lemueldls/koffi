@@ -37,7 +37,7 @@ impl BuildSteps {
     }
 
     pub fn run_jvm(&self) -> Result<(), BindgenError> {
-        let (target, classifier, prefix, ext) = host_triple();
+        let (target, classifier, prefix, ext) = jvm_host_triple();
         let lib = self.cargo_build_cdylib(target, "jvm", prefix, ext)?;
         let dest = self
             .out_dir
@@ -50,6 +50,26 @@ impl BuildSteps {
         Ok(())
     }
 
+    pub fn run_native_mingw(&self) -> Result<(), BindgenError> {
+        let targets = [
+            ("x86_64-pc-windows-gnu", "windows-x86_64"),
+            // ("i686-pc-windows-gnu", "windows-x86"),
+        ];
+
+        for (target, slice) in targets {
+            let lib = self.cargo_build_staticlib(target, "native")?;
+            let dest = self
+                .out_dir
+                .join("kotlin/cinterop")
+                .join(slice)
+                .join(format!("lib{}.a", self.lib_name));
+            fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
+            fs::copy(&lib, &dest)?;
+        }
+
+        Ok(())
+    }
+
     pub fn run_ios(&self) -> Result<(), BindgenError> {
         let targets = [
             ("aarch64-apple-ios", "iosArm64"),
@@ -58,10 +78,10 @@ impl BuildSteps {
         ];
 
         for (target, slice) in targets {
-            let lib = self.cargo_build_staticlib(target, "ios")?;
+            let lib = self.cargo_build_staticlib(target, "native")?;
             let dest = self
                 .out_dir
-                .join("kotlin/cinterop/ios")
+                .join("kotlin/cinterop")
                 .join(slice)
                 .join(format!("lib{}.a", self.lib_name));
             fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
@@ -133,7 +153,7 @@ impl BuildSteps {
     }
 }
 
-const fn host_triple() -> (&'static str, &'static str, &'static str, &'static str) {
+const fn jvm_host_triple() -> (&'static str, &'static str, &'static str, &'static str) {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     return ("aarch64-apple-darwin", "darwin-aarch64", "lib", ".dylib");
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
@@ -144,4 +164,19 @@ const fn host_triple() -> (&'static str, &'static str, &'static str, &'static st
     return ("aarch64-unknown-linux-gnu", "linux-aarch64", "lib", ".so");
     #[cfg(target_os = "windows")]
     return ("x86_64-pc-windows-msvc", "windows-x86_64", "", ".dll");
+}
+
+const fn native_host_triple() -> (&'static str, &'static str) {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    return ("x86_64-unknown-linux-gnu", "linux-x86_64");
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    return ("aarch64-unknown-linux-gnu", "linux-aarch64");
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    return ("x86_64-apple-darwin", "darwin-x86_64");
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    return ("aarch64-apple-darwin", "darwin-aarch64");
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    return ("x86_64-pc-windows-gnu", "windows-x86_64");
+    #[cfg(all(target_os = "windows", target_arch = "x86"))]
+    return ("i686-pc-windows-gnu", "windows-x86");
 }

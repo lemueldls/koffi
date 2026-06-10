@@ -161,6 +161,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 info!("Building JVM artifacts...");
                 steps.run_jvm()?;
+                // info!("Building native artifacts...");
+                // steps.run_native_mingw()?;
 
                 info!("Generation complete!");
             }

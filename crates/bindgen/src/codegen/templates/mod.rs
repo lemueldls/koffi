@@ -29,7 +29,6 @@ pub struct KotlinJvmTemplate<'a> {
 pub struct KotlinNativeTemplate<'a> {
     pub crate_ident: &'a str, // crate name with hyphens -> underscores
     pub namespace: &'a str,
-    pub cinterop_pkg: &'a str, // e.g. "test_crate.cinterop"
     pub ir: &'a CrateInterface,
 }
 
@@ -92,7 +91,9 @@ pub struct CHeaderTemplate<'a> {
 #[template(path = "native/cinterop.def.j2", escape = "none")]
 pub struct CinteropDefTemplate<'a> {
     pub crate_ident: &'a str,
+    pub namespace: &'a str,
     pub lib_name: &'a str,
+    pub include_dir: &'a str,
 }
 
 #[derive(Template)]
