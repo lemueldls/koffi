@@ -28,34 +28,34 @@ pub fn reverse_byte_array(bytes: &[u8]) -> Vec<u8> {
     reversed
 }
 
-// // Opaque Structs (Handles) FFI
-// #[koffi::opaque]
-// pub struct DatabaseConnection {
-//     url: String,
-//     open: bool,
-// }
+// Opaque Structs (Handles) FFI
+#[koffi::opaque]
+pub struct DatabaseConnection {
+    url: String,
+    open: bool,
+}
 
-// #[koffi::export]
-// impl DatabaseConnection {
-//     pub fn open(url: &str) -> Self {
-//         DatabaseConnection {
-//             url: url.to_string(),
-//             open: true,
-//         }
-//     }
+#[koffi::export]
+impl DatabaseConnection {
+    pub fn open(url: &str) -> Self {
+        DatabaseConnection {
+            url: url.to_string(),
+            open: true,
+        }
+    }
 
-//     pub fn get_url(&self) -> String {
-//         self.url.clone()
-//     }
+    pub fn get_url(&self) -> String {
+        self.url.clone()
+    }
 
-//     pub fn is_open(&self) -> bool {
-//         self.open
-//     }
+    pub fn is_open(&self) -> bool {
+        self.open
+    }
 
-//     // pub fn close(&mut self) {
-//     //     self.open = false;
-//     // }
-// }
+    // pub fn close(&mut self) {
+    //     self.open = false;
+    // }
+}
 
 // // Transparent Structs (Postcard Serialized) FFI
 // #[koffi::data]

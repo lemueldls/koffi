@@ -23,7 +23,7 @@ use {{ crate_ident }}::{
 
 {%- for f in ir.functions %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
-/// `{{ f.namespace }}::{{ f.rust_name }}`
+/// `{{ crate_ident }}::{{ f.rust_name }}`
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn {{ sym }}(
     {%- if f.parent_struct.is_some() %}
@@ -71,13 +71,13 @@ pub unsafe extern "C" fn {{ sym }}(
 
     {%- if let Some(parent) = f.parent_struct %}
     let arc = HandleRegistry::global()
-        .get::<{{ parent }}>(handle)
+        .get::<{{ parent | rust_prefix_ident(f.namespace) }}>(handle)
         .expect("koffi: invalid handle ID");
     {%- match f.receiver %}
     {%- when Some with (ReceiverType::RefMut) %}
     // SAFETY: koffi guarantees single-threaded access for &mut self methods.
     let obj_mut = unsafe {
-        &mut *(std::sync::Arc::as_ptr(&arc) as *mut {{ parent }})
+        &mut *(std::sync::Arc::as_ptr(&arc) as *mut {{ parent | rust_prefix_ident(f.namespace) }})
     };
     {%- when Some with (ReceiverType::Owned) %}
     HandleRegistry::global().remove(handle);
@@ -91,14 +91,14 @@ pub unsafe extern "C" fn {{ sym }}(
     let result = catch_panic(|| {
         {%- match f.receiver %}
         {%- when Some with (ReceiverType::Ref) %}
-        arc.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+        arc.{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
         {%- when Some with (ReceiverType::RefMut) %}
-        obj_mut.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+        obj_mut.{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
         {%- when Some with (ReceiverType::Owned) %}
-        obj_owned.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+        obj_owned.{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
         {%- when None %}
         {%- if f.parent_struct.is_some() %}
-        {{ f.parent_struct.as_deref().unwrap() }}::{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+        {{ f.parent_struct.as_deref().unwrap() | rust_prefix_ident(f.namespace) }}::{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
         {%- else %}
         {{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
         {%- endif %}

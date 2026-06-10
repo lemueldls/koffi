@@ -108,6 +108,7 @@ pub fn rust_c_native_return_type(ty: &FFIType) -> String {
         FFIType::U64 => "u64".into(),
         FFIType::F32 => "f32".into(),
         FFIType::F64 => "f64".into(),
-        _ => "KoffiByteBuf".into(), // returned by value, caller frees
+        FFIType::Opaque(_) => "u64".into(), // handle ID
+        _ => "KoffiByteBuf".into(),         // returned by value, caller frees
     }
 }

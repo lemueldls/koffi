@@ -113,17 +113,12 @@ pub fn kotlin_jni_return_expr(
         if p.ty.is_blittable() || p.ty == FFIType::String || p.ty == FFIType::Bytes {
             args.push(name);
         } else {
-            args.push(format!("rs.koffi.serialize({name})"));
+            args.push(format!("rs.koffi.KoffiSerializer.serialize({name})"));
         }
     }
 
     let name = jni_name.trim_start_matches("r#");
-
-    let call = if has_receiver {
-        format!("{pkg}Jni.{name}({})", args.join(", "))
-    } else {
-        format!("{pkg}Jni.koffi_fn_{name}({})", args.join(", "))
-    };
+    let call = format!("{pkg}Jni.{name}({})", args.join(", "));
 
     if ret.is_blittable()
         || *ret == FFIType::Unit
@@ -132,7 +127,7 @@ pub fn kotlin_jni_return_expr(
     {
         format!("return {call}")
     } else {
-        format!("return rs.koffi.deserialize({call})")
+        format!("return rs.koffi.KoffiSerializer.deserialize({call})")
     }
 }
 

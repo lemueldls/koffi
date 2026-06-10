@@ -1,15 +1,50 @@
 package rs.koffi
 
-fun <T> serialize(value: T, writer: KoffiWriter.(T) -> Unit): ByteArray {
-    val w = KoffiWriter()
-    w.writer(value)
-    return w.toByteArray()
+object KoffiSerializer {
+    private const val MAGIC: UShort = 0x4B46u
+    private const val VERSION: UShort = 0x0001u
+
+    fun <T> serialize(
+        value: T,
+        writer: KoffiWriter.(T) -> Unit,
+        typeHash: ULong = 0uL,
+    ): ByteArray {
+        val w = KoffiWriter()
+        w.writeUShort(MAGIC)        // 0x46, 0x4B (LE)
+        w.writeUShort(VERSION)      // 0x01, 0x00 (LE)
+        w.writeInt(0)               // 4 bytes padding
+        w.writeULong(typeHash)      // 8 bytes, LE
+        w.writer(value)
+        return w.toByteArray()
+    }
+
+    fun <T> deserialize(
+        bytes: ByteArray,
+        expectedHash: ULong = 0uL,
+        reader: KoffiReader.() -> T,
+    ): T {
+        val r = KoffiReader(bytes)
+        val magic = r.readUShort()
+        val version = r.readUShort()
+        r.skipBytes(4)                 // padding
+        val hash = r.readULong()
+
+        check(magic == MAGIC) {
+            "koffi: bad envelope magic 0x${magic.toString(16)}"
+        }
+        check(version == VERSION) {
+            "koffi: unsupported envelope version $version"
+        }
+        if (expectedHash != 0uL && hash != expectedHash) {
+            throw KoffiSchemaMismatch(expectedHash, hash)
+        }
+        return r.reader()
+    }
 }
 
-fun <T> deserialize(bytes: ByteArray, reader: KoffiReader.() -> T): T {
-    val r = KoffiReader(bytes)
-    val actualHash = r.readULong()
-    return r.reader()
+class KoffiSchemaMismatch(expected: ULong, actual: ULong) : KoffiError() {
+    override val message = "Schema mismatch: expected 0x${expected.toString(16)}, " +
+            "got 0x${actual.toString(16)}. Regenerate bindings with koffi-bindgen."
 }
 
 /**
@@ -199,5 +234,10 @@ class KoffiReader(private val buffer: ByteArray) {
             list.add(readItem())
         }
         return list
+    }
+
+    fun skipBytes(count: Int) {
+        if (position + count > buffer.size) throw Exception("Unexpected EOF in KoffiReader")
+        position += count
     }
 }

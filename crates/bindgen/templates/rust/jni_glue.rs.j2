@@ -60,13 +60,13 @@ pub fn {{ f.rust_name | rust_prefix_native(f.namespace) }}<'a>(
             {#- Receiver setup -#}
             {%- if let Some(parent) = f.parent_struct %}
             let parent_arc = HandleRegistry::global()
-                .get::<{{ parent }}>(handle as u64)
+                .get::<{{ parent | rust_prefix_ident(f.namespace) }}>(handle as u64)
                 .expect("should get handle");
             {%- match f.receiver %}
             {%- when Some with (ReceiverType::Ref) %}
             {#- nothing extra needed -#}
             {%- when Some with (ReceiverType::RefMut) %}
-            let parent_ptr = Arc::as_ptr(&parent_arc) as *mut {{ parent }};
+            let parent_ptr = Arc::as_ptr(&parent_arc) as *mut {{ parent | rust_prefix_ident(f.namespace) }};
             let parent_mut = unsafe { &mut *parent_ptr };
             {%- when Some with (ReceiverType::Owned) | None %}
             HandleRegistry::global().remove(handle as u64);
@@ -77,14 +77,14 @@ pub fn {{ f.rust_name | rust_prefix_native(f.namespace) }}<'a>(
 
             {%- match f.receiver %}
             {%- when Some with (ReceiverType::Ref) %}
-            parent_arc.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+            parent_arc.{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
             {%- when Some with (ReceiverType::RefMut) %}
-            parent_mut.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+            parent_mut.{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
             {%- when Some with (ReceiverType::Owned) %}
-            parent_owned.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+            parent_owned.{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
             {%- when None %}
             {%- if f.parent_struct.is_some() %}
-            {{ f.parent_struct.as_deref().unwrap() }}::{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
+            {{ f.parent_struct.as_deref().unwrap() | rust_prefix_ident(f.namespace) }}::{{ f.rust_name }}({{ f.params | rust_call_args(f.namespace) }})
             {%- else %}
             {{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
             {%- endif %}
@@ -119,8 +119,11 @@ pub fn {{ f.rust_name | rust_prefix_native(f.namespace) }}<'a>(
                 handle as jlong
                 {%- else %}
                 // Serialized type
-                let bytes = postcard::to_allocvec(&val).expect("should serialize value");
-                env.byte_array_from_slice(&bytes).expect("should create JVM byte array")
+                let bytes = koffi_runtime::envelope::serialize_envelope(
+                    &val,
+                    {{ f.ret_ty | schema_hash_hex }},
+                ).expect("Postcard serialization failed");
+                env.byte_array_from_slice(&bytes.into_vec()).expect("JVM byte array failed")
                 {%- endmatch %}
             })
             .map_err(|msg| {

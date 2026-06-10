@@ -3,8 +3,7 @@ package {{ namespace }}
 
 import rs.koffi.KoffiHandleBase
 import rs.koffi.KoffiHandle
-import rs.koffi.serialize
-import rs.koffi.deserialize
+import rs.koffi.KoffiSerializer
 
 {# {%~ for i in ir.imports %}
 import {{ i | qualified_name }}

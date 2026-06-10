@@ -3,8 +3,7 @@ package {{ namespace }}
 
 import rs.koffi.KoffiHandleBase
 import rs.koffi.KoffiHandle
-import rs.koffi.serialize
-import rs.koffi.deserialize
+import rs.koffi.KoffiSerializer
 
 {# {%~ for i in ir.imports %}
 import {{ i | qualified_name }}
@@ -51,6 +50,7 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
     {{- f.params | kotlin_params_common -}}
 ): {{ f.ret_ty | kotlin_type }} {
-    {{ f.params | kotlin_jni_return_expr(pkg_pascal, f.rust_name, f.ret_ty, false) }}
+    {%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}
+    {{ f.params | kotlin_jni_return_expr(pkg_pascal, jni_name, f.ret_ty, false) }}
 }
 {%- endfor %}
