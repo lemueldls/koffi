@@ -7,25 +7,30 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+/* Byte buffer returned by Rust for strings, byte slices, and serialized data. */
 typedef struct {
     uint8_t* ptr;
     size_t   len;
     size_t   cap;
 } KoffiByteBuf;
 
+/* Release an opaque handle when the Kotlin GC/finalizer fires. */
 extern void koffi_handle_release(uint64_t handle_id);
+
+/* Free a KoffiByteBuf allocated by Rust. */
 extern void koffi_free_byte_buf(KoffiByteBuf buf);
 
 {%- for f in ir.functions %}
-extern {{ f.ret_ty | c_type }} {{ f.rust_name }}(
-    {%- if f.parent_struct.is_some() %}
-    uint64_t handle_id{% if !f.params.is_empty() %},{%endif%}
-    {%- endif %}
-    {%- for p in f.params %}
-    {{ p.ty | c_type }} {{ p.name }}{% if p.ty.needs_len_param() %},
-    size_t {{ p.name }}_len{% endif %}{% if !loop.last %},{% endif %}
-    {%- endfor %}
+{%- let sym = f | c_abi_symbol(crate_ident) %}
+
+extern {{ f.ret_ty | c_return_type }} {{ sym }}(
+{%- if f.receiver.is_some() %}
+    uint64_t __handle{% if !f.params.is_empty() %},{% endif %}
+{%- endif %}
+{%- for p in f.params %}
+    {{ p.ty | c_type }} {{ p.name }}{% if p.ty.needs_len_param() %}, size_t {{ p.name }}_len{% endif %}{% if !loop.last %},{% endif %}
+{%- endfor %}
 );
-{% endfor %}
+{%- endfor %}
 
 #endif /* {{ guard }} */

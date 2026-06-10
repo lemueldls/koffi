@@ -83,7 +83,7 @@ pub struct RustWasmTemplate<'a> {
 #[derive(Template)]
 #[template(path = "native/header.h.j2", escape = "none")]
 pub struct CHeaderTemplate<'a> {
-    pub crate_name: &'a str,
+    pub crate_ident: &'a str,
     pub guard: &'a str, // UPPER_SNAKE_CASE header guard
     pub ir: &'a CrateInterface,
 }
@@ -91,7 +91,7 @@ pub struct CHeaderTemplate<'a> {
 #[derive(Template)]
 #[template(path = "native/cinterop.def.j2", escape = "none")]
 pub struct CinteropDefTemplate<'a> {
-    pub crate_name: &'a str,
+    pub crate_ident: &'a str,
     pub lib_name: &'a str,
 }
 

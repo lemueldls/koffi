@@ -162,19 +162,19 @@ pub fn generate_all(
 
     let header_path = write_template(
         &templates::CHeaderTemplate {
-            crate_name,
+            crate_ident: &crate_ident,
             guard: &guard,
             ir,
         },
-        &cinterop.join(format!("{crate_name}.h")),
+        &cinterop.join(format!("{crate_ident}.h")),
     )?;
 
     let def_path = write_template(
         &templates::CinteropDefTemplate {
-            crate_name,
+            crate_ident: &crate_ident,
             lib_name: &lib_name,
         },
-        &cinterop.join(format!("{crate_name}.def")),
+        &cinterop.join(format!("{crate_ident}.def")),
     )?;
 
     let lib_path = write_template(
