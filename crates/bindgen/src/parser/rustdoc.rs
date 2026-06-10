@@ -8,7 +8,7 @@ use std::{
 use koffi_ir::{CrateId, CrateInterface, FFIType, TypeRef};
 use rustdoc_types::{Crate, Id, Type};
 
-use crate::{BindgenError, parser::PartialInterface};
+use crate::{BindgenError, parser::visitor::PartialInterface};
 
 /// Run `cargo rustdoc --output-format json` and return the path to the JSON.
 pub fn ensure_json(crate_path: &Path, workspace_root: &Path) -> Result<PathBuf, BindgenError> {

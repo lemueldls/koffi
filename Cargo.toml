@@ -28,6 +28,7 @@ toml = { version = "1.1.2" }
 tracing = { version = "0.1" }
 tracing-indicatif = { version = "0.3" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+walkdir = { version = "2.5.0" }
 
 koffi = { path = "crates/core" }
 koffi-bindgen = { path = "crates/bindgen" }

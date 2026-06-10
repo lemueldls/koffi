@@ -107,6 +107,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 debug!("Generating bindings to {}", out_dir.display());
                 debug!("Using koffi-runtime at {}", runtime_path.display());
 
+                info!(
+                    "Generating bindings for crate {} v{}",
+                    ir.crate_name, ir.version
+                );
                 let paths = generate_all(&ir, &out_dir, &crate_path, &runtime_path)?;
 
                 if cli.verbose {
@@ -155,7 +159,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     lib_name: format!("{}_koffi_glue", ir.crate_name.replace('-', "_")),
                 };
 
+                info!("Building JVM artifacts...");
                 steps.run_jvm()?;
+
+                info!("Generation complete!");
             }
         }
         Command::Package { .. } => {}

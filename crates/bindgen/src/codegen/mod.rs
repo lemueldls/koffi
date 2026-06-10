@@ -222,6 +222,32 @@ pub fn generate_all(
     })
 }
 
+fn write_template<T: Template>(t: &T, path: &Path) -> Result<PathBuf, BindgenError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let rendered = t.render()?;
+    fs::write(path, rendered)?;
+
+    Ok(path.to_path_buf())
+}
+
+fn copy_kotlin_prebuilt(src: &Path, kotlin_dir: &Path) -> Result<(), BindgenError> {
+    for entry in walkdir::WalkDir::new(src) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            let rel = entry.path().strip_prefix(src)?;
+            let dst = kotlin_dir.join(rel);
+            if let Some(p) = dst.parent() {
+                fs::create_dir_all(p)?;
+            }
+            fs::copy(entry.path(), dst)?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn copy_runtime(runtime_path: &Path, out_dir: &Path) -> Result<(), BindgenError> {
     let common_src = runtime_path.join("src");
     let common_dst = out_dir.join("kotlin").join("src");
@@ -249,14 +275,11 @@ pub fn copy_runtime(runtime_path: &Path, out_dir: &Path) -> Result<(), BindgenEr
     Ok(())
 }
 
-fn write_template<T: Template>(t: &T, path: &Path) -> Result<PathBuf, BindgenError> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let rendered = t.render()?;
-    fs::write(path, rendered)?;
+pub fn emit_schema(ir: &CrateInterface, path: &Path) -> Result<(), BindgenError> {
+    let json = serde_json::to_string_pretty(ir)?;
+    fs::write(path, json)?;
 
-    Ok(path.to_path_buf())
+    Ok(())
 }
 
 // Minimal tap() for ergonomic dir-creation inline with path construction

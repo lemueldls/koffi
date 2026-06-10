@@ -34,7 +34,7 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 {%- for f in ir.methods_of(s.name) %}
 {%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}
 
-    actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+    actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
         {{- f.params | kotlin_params_common -}}
     ): {{ f.ret_ty | kotlin_type }} {
         check(!isClosed) { "Handle has been closed" }
@@ -47,7 +47,7 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 
 {#- Free functions -#}
 {%- for f in ir.free_functions() %}
-actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
     {{- f.params | kotlin_params_common -}}
 ): {{ f.ret_ty | kotlin_type }} {
     {%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}

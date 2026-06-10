@@ -63,7 +63,7 @@ pub struct KotlinModuleTemplate<'a> {
 pub struct RustJniTemplate<'a> {
     pub namespace: &'a str,
     pub pkg_pascal: &'a str,
-    pub crate_ident: &'a str, // crate name with hyphens → underscores
+    pub crate_ident: &'a str, // crate name with hyphens -> underscores
     pub ir: &'a CrateInterface,
 }
 

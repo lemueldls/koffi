@@ -60,9 +60,9 @@ private fun <R> ByteArray.withPinnedBytes(block: (ptr: CPointer<UByteVar>, len: 
 {%- for s in ir.structs %}
 {%- if s.is_opaque %}
 
-{%- if let Some(doc) = s.doc %}
+{%- if !s.doc.is_empty() %}
 /**
- {%- for line in doc %}
+ {%- for line in s.doc %}
  *{{ line }}
  {%- endfor %}
  */
@@ -74,14 +74,14 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 {%- for f in ir.methods_of(s.name) %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
 
-    {%- if let Some(doc) = f.doc %}
+    {%- if !f.doc.is_empty() %}
     /**
-     {%- for line in doc %}
+     {%- for line in f.doc %}
      *{{ line }}
      {%- endfor %}
      */
     {%- endif %}
-    actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+    actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
         {{- f.params | kotlin_params_common -}}
     ): {{ f.ret_ty | kotlin_type }} {
         check(!isClosed) { "Handle has been closed" }
@@ -95,15 +95,15 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 {%~ for f in ir.free_functions() %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
 
-{%- if let Some(doc) = f.doc %}
+{%- if !f.doc.is_empty() %}
 /**
- {%- for line in doc %}
+ {%- for line in f.doc %}
  *{{ line }}
  {%- endfor %}
  */
 {%- endif %}
 @OptIn(ExperimentalForeignApi::class)
-actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
     {{- f.params | kotlin_params_common -}}
 ): {{ f.ret_ty | kotlin_type }} {
     {{ f | kotlin_native_return_expr(sym) }}

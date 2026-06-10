@@ -54,4 +54,10 @@ pub enum BindgenError {
 
     #[error("Template rendering error: {0}")]
     TemplateError(#[from] askama::Error),
+
+    #[error("WalkDir error: {0}")]
+    WalkDirError(#[from] walkdir::Error),
+
+    #[error("Strip prefix error: {0}")]
+    StripPrefixError(#[from] std::path::StripPrefixError),
 }

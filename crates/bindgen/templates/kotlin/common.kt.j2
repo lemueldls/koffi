@@ -13,9 +13,9 @@ import {{ i | qualified_name }}
 {%- for s in ir.structs %}
 {%- if !s.is_opaque %}
 
-{%- if let Some(doc) = s.doc %}
+{%- if !s.doc.is_empty() %}
 /**
- {%- for line in doc %}
+ {%- for line in s.doc %}
  *{{ line }}
  {%- endfor %}
  */
@@ -30,9 +30,9 @@ data class {{ s.name }}(
 
 {#- Enum / error types -#}
 {%~ for e in ir.enums %}
-{%- if let Some(doc) = e.doc %}
+{%- if !e.doc.is_empty() %}
 /**
- {%- for line in doc %}
+ {%- for line in e.doc %}
  *{{ line }}
  {%- endfor %}
  */
@@ -55,9 +55,9 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
 {#- Opaque handles -#}
 {%~ for s in ir.structs %}
 {%- if s.is_opaque %}
-{%- if let Some(doc) = s.doc %}
+{%- if !s.doc.is_empty() %}
 /**
- {%- for line in doc %}
+ {%- for line in s.doc %}
  *{{ line }}
  {%- endfor %}
  */
@@ -65,14 +65,14 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
 expect class {{ s.name }} : rs.koffi.KoffiHandleBase {
     private constructor(handleId: Long)
 {%- for f in ir.methods_of(s.name) %}
-    {%- if let Some(doc) = f.doc %}
+    {%- if !f.doc.is_empty() %}
     /**
-     {%- for line in doc %}
+     {%- for line in f.doc %}
      *{{ line }}
      {%- endfor %}
     */
     {%- endif %}
-    {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}
+    {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}
 {%- endfor %}
 }
 {%- endif %}
@@ -80,12 +80,12 @@ expect class {{ s.name }} : rs.koffi.KoffiHandleBase {
 
 {#- Free functions -#}
 {%~ for f in ir.free_functions() %}
-{%- if let Some(doc) = f.doc %}
+{%- if !f.doc.is_empty() %}
 /**
- {%- for line in doc %}
+ {%- for line in f.doc %}
  *{{ line }}
  {%- endfor %}
  */
 {%- endif %}
-expect {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}
+expect {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}
 {%- endfor %}
