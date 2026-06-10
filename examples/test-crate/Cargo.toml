@@ -14,4 +14,4 @@ koffi-macros.workspace = true
 koffi-runtime.workspace = true
 
 [package.metadata.koffi]
-namespace = "rs.koffi.test"
+namespace = "rs.koffi.example"

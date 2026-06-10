@@ -1,0 +1,30 @@
+[package]
+name = "koffi-plugin-app-dirs"
+version.workspace = true
+edition.workspace = true
+description = "Koffi plugin: platform-specific application data directories"
+include = ["src/**", "kotlin/**", "koffi/schema.json"]
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+koffi.workspace = true
+koffi-macros.workspace = true
+koffi-runtime.workspace = true
+serde.workspace = true
+
+# Desktop: Linux, macOS, Windows
+[target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
+dirs.workspace = true
+
+# iOS: Foundation FFI (NSHomeDirectory, NSTemporaryDirectory via extern "C")
+# No extra crate needed. We bind the symbols directly.
+
+[package.metadata.koffi]
+namespace = "rs.koffi.appdirs"
+schema = "koffi/schema.json"
+kotlin-prebuilt = "kotlin"
+
+[lints]
+workspace = true

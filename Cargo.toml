@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*", "tests/test-crate"]
+members = ["crates/*", "plugins/*", "examples/*"]
 resolver = "3"
 
 [workspace.package]
@@ -10,6 +10,7 @@ edition = "2024"
 askama = { version = "0.16.0", features = ["full"] }
 cargo_metadata = { version = "0.23.1" }
 dashmap = { version = "6.2.1" }
+dirs = { version = "6.0.0" }
 facet = { version = "0.46.5" }
 figue = { version = "4.0.4" }
 heck = { version = "0.5.0" }
@@ -42,7 +43,7 @@ pedantic = { level = "warn", priority = -1 }
 # cargo = { level = "warn", priority = -1 }
 # restriction = { level = "warn", priority = -1 }
 
-# unwrap_used = "warn"
+unwrap_used = "warn"
 doc_paragraphs_missing_punctuation = "warn"
 
 # nursery
