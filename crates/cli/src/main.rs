@@ -68,9 +68,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Command::Generate(args) => {
+            debug!("Starting generation...");
+
             let crate_manifest = args.crate_path.join("Cargo.toml");
+            debug!("Using crate manifest at {}", crate_manifest.display());
 
             let deps = collect_koffi_deps(&crate_manifest)?;
+            debug!("Found {} koffi deps", deps.len());
 
             for dep in &deps {
                 info!(
@@ -86,6 +90,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let crate_name = dep.package.name.to_string();
                 let version = dep.package.version.to_string();
 
+                debug!("Parsing crate at {}", crate_path.display());
+
                 let ir = parse_crate(
                     &crate_path,
                     &dep.workspace_root,
@@ -98,39 +104,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let out_dir = std::path::absolute(&args.out)?;
                 let runtime_path = std::path::absolute(&args.runtime_path)?;
 
+                debug!("Generating bindings to {}", out_dir.display());
+                debug!("Using koffi-runtime at {}", runtime_path.display());
+
                 let paths = generate_all(&ir, &out_dir, &crate_path, &runtime_path)?;
 
                 if cli.verbose {
                     debug!(
-                        "generated kotlin common at {}",
+                        "Generated kotlin common at {}",
                         paths.kotlin_common.display()
                     );
-                    debug!("generated kotlin jvm at {}", paths.kotlin_jvm.display());
+                    debug!("Generated kotlin jvm at {}", paths.kotlin_jvm.display());
                     debug!(
-                        "generated kotlin native at {}",
+                        "Generated kotlin native at {}",
                         paths.kotlin_native.display()
                     );
                     debug!(
-                        "generated kotlin loader at {}",
+                        "Generated kotlin loader at {}",
                         paths.kotlin_loader.display()
                     );
                     debug!(
-                        "generated rust jni glue at {}",
+                        "Generated rust jni glue at {}",
                         paths.rust_jni_glue.display()
                     );
                     debug!(
-                        "generated rust cabi glue at {}",
+                        "Generated rust cabi glue at {}",
                         paths.rust_cabi_glue.display()
                     );
-                    debug!("generated c header at {}", paths.c_header.display());
-                    debug!("generated cinterop def at {}", paths.cinterop_def.display());
+                    debug!("Generated c header at {}", paths.c_header.display());
+                    debug!("Generated cinterop def at {}", paths.cinterop_def.display());
                     debug!(
-                        "generated glue cargo toml at {}",
+                        "Generated glue cargo toml at {}",
                         paths.glue_cargo_toml.display()
                     );
                 }
 
-                let kotlin_runtime_path = PathBuf::from("kotlin/runtime");
+                let kotlin_runtime_path = PathBuf::from("crates/runtime/kotlin");
+                debug!(
+                    "Copying koffi-runtime from {} to {}",
+                    kotlin_runtime_path.display(),
+                    out_dir.join("kotlin/runtime").display()
+                );
                 copy_runtime(&kotlin_runtime_path, &out_dir)?;
 
                 let steps = BuildSteps {
@@ -140,7 +154,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     crate_ident: ir.crate_name.replace('-', "_"),
                     lib_name: format!("{}_koffi_glue", ir.crate_name.replace('-', "_")),
                 };
-                steps.run_desktop()?;
+
+                steps.run_jvm()?;
             }
         }
         Command::Package { .. } => {}

@@ -82,7 +82,7 @@ pub fn resolve_type<S: BuildHasher>(
                 return Ok(std_ty);
             }
 
-            // User type — determine if opaque or data.
+            // User type. Determine if opaque or data.
             let type_name = path.last().cloned().unwrap_or_default();
             let module_path: Vec<String> = path[..path.len().saturating_sub(1)].to_vec();
             let crate_name = path.first().cloned().unwrap_or_default();

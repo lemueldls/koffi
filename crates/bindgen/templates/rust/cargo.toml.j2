@@ -4,7 +4,7 @@
 
 [package]
 name = "{{ crate_name }}-koffi-glue"
-version = "0.1.0"
+version = "{{ version }}"
 edition = "2024"
 
 [lib]
@@ -19,6 +19,6 @@ serde = { version = "1.0", features = ["derive"] }
 
 [features]
 android = ["jni"]
-desktop = ["jni"]
+jvm = ["jni"]
 ios = []
 wasm = []

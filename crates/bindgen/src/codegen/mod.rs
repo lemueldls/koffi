@@ -17,11 +17,15 @@ pub struct GeneratedPaths {
     pub kotlin_common: PathBuf,
     pub kotlin_jvm: PathBuf,
     pub kotlin_native: PathBuf,
+    pub kotlin_wasm: PathBuf,
     pub kotlin_loader: PathBuf,
+    pub kotlin_module: PathBuf,
     pub rust_jni_glue: PathBuf,
     pub rust_cabi_glue: PathBuf,
+    pub rust_wasm_glue: PathBuf,
     pub c_header: PathBuf,
     pub cinterop_def: PathBuf,
+    pub glue_lib: PathBuf,
     pub glue_cargo_toml: PathBuf,
 }
 
@@ -92,8 +96,18 @@ pub fn generate_all(
             .join(format!("{pkg_pascal}Loader.kt")),
     )?;
 
+    let module_path = write_template(
+        &templates::KotlinModuleTemplate {
+            namespace: &ir.namespace,
+            pkg_pascal: &pkg_pascal,
+            crate_name,
+        },
+        &kotlin_dir.join("module.yaml"),
+    )?;
+
     let native_path = write_template(
         &templates::KotlinNativeTemplate {
+            crate_ident: &crate_ident,
             namespace: &ir.namespace,
             cinterop_pkg: &format!("{crate_ident}.cinterop"),
             ir,
@@ -106,10 +120,18 @@ pub fn generate_all(
             .join(&pkg_file),
     )?;
 
-    // module.yaml is simple enough to write directly
-    fs::write(
-        kotlin_dir.join("module.yaml"),
-        "product:\n  type: kmp/lib\n  platforms: [jvm, android, iosArm64, iosSimulatorArm64, wasmJs, linuxArm64, linuxX64, macosArm64, mingwX64]\n\nsettings:\n  android:\n    minSdk: 33\n",
+    let wasm_path = write_template(
+        &templates::KotlinWasmTemplate {
+            crate_ident: &crate_ident,
+            namespace: &ir.namespace,
+            ir,
+        },
+        &kotlin_dir
+            .join("src@web")
+            .tap(|d| {
+                let _ = fs::create_dir_all(d);
+            })
+            .join(&pkg_file),
     )?;
 
     let jni_path = write_template(
@@ -130,6 +152,14 @@ pub fn generate_all(
         &rust_src.join("cabi_glue.rs"),
     )?;
 
+    let web_path = write_template(
+        &templates::RustWasmTemplate {
+            crate_ident: &crate_ident,
+            ir,
+        },
+        &rust_src.join("wasm_glue.rs"),
+    )?;
+
     let header_path = write_template(
         &templates::CHeaderTemplate {
             crate_name,
@@ -147,40 +177,47 @@ pub fn generate_all(
         &cinterop.join(format!("{crate_name}.def")),
     )?;
 
+    let lib_path = write_template(
+        &templates::GlueLibTemplate {
+            crate_ident: &crate_ident,
+            ir,
+        },
+        &rust_src.join("lib.rs"),
+    )?;
+
     let rel_crate_path = diff_paths(crate_path, &rust_dir)
-        .unwrap()
+        .expect("should be able to relativize crate path")
         .display()
         .to_string()
         .replace('\\', "/");
     let rel_runtime_path = diff_paths(runtime_path, &rust_dir)
-        .unwrap()
+        .expect("should be able to relativize runtime path")
         .display()
         .to_string()
         .replace('\\', "/");
     let cargo_path = write_template(
         &templates::GlueCargoTemplate {
             crate_name,
+            version: &ir.version,
             crate_path: &rel_crate_path,
             runtime_path: &rel_runtime_path,
         },
         &rust_dir.join("Cargo.toml"),
     )?;
 
-    // lib.rs is simple enough to write directly
-    fs::write(
-        rust_src.join("lib.rs"),
-        "#[cfg(any(feature = \"android\", feature = \"desktop\"))]\npub mod jni_glue;\npub mod cabi_glue;\n",
-    )?;
-
     Ok(GeneratedPaths {
         kotlin_common: common_path,
         kotlin_jvm: jvm_path,
         kotlin_native: native_path,
+        kotlin_wasm: web_path,
         kotlin_loader: loader_path,
+        kotlin_module: module_path,
         rust_jni_glue: jni_path,
         rust_cabi_glue: cabi_path,
+        rust_wasm_glue: wasm_path,
         c_header: header_path,
         cinterop_def: def_path,
+        glue_lib: lib_path,
         glue_cargo_toml: cargo_path,
     })
 }

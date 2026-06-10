@@ -6,54 +6,62 @@
 use std::sync::Arc;
 
 use jni::{
-    EnvUnowned,
-    strings::JNIString,
+    EnvUnowned, jni_mangle, jni_str,
     objects::{JByteArray, JClass, JString},
-    sys, jni_str,
+    strings::JNIString,
+    sys,
     sys::{jboolean, jbyte, jdouble, jfloat, jint, jlong, jshort},
 };
 use koffi_runtime::{HandleRegistry, catch_panic};
 
-use {{ crate_ident }}::*;
+use {{ crate_ident }}::{
+    {%- for s in ir.structs %}
+    {{ s.name }} as {{ s.name | rust_prefix_ident(s.namespace) }},
+    {%- endfor %}
+    {%- for e in ir.enums %}
+    {{ e.name }} as {{ e.name | rust_prefix_ident(e.namespace) }},
+    {%- endfor %}
+    {%- for f in ir.free_functions() %}
+    {{ f.rust_name }} as {{ f.rust_name | rust_prefix_ident(f.namespace) }},
+    {%- endfor %}
+};
 
 {%- for f in ir.functions %}
-{%- let jni_name = f.parent_struct | jni_method_name(f.rust_name) %}
-{%- let symbol = namespace | jni_symbol(pkg_pascal, jni_name) %}
 
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn {{ symbol }}<'a>(
-    mut __koffi_j_env: EnvUnowned<'a>,
-    __koffi_j_class: JClass,
+#[jni_mangle("{{ f.namespace }}.{{ pkg_pascal }}Jni", "{{ f.parent_struct | kotlin_jni_method_name(f.rust_name) }}")]
+pub fn {{ f.rust_name | rust_prefix_native(f.namespace) }}<'a>(
+    mut env: EnvUnowned<'a>,
+    class: JClass,
     {%- if f.parent_struct.is_some() %}
-    __koffi_j_handle: jlong,
+    handle: jlong,
     {%- endif %}
-    {{ f.params | params_jni_rust(f.parent_struct.is_some()) }}
-) -> {{ f.ret_ty | jni_rust_type }} {
-    let outcome = __koffi_j_env.with_env(|env| -> jni::errors::Result<{{ f.ret_ty | jni_rust_type }}> {
+    {{ f.params | rust_params_jni(f.parent_struct.is_some(), f.namespace) }}
+) -> {{ f.ret_ty | rust_jni_type }} {
+    let outcome = env.with_env(|env| -> jni::errors::Result<{{ f.ret_ty | rust_jni_type }}> {
         {#- Parameter conversions -#}
         {%- for p in f.params %}
         {%- match p.ty %}
         {%- when FFIType::String %}
-        let r#{{ p.name }} = &{{ p.name }}.to_string();
+        let {{ p.name | rust_prefix_ident(f.namespace) }} = &{{ p.name | rust_prefix_param(f.namespace) }}.to_string();
         {%- when FFIType::Bytes %}
-        let r#{{ p.name }} = &env.convert_byte_array(&{{ p.name }}).expect("Invalid byte array");
+        let {{ p.name | rust_prefix_ident(f.namespace) }} = &env.convert_byte_array(&{{ p.name | rust_prefix_param(f.namespace) }}).expect("should convert byte array");
         {%- else %}
         {%- if p.ty.is_blittable() %}
-        let r#{{ p.name }} = {{ p.name }} as _;
+        let {{ p.name | rust_prefix_ident(f.namespace) }} = {{ p.name | rust_prefix_param(f.namespace) }} as _;
         {%- else %}
-        let {{ p.name }}_bytes = env.convert_byte_array(&{{ p.name }}).expect("Bad serialized bytes");
-        let r#{{ p.name }} = postcard::from_bytes(&{{ p.name }}_bytes)
-            .expect("Postcard deserialization failed");
+        let {{ p.name | rust_prefix_ident(f.namespace) }}_bytes = env.convert_byte_array(&{{ p.name | rust_prefix_param(f.namespace) }}).expect("should convert byte array");
+        let {{ p.name | rust_prefix_ident(f.namespace) }} = postcard::from_bytes(&{{ p.name | rust_prefix_ident(f.namespace) }}_bytes)
+            .expect("should deserialize value");
         {%- endif %}
         {%- endmatch %}
         {%- endfor %}
 
-        let __koffi_res = catch_panic(|| {
+        let res = catch_panic(|| {
             {#- Receiver setup -#}
             {%- if let Some(parent) = f.parent_struct %}
             let parent_arc = HandleRegistry::global()
-                .get::<{{ parent }}>(__koffi_j_handle as u64)
-                .expect("Invalid handle ID");
+                .get::<{{ parent }}>(handle as u64)
+                .expect("should get handle");
             {%- match f.receiver %}
             {%- when Some with (ReceiverType::Ref) %}
             {#- nothing extra needed -#}
@@ -61,31 +69,59 @@ pub unsafe extern "system" fn {{ symbol }}<'a>(
             let parent_ptr = Arc::as_ptr(&parent_arc) as *mut {{ parent }};
             let parent_mut = unsafe { &mut *parent_ptr };
             {%- when Some with (ReceiverType::Owned) | None %}
-            HandleRegistry::global().remove(__koffi_j_handle as u64);
+            HandleRegistry::global().remove(handle as u64);
             let parent_owned = Arc::try_unwrap(parent_arc)
-                .ok().expect("Cannot consume shared handle");
+                .ok().expect("should consume shared handle");
             {%- endmatch %}
             {%- endif %}
 
             {%- match f.receiver %}
             {%- when Some with (ReceiverType::Ref) %}
-            parent_arc.{{ f.rust_name }}({{ f.params | call_args }})
+            parent_arc.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
             {%- when Some with (ReceiverType::RefMut) %}
-            parent_mut.{{ f.rust_name }}({{ f.params | call_args }})
+            parent_mut.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
             {%- when Some with (ReceiverType::Owned) %}
-            parent_owned.{{ f.rust_name }}({{ f.params | call_args }})
+            parent_owned.{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
             {%- when None %}
             {%- if f.parent_struct.is_some() %}
-            {{ f.parent_struct.as_deref().unwrap() }}::{{ f.rust_name }}({{ f.params | call_args }})
+            {{ f.parent_struct.as_deref().unwrap() }}::{{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
             {%- else %}
-            {{ f.rust_name }}({{ f.params | call_args }})
+            {{ f.rust_name | rust_prefix_ident(f.namespace) }}({{ f.params | rust_call_args(f.namespace) }})
             {%- endif %}
             {%- endmatch %}
         });
 
-        __koffi_res
+        res
             .map(|val| {
-                {{ f.ret_ty | jni_return_conversion }}
+                {%- match f.ret_ty %}
+                {%- when FFIType::Bool %}
+                val as jboolean
+                {%- when FFIType::I8 | FFIType::U8 %}
+                val as jbyte
+                {%- when FFIType::I16 | FFIType::U16 %}
+                val as jshort
+                {%- when FFIType::I32 | FFIType::U32 %}
+                val as jint
+                {%- when FFIType::I64 | FFIType::U64 %}
+                val as jlong
+                {%- when FFIType::F32 %}
+                val as jfloat
+                {%- when FFIType::F64 %}
+                val as jdouble
+                {%- when FFIType::Unit %}
+                ()
+                {%- when FFIType::String %}
+                env.new_string(val).expect("should create JVM string")
+                {%- when FFIType::Bytes %}
+                env.byte_array_from_slice(&val).expect("should create JVM byte array")
+                {%- when FFIType::Opaque(..) %}
+                let handle = koffi_runtime::HandleRegistry::global().insert(val);
+                handle as jlong
+                {%- else %}
+                // Serialized type
+                let bytes = postcard::to_allocvec(&val).expect("should serialize value");
+                env.byte_array_from_slice(&bytes).expect("should create JVM byte array")
+                {%- endmatch %}
             })
             .map_err(|msg| {
                 env.throw_new(jni_str!("rs/koffi/KoffiPanic"), JNIString::new(msg)).unwrap_err()
@@ -96,11 +132,11 @@ pub unsafe extern "system" fn {{ symbol }}<'a>(
 }
 {% endfor %}
 
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_rs_koffi_KoffiHandleBase_koffi_1handle_1release<'a>(
-    __koffi_j_env: EnvUnowned<'a>,
-    __koffi_j_class: JClass,
-    __koffi_j_handle: jlong,
+#[jni_mangle("rs.koffi.KoffiHandleBase")]
+pub fn koffi_handle_release<'a>(
+    env: EnvUnowned<'a>,
+    class: JClass,
+    handle: jlong,
 ) {
-    HandleRegistry::global().remove(__koffi_j_handle as u64);
+    HandleRegistry::global().remove(handle as u64);
 }

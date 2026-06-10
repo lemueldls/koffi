@@ -1,0 +1,20 @@
+{#- Kotlin/WASM: actual implementations -#}
+{#-
+   WASM SUPPORT IS NOT YET IMPLEMENTED
+   ------------------------------------
+   Kotlin/WASM (wasmJs target) requires wasm-bindgen on the Rust side and
+   @JsModule / @WasmImport interop on the Kotlin side. This template will be
+   filled in once the wasm_glue.rs.j2 Rust template is complete.
+
+   To suppress this error temporarily, exclude wasmJs from your module.yaml
+   platforms list:
+       product:
+         platforms: [jvm, android, iosArm64, iosSimulatorArm64]
+-#}
+package {{ namespace }}
+
+// This file intentionally does not compile.
+// WASM support for koffi-bindgen is not yet implemented.
+@Suppress("NOTHING_TO_INLINE")
+private inline fun `WASM support not yet implemented`(): Nothing =
+    error("unreachable")

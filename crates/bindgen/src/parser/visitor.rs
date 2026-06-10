@@ -221,8 +221,7 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
                 ctx.pop_namespace();
             }
         }
-        // Unknown module (external, generated, or cfg-gated) — skip
-        // silently.
+        // Unknown module (external, generated, or cfg-gated) skip silently.
     }
 
     if ns_override.is_some() {
@@ -383,10 +382,11 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
 
     let args = parse_export_args(&attr);
     let rust_name = f.sig.ident.to_string();
-    let name = args
+    let raw_name = rust_name.trim_start_matches("r#");
+    let kotlin_name = args
         .name
         .clone()
-        .unwrap_or_else(|| AsLowerCamelCase(&rust_name).to_string());
+        .unwrap_or_else(|| AsLowerCamelCase(&raw_name).to_string());
     let namespace = args
         .package
         .clone()
@@ -413,7 +413,7 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
     };
 
     ctx.functions.push(FnInfo {
-        name,
+        kotlin_name,
         rust_name,
         is_async,
         params,
@@ -463,10 +463,11 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
         }
 
         let rust_name = method.sig.ident.to_string();
+        let raw_name = rust_name.trim_start_matches("r#");
         let _name = impl_args
             .name
             .clone()
-            .unwrap_or_else(|| AsLowerCamelCase(&rust_name).to_string());
+            .unwrap_or_else(|| AsLowerCamelCase(&raw_name).to_string());
         let namespace = impl_args
             .package
             .clone()
@@ -506,14 +507,14 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
             .map(|a| parse_export_args(&a))
             .unwrap_or_else(|| impl_args.clone());
 
-        let effective_name = method_args
+        let kotlin_name = method_args
             .name
             .clone()
-            .unwrap_or_else(|| AsLowerCamelCase(&rust_name).to_string());
+            .unwrap_or_else(|| AsLowerCamelCase(&raw_name).to_string());
         let effective_ns = method_args.package.clone().unwrap_or(namespace);
 
         ctx.functions.push(FnInfo {
-            name: effective_name,
+            kotlin_name,
             rust_name,
             is_async,
             params,
@@ -606,7 +607,7 @@ fn parse_reference(
             }
         }
 
-        // &T where T is some other path — pass through (handles &Self, &Struct, etc.)
+        // &T where T is some other path. Pass through (handles &Self, &Struct, etc.)
         // Phase 2 will resolve the actual type.
         other => parse_type(other, type_decls),
     }
@@ -873,9 +874,9 @@ pub fn file_level_namespace(attrs: &[syn::Attribute]) -> Option<String> {
     })
 }
 
-/// Collect `///`/`/**` doc comments into a single string.
+/// Collect `///`/`/**` doc comments into a list of string.
 #[must_use]
-pub fn extract_doc(attrs: &[syn::Attribute]) -> Option<String> {
+pub fn extract_doc(attrs: &[syn::Attribute]) -> Option<Vec<String>> {
     let lines: Vec<String> = attrs
         .iter()
         .filter_map(|attr| {
@@ -886,19 +887,15 @@ pub fn extract_doc(attrs: &[syn::Attribute]) -> Option<String> {
                 && let syn::Expr::Lit(el) = &nv.value
                 && let syn::Lit::Str(s) = &el.lit
             {
-                return Some(s.value().trim().to_string());
+                return Some(s.value());
             }
 
             None
         })
-        .filter(|s| !s.is_empty())
+        // .filter(|s| !s.is_empty())
         .collect();
 
-    if lines.is_empty() {
-        None
-    } else {
-        Some(lines.join("\n"))
-    }
+    if lines.is_empty() { None } else { Some(lines) }
 }
 
 /// Return `true` if the field has `#[serde(skip)]` or

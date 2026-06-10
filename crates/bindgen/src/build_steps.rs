@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use crate::BindgenError;
 
 /// The set of native build steps performed after source codegen.
 /// Each step is skipped if the corresponding target feature is disabled.
+#[derive(Debug)]
 pub struct BuildSteps {
     pub crate_path: PathBuf,
     pub out_dir: PathBuf,
@@ -28,23 +29,23 @@ impl BuildSteps {
                 .join("kotlin/jniLibs")
                 .join(abi)
                 .join(format!("lib{}.so", self.lib_name));
-            std::fs::create_dir_all(dest.parent().unwrap())?;
-            std::fs::copy(&so, &dest)?;
+            fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
+            fs::copy(&so, &dest)?;
         }
 
         Ok(())
     }
 
-    pub fn run_desktop(&self) -> Result<(), BindgenError> {
+    pub fn run_jvm(&self) -> Result<(), BindgenError> {
         let (target, classifier, prefix, ext) = host_triple();
-        let lib = self.cargo_build_cdylib(target, "desktop", prefix, ext)?;
+        let lib = self.cargo_build_cdylib(target, "jvm", prefix, ext)?;
         let dest = self
             .out_dir
             .join("kotlin/resources@jvm/natives")
             .join(classifier)
             .join(format!("{prefix}{}{ext}", self.lib_name));
-        std::fs::create_dir_all(dest.parent().unwrap())?;
-        std::fs::copy(&lib, &dest)?;
+        fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
+        fs::copy(&lib, &dest)?;
 
         Ok(())
     }
@@ -63,8 +64,8 @@ impl BuildSteps {
                 .join("kotlin/cinterop/ios")
                 .join(slice)
                 .join(format!("lib{}.a", self.lib_name));
-            std::fs::create_dir_all(dest.parent().unwrap())?;
-            std::fs::copy(&lib, &dest)?;
+            fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
+            fs::copy(&lib, &dest)?;
         }
 
         Ok(())

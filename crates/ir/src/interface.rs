@@ -42,14 +42,14 @@ pub struct StructInfo {
     pub is_opaque: bool, // false = Data type
     pub fields: Vec<FieldInfo>,
     pub namespace: String, // resolved at parse time
-    pub doc: Option<String>,
+    pub doc: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnumVariantInfo {
     pub name: String,
     pub fields: Vec<FieldInfo>,
-    pub doc: Option<String>,
+    pub doc: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,13 +57,13 @@ pub struct EnumInfo {
     pub name: String,
     pub variants: Vec<EnumVariantInfo>,
     pub namespace: String,
-    pub doc: Option<String>,
+    pub doc: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FnInfo {
     /// Kotlin-side name (camelCase, possibly overridden by [`ExportArgs`]).
-    pub name: String,
+    pub kotlin_name: String,
     /// Exact Rust identifier.
     pub rust_name: String,
     pub is_async: bool,
@@ -73,7 +73,7 @@ pub struct FnInfo {
     /// If `Some`, this is a method on the named struct.
     pub parent_struct: Option<String>,
     pub namespace: String,
-    pub doc: Option<String>,
+    pub doc: Option<Vec<String>>,
     pub args: ExportArgs,
 }
 

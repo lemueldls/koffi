@@ -1,4 +1,7 @@
+pub mod c;
 pub mod filters;
+pub mod kotlin;
+pub mod rust;
 pub mod util;
 
 use askama::Template;
@@ -25,8 +28,17 @@ pub struct KotlinJvmTemplate<'a> {
 #[derive(Template)]
 #[template(path = "kotlin/native.kt.j2", escape = "none")]
 pub struct KotlinNativeTemplate<'a> {
+    pub crate_ident: &'a str, // crate name with hyphens -> underscores
     pub namespace: &'a str,
     pub cinterop_pkg: &'a str, // e.g. "test_crate.cinterop"
+    pub ir: &'a CrateInterface,
+}
+
+#[derive(Template)]
+#[template(path = "kotlin/wasm.kt.j2", escape = "none")]
+pub struct KotlinWasmTemplate<'a> {
+    pub crate_ident: &'a str, // crate name with hyphens -> underscores
+    pub namespace: &'a str,
     pub ir: &'a CrateInterface,
 }
 
@@ -36,6 +48,14 @@ pub struct KotlinLoaderTemplate<'a> {
     pub namespace: &'a str,
     pub pkg_pascal: &'a str,
     pub lib_name: &'a str,
+}
+
+#[derive(Template)]
+#[template(path = "kotlin/module.yaml.j2", escape = "none")]
+pub struct KotlinModuleTemplate<'a> {
+    pub namespace: &'a str,
+    pub pkg_pascal: &'a str,
+    pub crate_name: &'a str,
 }
 
 #[derive(Template)]
@@ -50,6 +70,13 @@ pub struct RustJniTemplate<'a> {
 #[derive(Template)]
 #[template(path = "rust/cabi_glue.rs.j2", escape = "none")]
 pub struct RustCabiTemplate<'a> {
+    pub crate_ident: &'a str,
+    pub ir: &'a CrateInterface,
+}
+
+#[derive(Template)]
+#[template(path = "rust/wasm_glue.rs.j2", escape = "none")]
+pub struct RustWasmTemplate<'a> {
     pub crate_ident: &'a str,
     pub ir: &'a CrateInterface,
 }
@@ -70,9 +97,17 @@ pub struct CinteropDefTemplate<'a> {
 }
 
 #[derive(Template)]
+#[template(path = "rust/lib.rs.j2", escape = "none")]
+pub struct GlueLibTemplate<'a> {
+    pub crate_ident: &'a str,
+    pub ir: &'a CrateInterface,
+}
+
+#[derive(Template)]
 #[template(path = "rust/cargo.toml.j2", escape = "none")]
 pub struct GlueCargoTemplate<'a> {
     pub crate_name: &'a str,
+    pub version: &'a str,
     pub crate_path: &'a str,
     pub runtime_path: &'a str,
 }

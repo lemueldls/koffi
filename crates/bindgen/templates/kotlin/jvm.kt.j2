@@ -16,11 +16,11 @@ internal object {{ pkg_pascal }}Jni {
         {{ pkg_pascal }}Loader.load()
     }
 {% for f in ir.functions %}
-{%- let jni_name = f.parent_struct | jni_method_name(f.rust_name) %}
+{%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}
     @JvmStatic
     external fun {{ jni_name }}(
-{%- if f.parent_struct.is_some() %}handleId: Long{% if !f.params.is_empty() %}, {% endif %}{% endif %}{{ f.params | params_jni -}}
-    ): {{ f.ret_ty | jni_type }}
+{%- if f.parent_struct.is_some() %}handleId: Long{% if !f.params.is_empty() %}, {% endif %}{% endif %}{{ f.params | kotlin_params_jni -}}
+    ): {{ f.ret_ty | kotlin_jni_type }}
 {% endfor %}
     @JvmStatic
     external fun koffi_handle_release(handleId: Long)
@@ -33,13 +33,13 @@ internal object {{ pkg_pascal }}Jni {
 actual class {{ s.name }} actual private constructor(handleId: Long) :
         rs.koffi.KoffiHandleBase(handleId) {
 {%- for f in ir.methods_of(s.name) %}
-{%- let jni_name = f.parent_struct | jni_method_name(f.rust_name) %}
+{%- let jni_name = f.parent_struct | kotlin_jni_method_name(f.rust_name) %}
 
-    actual {{ f.is_async | async_kw }}fun {{ f.name }}(
-        {{- f.params | params_common -}}
+    actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+        {{- f.params | kotlin_params_common -}}
     ): {{ f.ret_ty | kotlin_type }} {
         check(!isClosed) { "Handle has been closed" }
-        {{ f | jni_return_expr(pkg_pascal, jni_name, true) }}
+        {{ f.params | kotlin_jni_return_expr(pkg_pascal, jni_name, f.ret_ty, true) }}
     }
 {%- endfor %}
 }
@@ -47,10 +47,10 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 {%- endfor %}
 
 {#- Free functions -#}
-{%- for f in ir.functions %}
-actual {{ f.is_async | async_kw }}fun {{ f.name }}(
-    {{- f.params | params_common -}}
+{%- for f in ir.free_functions() %}
+actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+    {{- f.params | kotlin_params_common -}}
 ): {{ f.ret_ty | kotlin_type }} {
-    {{ f | jni_return_expr(pkg_pascal, f.rust_name, false) }}
+    {{ f.params | kotlin_jni_return_expr(pkg_pascal, f.rust_name, f.ret_ty, false) }}
 }
 {%- endfor %}

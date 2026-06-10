@@ -16,7 +16,9 @@ import {{ i | qualified_name }}
 
 {%- if let Some(doc) = s.doc %}
 /**
- * {{ doc }}
+ {%- for line in doc %}
+ *{{ line }}
+ {%- endfor %}
  */
 {%- endif %}
 data class {{ s.name }}(
@@ -31,7 +33,9 @@ data class {{ s.name }}(
 {%~ for e in ir.enums %}
 {%- if let Some(doc) = e.doc %}
 /**
- * {{ doc }}
+ {%- for line in doc %}
+ *{{ line }}
+ {%- endfor %}
  */
 {%- endif %}
 sealed class {{ e.name }} : rs.koffi.KoffiError() {
@@ -54,7 +58,9 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
 {%- if s.is_opaque %}
 {%- if let Some(doc) = s.doc %}
 /**
- * {{ doc }}
+ {%- for line in doc %}
+ *{{ line }}
+ {%- endfor %}
  */
 {%- endif %}
 expect class {{ s.name }} : rs.koffi.KoffiHandleBase {
@@ -62,10 +68,12 @@ expect class {{ s.name }} : rs.koffi.KoffiHandleBase {
 {%- for f in ir.methods_of(s.name) %}
     {%- if let Some(doc) = f.doc %}
     /**
-    * {{ doc }}
+     {%- for line in doc %}
+     *{{ line }}
+     {%- endfor %}
     */
     {%- endif %}
-    {{ f.is_async | async_kw }}fun {{ f.name }}({{ f.params | params_common }}): {{ f.ret_ty | kotlin_type }}
+    {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}
 {%- endfor %}
 }
 {%- endif %}
@@ -75,8 +83,10 @@ expect class {{ s.name }} : rs.koffi.KoffiHandleBase {
 {%~ for f in ir.free_functions() %}
 {%- if let Some(doc) = f.doc %}
 /**
- * {{ doc }}
+ {%- for line in doc %}
+ *{{ line }}
+ {%- endfor %}
  */
 {%- endif %}
-expect {{ f.is_async | async_kw }}fun {{ f.name }}({{ f.params | params_common }}): {{ f.ret_ty | kotlin_type }}
+expect {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}
 {%- endfor %}

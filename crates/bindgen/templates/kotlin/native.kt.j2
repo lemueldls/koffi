@@ -1,0 +1,111 @@
+{#- Kotlin/Native: actual implementations via cinterop -#}
+package {{ namespace }}
+
+import rs.koffi.KoffiHandleBase
+import rs.koffi.KoffiHandle
+import rs.koffi.KoffiRuntime
+import rs.koffi.KoffiSerializer
+import kotlinx.cinterop.*
+import {{ cinterop_pkg }}.*
+
+// Wire up the Kotlin/Native handle-release callback to the C-ABI symbol.
+// This runs once when the object is first accessed.
+
+private val _runtimeInit: Unit = run {
+    KoffiRuntime.releaseHandle = { handleId ->
+        koffi_handle_release(handleId.toULong())
+    }
+}
+
+
+/**
+ * Read a [KoffiByteBuf] returned from Rust into a Kotlin [ByteArray] and free
+ * the Rust-owned memory. Must be called inside a [memScoped] block.
+ */
+@OptIn(ExperimentalForeignApi::class)
+private fun MemScope.readAndFreeByteBuf(buf: KoffiByteBuf): ByteArray {
+    val len = buf.len.toInt()
+    val bytes = ByteArray(len)
+    if (len > 0 && buf.ptr != null) {
+        bytes.usePinned { pinned ->
+            platform.posix.memcpy(pinned.addressOf(0), buf.ptr, buf.len)
+        }
+    }
+    koffi_free_byte_buf(buf)
+    return bytes
+}
+
+/**
+ * Encode a [String] to UTF-8 and call [block] with a pinned pointer and length.
+ * The pointer is only valid for the duration of [block].
+ */
+@OptIn(ExperimentalForeignApi::class)
+private fun <R> String.withUtf8Bytes(block: (ptr: CPointer<UByteVar>, len: ULong) -> R): R {
+    val bytes = encodeToByteArray()
+    return bytes.usePinned { pinned ->
+        block(pinned.addressOf(0).reinterpret(), bytes.size.toULong())
+    }
+}
+
+/**
+ * Pin a [ByteArray] and call [block] with a pointer and length.
+ */
+@OptIn(ExperimentalForeignApi::class)
+private fun <R> ByteArray.withPinnedBytes(block: (ptr: CPointer<UByteVar>, len: ULong) -> R): R {
+    return usePinned { pinned ->
+        block(pinned.addressOf(0).reinterpret(), size.toULong())
+    }
+}
+
+{%- for s in ir.structs %}
+{%- if s.is_opaque %}
+
+{%- if let Some(doc) = s.doc %}
+/**
+ {%- for line in doc %}
+ *{{ line }}
+ {%- endfor %}
+ */
+{%- endif %}
+@OptIn(ExperimentalForeignApi::class)
+actual class {{ s.name }} actual private constructor(handleId: Long) :
+        rs.koffi.KoffiHandleBase(handleId) {
+
+{%- for f in ir.methods_of(s.name) %}
+{%- let sym = f | c_abi_symbol(crate_ident) %}
+
+    {%- if let Some(doc) = f.doc %}
+    /**
+     {%- for line in doc %}
+     *{{ line }}
+     {%- endfor %}
+     */
+    {%- endif %}
+    actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+        {{- f.params | kotlin_params_common -}}
+    ): {{ f.ret_ty | kotlin_type }} {
+        check(!isClosed) { "Handle has been closed" }
+        {{ f | kotlin_native_return_expr(sym) }}
+    }
+{%- endfor %}
+}
+{%- endif %}
+{%- endfor %}
+
+{%~ for f in ir.free_functions() %}
+{%- let sym = f | c_abi_symbol(crate_ident) %}
+
+{%- if let Some(doc) = f.doc %}
+/**
+ {%- for line in doc %}
+ *{{ line }}
+ {%- endfor %}
+ */
+{%- endif %}
+@OptIn(ExperimentalForeignApi::class)
+actual {{ f.is_async | kotlin_async_kw }}fun {{ f.kotlin_name }}(
+    {{- f.params | kotlin_params_common -}}
+): {{ f.ret_ty | kotlin_type }} {
+    {{ f | kotlin_native_return_expr(sym) }}
+}
+{%- endfor %}
