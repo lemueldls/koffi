@@ -125,7 +125,25 @@ impl CrateInterface {
     pub fn methods_of<'a>(&'a self, struct_name: &str) -> impl Iterator<Item = &'a FnInfo> {
         self.functions
             .iter()
-            .filter(move |f| f.parent_struct.as_deref() == Some(struct_name))
+            .filter(|f| f.parent_struct.as_deref() == Some(struct_name))
+    }
+
+    /// Returns all static methods (associated functions) that belong to the given struct.
+    #[must_use]
+    pub fn static_methods_of<'a>(&'a self, struct_name: &str) -> Vec<&'a FnInfo> {
+        self.functions
+            .iter()
+            .filter(|f| f.parent_struct.as_deref() == Some(struct_name) && f.receiver.is_none())
+            .collect()
+    }
+
+    /// Returns all instance methods that belong to the given struct.
+    #[must_use]
+    pub fn instance_methods_of<'a>(&'a self, struct_name: &str) -> Vec<&'a FnInfo> {
+        self.functions
+            .iter()
+            .filter(|f| f.parent_struct.as_deref() == Some(struct_name) && f.receiver.is_some())
+            .collect()
     }
 
     /// Returns all free functions (not methods on any struct).

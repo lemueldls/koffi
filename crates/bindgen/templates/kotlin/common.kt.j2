@@ -13,11 +13,11 @@ import {{ i | qualified_name }}
 {%- for s in ir.structs %}
 {%- if !s.is_opaque %}
 
-{%- if !s.doc.is_empty() %}
+{%- if s.doc.len() > 0 %}
 /**
- {%- for line in s.doc %}
+{%- for line in s.doc %}
  *{{ line }}
- {%- endfor %}
+{%- endfor %}
  */
 {%- endif %}
 data class {{ s.name }}(
@@ -30,11 +30,11 @@ data class {{ s.name }}(
 
 {#- Enum / error types -#}
 {%~ for e in ir.enums %}
-{%- if !e.doc.is_empty() %}
+{%- if e.doc.len() > 0 %}
 /**
- {%- for line in e.doc %}
+{%- for line in e.doc %}
  *{{ line }}
- {%- endfor %}
+{%- endfor %}
  */
 {%- endif %}
 sealed class {{ e.name }} : rs.koffi.KoffiError() {
@@ -55,7 +55,7 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
 {#- Opaque handles -#}
 {%~ for s in ir.structs %}
 {%- if s.is_opaque %}
-{%- if !s.doc.is_empty() %}
+{%- if s.doc.len() > 0 %}
 /**
  {%- for line in s.doc %}
  *{{ line }}
@@ -64,27 +64,49 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
 {%- endif %}
 expect class {{ s.name }} : rs.koffi.KoffiHandleBase {
     private constructor(handleId: Long)
-{%- for f in ir.methods_of(s.name) %}
-    {%- if !f.doc.is_empty() %}
-    /**
-     {%- for line in f.doc %}
-     *{{ line }}
-     {%- endfor %}
-    */
-    {%- endif %}
-    {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}
+
+{%- let static_methods = ir.static_methods_of(s.name) %}
+{%- if static_methods.len() > 0 %}
+    companion object {
+{%- for f in static_methods %}
+{%- if f.doc.len() > 0 %}
+        /**
+{%- for line in f.doc %}
+         *{{ line }}
 {%- endfor %}
+         */
+{%- endif %}
+        {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
+            {{- f.params | kotlin_params_common -}}
+        ): {{ f.ret_ty | kotlin_type }}
+{%- endfor %}
+    }
+{%- endif %}
+
+{%- for f in ir.instance_methods_of(s.name) %}
+{%- if f.doc.len() > 0 %}
+    /**
+{%- for line in f.doc %}
+     *{{ line }}
+{%- endfor %}
+    */
+{%- endif %}
+    {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
+        {{- f.params | kotlin_params_common -}}
+    ): {{ f.ret_ty | kotlin_type }}
+{%- endfor %}
+
 }
 {%- endif %}
 {%- endfor %}
 
 {#- Free functions -#}
 {%~ for f in ir.free_functions() %}
-{%- if !f.doc.is_empty() %}
+{%- if f.doc.len() > 0 %}
 /**
- {%- for line in f.doc %}
+{%- for line in f.doc %}
  *{{ line }}
- {%- endfor %}
+{%- endfor %}
  */
 {%- endif %}
 expect {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}({{ f.params | kotlin_params_common }}): {{ f.ret_ty | kotlin_type }}

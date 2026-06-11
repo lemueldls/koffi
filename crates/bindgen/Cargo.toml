@@ -10,6 +10,7 @@ facet.workspace = true
 facet-format.workspace = true
 facet-json.workspace = true
 heck.workspace = true
+indoc.workspace = true
 pathdiff.workspace = true
 prettyplease.workspace = true
 quote.workspace = true

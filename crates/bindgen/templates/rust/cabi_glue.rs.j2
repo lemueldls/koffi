@@ -32,16 +32,7 @@ pub unsafe extern "C" fn {{ sym }}(
     __handle: u64,
 {%- endif %}
 {%- for p in f.params %}
-{%- match p.ty %}
-{%- when FFIType::String %}
-    _p_{{ p.name }}: *const u8, _p_{{ p.name }}_len: usize,
-{%- when FFIType::Bytes %}
-    _p_{{ p.name }}: *const u8, _p_{{ p.name }}_len: usize,
-{%- when FFIType::Data(_) %}
-    _p_{{ p.name }}: *const u8, _p_{{ p.name }}_len: usize,
-{%- else %}
-    _p_{{ p.name }}: {{ p.ty | rust_c_native_type }},
-{%- endmatch %}
+    _p_{{ p.name }}: {{ p.ty | rust_c_native_type }}{% if p.ty.needs_len_param() %}, _p_{{ p.name }}_len: usize{% endif %},
 {%- endfor %}
 ) -> {{ f.ret_ty | rust_c_native_return_type }}
 {

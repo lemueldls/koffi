@@ -60,8 +60,7 @@ impl HandleRegistry {
     }
 }
 
-/// Frees an opaque handle when the Kotlin garbage collector or manual close is
-/// triggered.
+/// Frees an opaque handle when the Kotlin garbage collector or manual close is triggered.
 #[unsafe(no_mangle)]
 pub extern "C" fn koffi_handle_release(handle_id: u64) {
     HandleRegistry::global().remove(handle_id);

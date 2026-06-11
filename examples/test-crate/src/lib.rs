@@ -69,8 +69,8 @@ impl DatabaseConnection {
 // }
 
 // #[koffi::export]
-// pub fn create_profile(id: u64, username: &str, is_admin: bool) -> UserProfile
-// {     UserProfile {
+// pub fn create_profile(id: u64, username: &str, is_admin: bool) -> UserProfile {
+//     UserProfile {
 //         id,
 //         username: username.to_string(),
 //         is_admin,

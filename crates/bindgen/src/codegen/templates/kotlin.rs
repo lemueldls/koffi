@@ -1,4 +1,5 @@
 use heck::AsLowerCamelCase;
+use indoc::formatdoc;
 use koffi_ir::{FFIType, FnInfo, ParamInfo};
 
 /// Map [`FFIType`] to its Kotlin commonMain representation.
@@ -122,15 +123,10 @@ pub fn kotlin_jni_method_name(f: &FnInfo) -> String {
 /// `jni_name` is the fully-prefixed external fun name (output of
 /// [`kotlin_jni_method_name`]). It is used directly with no further prefixing.
 #[must_use]
-pub fn kotlin_jni_return_expr(
-    f: &FnInfo,
-    pkg_pascal: &str,
-    jni_name: &str,
-    has_receiver: bool,
-) -> String {
+pub fn kotlin_jni_return_expr(f: &FnInfo, pkg_pascal: &str, jni_name: &str) -> String {
     let mut args = Vec::new();
 
-    if has_receiver {
+    if f.receiver.is_some() {
         args.push("handleId".to_string());
     }
 
@@ -226,13 +222,19 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
                 call_args.push(format!("{name}Ptr"));
                 call_args.push(format!("{name}Len"));
             }
-            _ if p.ty.is_blittable() => call_args.push(name),
-            FFIType::Opaque(_) => call_args.push(format!("{name}.handleId.toULong()")),
-            _ => call_args.push(name),
+            _ if p.ty.is_blittable() => call_args.push(kotlin_sanitize_ident(&name)),
+            FFIType::Opaque(_) => {
+                call_args.push(format!(
+                    "{}.handleId.toULong()",
+                    kotlin_sanitize_ident(&name)
+                ));
+            }
+            _ => call_args.push(kotlin_sanitize_ident(&name)),
         }
     }
 
     // Per-param setup: pinning + serialization for string/bytes/data params.
+    let mut defs: Vec<String> = Vec::new();
     let mut setup: Vec<String> = Vec::new();
     let mut pinned: Vec<String> = Vec::new();
 
@@ -240,8 +242,8 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
         let name = AsLowerCamelCase(&p.name).to_string();
         match &p.ty {
             FFIType::String => {
-                setup.push(format!("val {name}Bytes = {name}.encodeToByteArray()"));
-                setup.push(format!("val {name}Pinned = {name}Bytes.pin()"));
+                defs.push(format!("val {name}Bytes = {name}.encodeToByteArray()"));
+                defs.push(format!("val {name}Pinned = {name}Bytes.pin()"));
                 setup.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
@@ -249,8 +251,8 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
                 pinned.push(format!("{name}Pinned"));
             }
             FFIType::Bytes => {
-                setup.push(format!("val {name}Pinned = {name}.pin()"));
-                setup.push(format!(
+                defs.push(format!("val {name}Pinned = {name}.pin()"));
+                defs.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
                 setup.push(format!("val {name}Len = {name}.size.toULong()"));
@@ -259,10 +261,10 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
             FFIType::Data(r) => {
                 let hash = r.schema_hash;
                 let type_name = &r.name;
-                setup.push(format!(
+                defs.push(format!(
                     "val {name}Bytes = KoffiSerializer.serialize({name}, 0x{hash:016x}_uL) {{ write{type_name}(it) }}"
                 ));
-                setup.push(format!("val {name}Pinned = {name}Bytes.pin()"));
+                defs.push(format!("val {name}Pinned = {name}Bytes.pin()"));
                 setup.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
@@ -289,14 +291,30 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
 
     if unpin_stmts.is_empty() {
         body.push(format!("return {convert}"));
+        let d = defs.join("\n    ");
+        let b = body.join("\n    ");
 
-        format!("run {{\n        {}\n    }}", body.join("\n        "))
+        formatdoc!(
+            "run {{
+                {d}
+                {b}
+            }}"
+        )
     } else {
-        let b = body.join("\n        ");
-        let u = unpin_stmts.join("\n        ");
+        let d = defs.join("\n");
+        let b = body.join("\n    ");
+        let u = unpin_stmts.join("\n    ");
 
-        format!(
-            "try {{\n        {b}\n        return {convert}\n    }} finally {{\n        {u}\n    }}"
+        formatdoc!(
+            "{d}
+
+            try {{
+                {b}
+
+                return {convert}
+            }} finally {{
+                {u}
+            }}"
         )
     }
 }
@@ -327,9 +345,13 @@ fn simple_convert(ty: &FFIType, call: &str) -> String {
 fn buf_convert(ty: &FFIType, var: &str) -> String {
     match ty {
         FFIType::String => {
-            format!("run {{ val bytes = readAndFreeByteBuf({var}); bytes.decodeToString() }}")
+            format!(
+                "memScoped {{ readAndFreeByteBuf({var}.useContents {{ this }}).decodeToString() }}"
+            )
         }
-        FFIType::Bytes => format!("readAndFreeByteBuf({var})"),
+        FFIType::Bytes => {
+            format!("memScoped {{ readAndFreeByteBuf({var}.useContents {{ this }}) }}")
+        }
         FFIType::Data(r) => {
             let hash = r.schema_hash;
             let type_name = &r.name;

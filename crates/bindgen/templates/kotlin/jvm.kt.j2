@@ -45,21 +45,33 @@ internal object {{ pkg_pascal }}Jni {
 {%- for s in ir.structs %}
 {%- if s.is_opaque %}
 
-actual class {{ s.name }} actual private constructor(handleId: Long) :
-        rs.koffi.KoffiHandleBase(handleId) {
-{%- for f in ir.methods_of(s.name) %}
-{%- let jni_name = f | kotlin_jni_method_name %}
-{%- let has_receiver = f.receiver.is_some() %}
+actual class {{ s.name }} private actual constructor(handleId: Long) :
+    rs.koffi.KoffiHandleBase(handleId) {
 
+{%- let static_methods = ir.static_methods_of(s.name) %}
+{%- if static_methods.len() > 0 %}
+    actual companion object {
+{%- for f in static_methods %}
+{%- let jni_name = f | kotlin_jni_method_name %}
+        actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
+            {{- f.params | kotlin_params_common -}}
+        ): {{ f.ret_ty | kotlin_type }} {
+            {{ f | kotlin_jni_return_expr(pkg_pascal, jni_name) }}
+        }
+{%- endfor %}
+    }
+{%- endif %}
+
+{%- for f in ir.instance_methods_of(s.name) %}
+{%- let jni_name = f | kotlin_jni_method_name %}
     actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
         {{- f.params | kotlin_params_common -}}
     ): {{ f.ret_ty | kotlin_type }} {
-{%- if has_receiver %}
         check(!isClosed) { "Handle has been closed" }
-{%- endif %}
-        {{ f | kotlin_jni_return_expr(pkg_pascal, jni_name, has_receiver) }}
+        {{ f | kotlin_jni_return_expr(pkg_pascal, jni_name) }}
     }
 {%- endfor %}
+
 }
 {%- endif %}
 {%- endfor %}
@@ -67,10 +79,9 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 {#- Free function actuals. Iterate only free functions, not methods -#}
 {%- for f in ir.free_functions() %}
 {%- let jni_name = f | kotlin_jni_method_name %}
-
 actual {{ f.is_async | kotlin_async_kw }}fun {{ f.name }}(
     {{- f.params | kotlin_params_common -}}
 ): {{ f.ret_ty | kotlin_type }} {
-    {{ f | kotlin_jni_return_expr(pkg_pascal, jni_name, &false) }}
+    {{ f | kotlin_jni_return_expr(pkg_pascal, jni_name) }}
 }
 {%- endfor %}

@@ -1,5 +1,5 @@
 [package]
-name = "koffi-test-crate"
+name = "example-project"
 version.workspace = true
 edition.workspace = true
 
@@ -9,12 +9,10 @@ crate-type = ["lib", "staticlib", "cdylib"]
 [dependencies]
 serde.workspace = true
 
-koffi-plugin-app-dirs = { path = "../../plugins/app-dirs" }
-
 koffi.workspace = true
 koffi-macros.workspace = true
 koffi-runtime.workspace = true
 
 [package.metadata.koffi]
 namespace = "rs.koffi.example"
-target-platforms = ["jvm"]
+target-platforms = ["jvm", "mingwX64"]

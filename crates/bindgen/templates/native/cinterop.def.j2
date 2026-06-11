@@ -5,6 +5,7 @@ headers = {{ crate_ident }}.h
 headerFilter = {{ crate_ident }}.h
 package = {{ namespace }}.cinterop
 compilerOpts = -Wall -Wextra -I"{{ include_dir }}"
+linkerOpts.mingw_x64 = -lntdll -luserenv
 staticLibraries = lib{{ lib_name }}.a
 libraryPaths.mingw_x64 = "{{ include_dir }}/windows-x86_64"
 libraryPaths.ios_x64 = "{{ include_dir }}/ios-x86_64"

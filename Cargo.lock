@@ -326,6 +326,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "example-project"
+version = "0.1.0"
+dependencies = [
+ "koffi",
+ "koffi-macros",
+ "koffi-runtime",
+ "serde",
+]
+
+[[package]]
 name = "facet"
 version = "0.46.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -632,6 +642,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "indoc"
+version = "2.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79cf5c93f93228cf8efb3ba362535fb11199ac548a09ce117c9b1adc3030d706"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -671,6 +690,7 @@ dependencies = [
  "facet-format",
  "facet-json",
  "heck",
+ "indoc",
  "koffi-ir",
  "pathdiff",
  "prettyplease",
@@ -738,17 +758,6 @@ dependencies = [
  "postcard",
  "serde",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "koffi-test-crate"
-version = "0.1.0"
-dependencies = [
- "koffi",
- "koffi-macros",
- "koffi-plugin-app-dirs",
- "koffi-runtime",
- "serde",
 ]
 
 [[package]]
@@ -1054,6 +1063,12 @@ dependencies = [
  "linux-raw-sys",
  "windows-sys",
 ]
+
+[[package]]
+name = "rustversion"
+version = "1.0.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "same-file"

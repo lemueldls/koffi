@@ -134,6 +134,6 @@ impl FFIType {
     /// for array length.
     #[must_use]
     pub const fn needs_len_param(&self) -> bool {
-        matches!(self, Self::Bytes)
+        matches!(self, Self::String | Self::Bytes | Self::Data(_))
     }
 }

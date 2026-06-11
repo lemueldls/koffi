@@ -57,14 +57,8 @@ pub fn kotlin_jni_return_expr(
     _env: &dyn askama::Values,
     pkg_pascal: &str,
     jni_name: &str,
-    has_receiver: &bool,
 ) -> askama::Result<String> {
-    Ok(kotlin::kotlin_jni_return_expr(
-        f,
-        pkg_pascal,
-        jni_name,
-        *has_receiver,
-    ))
+    Ok(kotlin::kotlin_jni_return_expr(f, pkg_pascal, jni_name))
 }
 
 #[askama::filter_fn]

@@ -22,7 +22,6 @@ extern void koffi_free_byte_buf(KoffiByteBuf buf);
 
 {%- for f in ir.functions %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
-
 extern {{ f.ret_ty | c_return_type }} {{ sym }}(
 {%- if f.receiver.is_some() %}
     uint64_t __handle{% if !f.params.is_empty() %},{% endif %}
