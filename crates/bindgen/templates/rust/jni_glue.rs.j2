@@ -141,7 +141,7 @@ pub fn {{ jni_name }}<'a>(
                 {
                     let bytes = serialize_envelope(&val, {{ f.ret_ty | schema_hash_hex }})
                         .expect("koffi: postcard serialization failed");
-                    env.byte_array_from_slice(&bytes.into_vec())
+                    env.byte_array_from_slice(&unsafe { bytes.into_vec() })
                         .expect("koffi: cannot create JVM byte array")
                 }
 {%- endmatch %}

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use facet::Facet;
 
 /// Stable identity for a Rust crate. Version is stored as a string to
 /// avoid a semver dependency in this leaf crate.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Facet)]
 pub struct CrateId {
     pub name: String,
     pub version: String, // SemVer string, e.g. "0.3.1"
@@ -16,7 +16,7 @@ pub struct CrateId {
 /// field types, declaration order), NOT of its name. It is used at runtime
 /// to detect version mismatches across independently-updated Rust and Kotlin
 /// binaries.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Facet)]
 pub struct TypeRef {
     pub crate_id: CrateId,
     pub module_path: Vec<String>, // e.g. ["camera", "frame"] for camera::frame::RgbFrame
@@ -40,7 +40,8 @@ impl TypeRef {
 /// The primary type enum. Every variant is either a primitive that maps
 /// directly to a JVM/C type, a standard-library type resolved by its
 /// fully-qualified path, or a user type referenced by [`TypeRef`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
+#[repr(u8)]
 pub enum FFIType {
     Bool,
     I8,

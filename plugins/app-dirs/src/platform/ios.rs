@@ -7,16 +7,15 @@
 //!
 //! Standard subdirectory conventions inside the container:
 //!
-//! | Purpose | Path |
-//! |---|---|
-//! | Persistent data (backed up by iCloud) | `<home>/Documents/` |
+//! | Purpose                                        | Path                                  |
+//! |------------------------------------------------|---------------------------------------|
+//! | Persistent data (backed up by iCloud)          | `<home>/Documents/`                   |
 //! | App support data (backed up, not user-visible) | `<home>/Library/Application Support/` |
-//! | Caches (NOT backed up, may be purged) | `<home>/Library/Caches/` |
-//! | Temporary (NOT backed up, purged on reboot) | result of `NSTemporaryDirectory()` |
+//! | Caches (NOT backed up, may be purged)          | `<home>/Library/Caches/`              |
+//! | Temporary (NOT backed up, purged on reboot)    | result of `NSTemporaryDirectory()`    |
 //!
-//! We map koffi's `data` and `config` to `Application Support` (the
-//! conventional location for opaque app state), `cache` to `Library/Caches`,
-//! and `temp` to `NSTemporaryDirectory()`.
+//! We map koffi's `data` and `config` to `Application Support` (the conventional location
+//! for opaque app state), `cache` to `Library/Caches`, and `temp` to `NSTemporaryDirectory()`.
 //!
 //! # Linking
 //!

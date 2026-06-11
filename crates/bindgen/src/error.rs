@@ -47,7 +47,10 @@ pub enum BindgenError {
     CargoMetadataError(#[from] cargo_metadata::Error),
 
     #[error("JSON error: {0}")]
-    JsonError(#[from] serde_json::Error),
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("Facet JSON serialization error: {0}")]
+    FacetJsonSerializeError(#[from] facet_format::SerializeError<facet_json::JsonSerializeError>),
 
     #[error("TOML parsing error: {0}")]
     TomlError(#[from] toml::de::Error),

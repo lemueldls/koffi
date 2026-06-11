@@ -45,46 +45,47 @@ pub struct AppDirs {
     /// Primary persistent data directory. Never cleared automatically by the
     /// operating system.
     ///
-    /// | Platform | Example |
-    /// |---|---|
-    /// | Android | `/data/data/com.example.app/files` |
-    /// | iOS | `<container>/Library/Application Support` |
-    /// | Linux | `~/.local/share/<app>` |
-    /// | macOS | `~/Library/Application Support/<app>` |
-    /// | Windows | `%APPDATA%\<app>` |
+    /// | Platform | Example                                   |
+    /// |----------|-------------------------------------------|
+    /// | Android  | `/data/data/com.example.app/files`        |
+    /// | iOS      | `<container>/Library/Application Support` |
+    /// | Linux    | `~/.local/share/<app>`                    |
+    /// | macOS    | `~/Library/Application Support/<app>`     |
+    /// | Windows  | `%APPDATA%\<app>`                         |
     pub data: String,
 
     /// User configuration directory.
     ///
-    /// | Platform | Example |
-    /// |---|---|
-    /// | Android | same as `data` (no_backup_files_dir) |
-    /// | iOS | same as `data` |
-    /// | Linux | `~/.config/<app>` |
-    /// | macOS | same as `data` |
-    /// | Windows | same as `data` |
+    /// | Platform | Example                              |
+    /// |----------|--------------------------------------|
+    /// | Android  | same as `data` (no_backup_files_dir) |
+    /// | iOS      | same as `data`                       |
+    /// | Linux    | `~/.config/<app>`                    |
+    /// | macOS    | same as `data`                       |
+    /// | Windows  | same as `data`                       |
     pub config: String,
 
     /// Writable cache directory. May be cleared by the OS under storage
     /// pressure without notice.
     ///
-    /// | Platform | Example |
-    /// |---|---|
-    /// | Android | `/data/data/com.example.app/cache` |
-    /// | iOS | `<container>/Library/Caches` |
-    /// | Linux | `~/.cache/<app>` |
-    /// | macOS | `~/Library/Caches/<app>` |
-    /// | Windows | `%LOCALAPPDATA%\<app>\cache` |
+    /// | Platform | Example                            |
+    /// |----------|------------------------------------|
+    /// | Android  | `/data/data/com.example.app/cache` |
+    /// | iOS      | `<container>/Library/Caches`       |
+    /// | Linux    | `~/.cache/<app>`                   |
+    /// | macOS    | `~/Library/Caches/<app>`           |
+    /// | Windows  | `%LOCALAPPDATA%\<app>\cache`       |
     pub cache: String,
 
     /// Temporary directory. Cleared on reboot or by the OS at any time.
     ///
-    /// | Platform | Example |
-    /// |---|---|
-    /// | Android | `/data/local/tmp` |
-    /// | iOS | `<container>/tmp/` |
-    /// | Linux / macOS | `/tmp` |
-    /// | Windows | `%TEMP%` |
+    /// | Platform | Example            |
+    /// |----------|--------------------|
+    /// | Android  | `/data/local/tmp`  |
+    /// | iOS      | `<container>/tmp/` |
+    /// | Linux    | `/tmp`             |
+    /// | macOS    | `/tmp`             |
+    /// | Windows  | `%TEMP%`           |
     pub temp: String,
 }
 
@@ -118,7 +119,7 @@ pub fn app_dirs(app_name: &str) -> AppDirs {
 /// * `no_backup_dir` - `context.noBackupFilesDir.absolutePath`
 /// * `external_files_dir` - `context.getExternalFilesDir(null)?.absolutePath ?: ""`
 #[koffi::export]
-pub const fn app_dirs_android_init(
+pub fn app_dirs_android_init(
     files_dir: &str,
     cache_dir: &str,
     no_backup_dir: &str,

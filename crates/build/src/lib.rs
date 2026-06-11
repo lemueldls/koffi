@@ -1,5 +1,3 @@
-#![allow(clippy::needless_doctest_main)]
-
 //! Build-time integration helper for koffi.
 //!
 //! Add this to your crate's `build.rs`:
@@ -36,6 +34,8 @@
 //!    places them in the correct output subdirectories.
 //! 6. Emits `cargo:rerun-if-changed` directives so incremental builds work.
 
+#![allow(clippy::needless_doctest_main)]
+
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -45,7 +45,7 @@ pub use koffi_bindgen::BindgenError;
 use koffi_bindgen::{
     build_steps::BuildSteps,
     codegen::{self},
-    meta::{DepInfo, collect_koffi_deps},
+    meta::{KoffiPackage, collect_koffi_packages},
     parser,
 };
 use koffi_ir::CrateInterface;
@@ -191,9 +191,9 @@ impl Builder {
 
         // Collect all koffi-aware crates in the dependency graph, including
         // the root crate itself if it has [package.metadata.koffi].
-        let deps = collect_koffi_deps(&manifest)?;
+        let packages = collect_koffi_packages(&manifest)?;
 
-        if deps.is_empty() {
+        if packages.is_empty() {
             eprintln!(
                 "koffi-build: no [package.metadata.koffi] found in {} or its dependencies",
                 manifest.display(),
@@ -204,40 +204,38 @@ impl Builder {
 
         // Parse crates in topological order so each crate can see dep schemas.
         let mut dep_schemas: Vec<CrateInterface> = Vec::new();
-        let mut all_build_steps: Vec<(BuildSteps, DepInfo)> = Vec::new();
+        let mut all_build_steps: Vec<(BuildSteps, KoffiPackage)> = Vec::new();
 
-        for dep in deps {
-            let crate_path = dep
-                .package
-                .manifest_path
-                .parent()
-                .map(|p| p.as_std_path().to_path_buf())
-                .unwrap_or_else(|| PathBuf::from("."));
-            let crate_name = dep.package.name.to_string();
-            let version = dep.package.version.to_string();
+        for pkg in packages {
+            let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
             let ir = if self.full_parse {
                 parser::parse_crate(
-                    &crate_path,
+                    crate_path,
                     &self.workspace_root,
-                    crate_name,
-                    version,
-                    &dep.koffi_meta,
+                    pkg.name.clone(),
+                    pkg.version.clone(),
+                    &pkg.koffi_meta,
                     &dep_schemas,
                 )?
             } else {
                 // Phase 1 only. Faster, less accurate.
-                parser::parse_crate_syn_only(&crate_path, crate_name, version, &dep.koffi_meta)?
+                parser::parse_crate_syn_only(
+                    crate_path,
+                    pkg.name.clone(),
+                    pkg.version.clone(),
+                    &pkg.koffi_meta,
+                )?
             };
 
             let runtime_src = std::path::absolute(&self.runtime_src)?;
-            let _paths = codegen::generate_all(&ir, &out_dir, &crate_path, &runtime_src)?;
+            let _paths = codegen::generate_all(&ir, &out_dir, crate_path, &runtime_src)?;
 
             codegen::copy_runtime(&runtime_src, &out_dir)?;
 
             // Optionally emit schema.json next to the crate (for plugin crates
             // that want to check it in).
-            if dep.koffi_meta.schema.is_some() {
+            if pkg.koffi_meta.schema.is_some() {
                 let schema_path = crate_path.join("koffi/schema.json");
                 if let Some(parent) = schema_path.parent() {
                     fs::create_dir_all(parent)?;
@@ -250,13 +248,13 @@ impl Builder {
 
             all_build_steps.push((
                 BuildSteps {
-                    crate_path: crate_path.clone(),
+                    crate_path: crate_path.to_path_buf(),
                     out_dir: out_dir.clone(),
                     glue_path: out_dir.join("rust"),
                     crate_ident: crate_ident.clone(),
                     lib_name,
                 },
-                dep,
+                pkg,
             ));
 
             dep_schemas.push(ir);

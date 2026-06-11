@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::BindgenError;
 
-/// Contents of `[package.metadata.koffi]` in any koffi-aware crate's
-/// Cargo.toml.
+/// Contents of `[package.metadata.koffi]` in any koffi-aware crate's Cargo.toml.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct KoffiPackageMeta {
@@ -58,8 +57,10 @@ impl KoffiPackageMeta {
 }
 
 #[derive(Debug)]
-pub struct DepInfo {
-    pub package: Package,
+pub struct KoffiPackage {
+    pub name: String,
+    pub version: String,
+    pub manifest_path: PathBuf,
     pub workspace_root: PathBuf,
     pub koffi_meta: KoffiPackageMeta,
     pub schema: Option<CrateInterface>, // None if no schema.json exists
@@ -67,7 +68,7 @@ pub struct DepInfo {
 
 /// Walk the full dependency graph of the root crate and collect all
 /// packages that carry `[package.metadata.koffi]`.
-pub fn collect_koffi_deps(root_manifest: &Path) -> Result<Vec<DepInfo>, BindgenError> {
+pub fn collect_koffi_packages(root_manifest: &Path) -> Result<Vec<KoffiPackage>, BindgenError> {
     let metadata = MetadataCommand::new().manifest_path(root_manifest).exec()?;
 
     let resolve = metadata
@@ -89,7 +90,7 @@ fn collect_recursive(
     pkg_id: &PackageId,
     metadata: &Metadata,
     visited: &mut HashSet<PackageId>,
-    out: &mut Vec<DepInfo>,
+    out: &mut Vec<KoffiPackage>,
 ) -> Result<(), BindgenError> {
     if !visited.insert(pkg_id.clone()) {
         return Ok(());
@@ -108,9 +109,14 @@ fn collect_recursive(
             .expect("manifest should have a parent directory")
             .as_std_path();
         let schema = load_schema(&koffi_meta, crate_root);
+        let name = pkg.name.to_string();
+        let version = pkg.version.to_string();
+        let manifest_path = pkg.manifest_path.clone().into_std_path_buf();
         let workspace_root = metadata.workspace_root.clone().into_std_path_buf();
-        out.push(DepInfo {
-            package: pkg.clone(),
+        out.push(KoffiPackage {
+            name,
+            version,
+            manifest_path,
             workspace_root,
             koffi_meta,
             schema,
@@ -138,5 +144,5 @@ fn load_schema(meta: &KoffiPackageMeta, crate_root: &Path) -> Option<CrateInterf
     let path = meta.schema_path(crate_root);
     let json = std::fs::read_to_string(path).ok()?;
 
-    serde_json::from_str(&json).ok()
+    facet_json::from_str(&json).ok()
 }

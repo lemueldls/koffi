@@ -1,5 +1,7 @@
 use std::{fs, path::PathBuf};
 
+use tracing::info;
+
 use crate::BindgenError;
 
 /// The set of native build steps performed after source codegen.
@@ -23,6 +25,7 @@ impl BuildSteps {
         ];
 
         for (target, abi) in targets {
+            info!("Building Android target {target} for ABI {abi}");
             let so = self.cargo_build_cdylib_ndk(target, "android")?;
             let dest = self
                 .out_dir
@@ -57,6 +60,7 @@ impl BuildSteps {
         ];
 
         for (target, slice) in targets {
+            info!("Building native target {target} for slice {slice}");
             let lib = self.cargo_build_staticlib(target, "native")?;
             let dest = self
                 .out_dir
@@ -78,6 +82,7 @@ impl BuildSteps {
         ];
 
         for (target, slice) in targets {
+            info!("Building iOS target {target} for slice {slice}");
             let lib = self.cargo_build_staticlib(target, "native")?;
             let dest = self
                 .out_dir

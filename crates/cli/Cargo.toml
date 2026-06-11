@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 cargo_metadata.workspace = true
 facet.workspace = true
+facet-pretty.workspace = true
 figue.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

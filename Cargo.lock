@@ -486,9 +486,9 @@ dependencies = [
 
 [[package]]
 name = "figue"
-version = "4.0.4"
+version = "4.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7056ae66e3e8b568aca890fc742868472d3163b5ad19a4b4fe6a2e4e72069fd"
+checksum = "17086e01a3af36c13cb166687fef66e7449828d55d93114744aa28fd9e60b323"
 dependencies = [
  "ariadne",
  "camino",
@@ -512,9 +512,9 @@ dependencies = [
 
 [[package]]
 name = "figue-attrs"
-version = "4.0.4"
+version = "4.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d6dc3c68d9e9cfcd22530f0ce4a3b97a019ba01d7c7fb00b9ba23f3b4cf6b8b"
+checksum = "862a1c2d93ef3c1774150e83c2a49d6b3da1bdaa325c0e67eca93732711db58c"
 dependencies = [
  "facet",
 ]
@@ -668,6 +668,8 @@ dependencies = [
  "askama",
  "cargo_metadata",
  "facet",
+ "facet-format",
+ "facet-json",
  "heck",
  "koffi-ir",
  "pathdiff",
@@ -697,6 +699,7 @@ version = "0.1.0"
 dependencies = [
  "cargo_metadata",
  "facet",
+ "facet-pretty",
  "figue",
  "koffi-bindgen",
  "tracing",
@@ -707,6 +710,7 @@ dependencies = [
 name = "koffi-ir"
 version = "0.1.0"
 dependencies = [
+ "facet",
  "serde",
  "serde_json",
 ]
@@ -742,6 +746,7 @@ version = "0.1.0"
 dependencies = [
  "koffi",
  "koffi-macros",
+ "koffi-plugin-app-dirs",
  "koffi-runtime",
  "serde",
 ]

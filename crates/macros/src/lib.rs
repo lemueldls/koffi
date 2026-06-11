@@ -12,17 +12,17 @@ pub fn export(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-/// Mark a struct as an opaque handle.
-///
-/// Options:
-/// - `mutable` - store in `Arc<RwLock<T>>`; enables &mut self methods.
+/// Mark a struct or enum as a transparent, postcard-serializable data type.
+/// The type must implement `serde::Serialize + serde::DeserializeOwned + Clone`.
 #[proc_macro_attribute]
 pub fn data(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
-/// Mark a struct or enum as a transparent, postcard-serializable data type.
-/// The type must implement `serde::Serialize + serde::DeserializeOwned + Clone`.
+/// Mark a struct as an opaque handle.
+///
+/// Options:
+/// - `mutable` - store in `Arc<RwLock<T>>`; enables &mut self methods.
 #[proc_macro_attribute]
 pub fn opaque(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item

@@ -12,7 +12,10 @@ cargo_metadata = { version = "0.23.1" }
 dashmap = { version = "6.2.1" }
 dirs = { version = "6.0.0" }
 facet = { version = "0.46.5" }
-figue = { version = "4.0.4" }
+facet-format = { version = "0.47.1" }
+facet-json = { version = "0.46.1" }
+facet-pretty = { version = "0.46.5" }
+figue = { version = "4.0.5" }
 heck = { version = "0.5.0" }
 indicatif = { version = "0.18.4" }
 pathdiff = { version = "0.2.3" }

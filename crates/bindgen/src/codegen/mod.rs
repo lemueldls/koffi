@@ -268,7 +268,7 @@ fn copy_kotlin_prebuilt(src: &Path, kotlin_dir: &Path) -> Result<(), BindgenErro
 }
 
 pub fn emit_schema(ir: &CrateInterface, path: &Path) -> Result<(), BindgenError> {
-    let json = serde_json::to_string_pretty(ir)?;
+    let json = facet_json::to_string_pretty(ir)?;
     fs::write(path, json)?;
 
     Ok(())

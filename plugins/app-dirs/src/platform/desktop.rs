@@ -5,8 +5,7 @@
 //! - **macOS** - `~/Library/…` conventions
 //! - **Windows** - `%APPDATA%` / `%LOCALAPPDATA%` `SHGetKnownFolderPath` paths
 //!
-//! Each path has `app_name` appended so directories are isolated per
-//! application.
+//! Each path has `app_name` appended so directories are isolated per application.
 
 use crate::AppDirs;
 

@@ -1,22 +1,23 @@
-use serde::{Deserialize, Serialize};
+use facet::Facet;
 
 use crate::{TypeRef, types::FFIType};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Facet)]
+#[repr(u8)]
 pub enum ReceiverType {
     Ref,    // &self
     RefMut, // &mut self
     Owned,  // self (consumes the handle)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Facet)]
 pub struct ParamInfo {
     pub name: String,
     pub ty: FFIType,
 }
 
 /// Overrides and annotations parsed from `#[koffi::export(...)]`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Facet)]
 pub struct ExportArgs {
     /// Override the generated Kotlin function/method name.
     pub name: Option<String>,
@@ -28,7 +29,7 @@ pub struct ExportArgs {
     pub blocking: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Facet)]
 pub struct FieldInfo {
     pub name: String,
     pub ty: FFIType,
@@ -36,7 +37,7 @@ pub struct FieldInfo {
     pub skip_serde: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Facet)]
 pub struct StructInfo {
     pub name: String,
     pub is_opaque: bool, // false = Data type
@@ -53,14 +54,14 @@ pub struct StructInfo {
     pub doc: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Facet)]
 pub struct EnumVariantInfo {
     pub name: String,
     pub fields: Vec<FieldInfo>,
     pub doc: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Facet)]
 pub struct EnumInfo {
     pub name: String,
     pub variants: Vec<EnumVariantInfo>,
@@ -71,7 +72,7 @@ pub struct EnumInfo {
     pub doc: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Facet)]
 pub struct FnInfo {
     /// Kotlin-side name (camelCase, possibly overridden by [`ExportArgs`]).
     pub name: String,
@@ -104,7 +105,7 @@ pub struct FnInfo {
 
 /// The complete exported interface of a single crate, ready for codegen.
 /// This is also the schema serialized to `koffi/schema.json`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Facet)]
 pub struct CrateInterface {
     /// Default Kotlin package namespace for all items in this crate.
     pub namespace: String,
