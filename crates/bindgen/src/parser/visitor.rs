@@ -28,7 +28,7 @@ use koffi_ir::{
     ReceiverType, StructInfo, TypeRef,
 };
 
-use crate::{BindgenError, parser::context::ParseContext};
+use crate::{BindgenError, diagnostic::SourceSpan, parser::context::ParseContext};
 
 /// The result of Phase 1: IR with placeholder `TypeRef`s.
 ///
@@ -72,7 +72,7 @@ pub fn parse_syn(
 
     {
         let source = fs::read_to_string(&entry)?;
-        let file = syn::parse_file(&source)?;
+        let file = parse_source_file(&entry, &source)?;
 
         // A file-level inner attribute `#![koffi::namespace("...")]` on lib.rs
         // is treated as a crate-level override (rare; outer attr on mod preferred).
@@ -128,7 +128,7 @@ fn collect_in_file(
         ))
     })?;
 
-    let file = syn::parse_file(&source)?;
+    let file = parse_source_file(file_path, &source)?;
 
     collect_in_items(&file.items, src_dir, decls, visited)
 }
@@ -217,7 +217,7 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
                         format!("{}: {}", child_path.display(), e),
                     ))
                 })?;
-                let file = syn::parse_file(&source)?;
+                let file = parse_source_file(&child_path, &source)?;
 
                 // A file-level inner namespace attr applies only when no outer
                 // attr was found on the mod declaration in the parent file.
@@ -251,6 +251,19 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
     Ok(())
 }
 
+fn parse_source_file(path: &Path, source: &str) -> Result<syn::File, BindgenError> {
+    syn::parse_file(source).map_err(|err| {
+        let span = SourceSpan::from_proc_macro_span(err.span());
+        let err = BindgenError::SyntaxError(err);
+
+        if let Some(span) = span {
+            err.with_source_span(path, span, "syntax error")
+        } else {
+            err
+        }
+    })
+}
+
 fn visit_struct(s: &syn::ItemStruct, ctx: &mut ParseContext) -> Result<(), BindgenError> {
     let is_opaque = has_koffi_attr(&s.attrs, "opaque");
     let is_data = has_koffi_attr(&s.attrs, "data");
@@ -267,7 +280,7 @@ fn visit_struct(s: &syn::ItemStruct, ctx: &mut ParseContext) -> Result<(), Bindg
     // Opaque structs expose no fields to the Kotlin side.
     // Data structs expose all fields that serde will serialize.
     let fields = if is_data {
-        parse_struct_fields(&s.fields, &ctx.type_decls)?
+        parse_struct_fields(&s.fields, ctx)?
     } else {
         Vec::new()
     };
@@ -286,7 +299,7 @@ fn visit_struct(s: &syn::ItemStruct, ctx: &mut ParseContext) -> Result<(), Bindg
 
 fn parse_struct_fields(
     fields: &syn::Fields,
-    type_decls: &TypeDeclarationMap,
+    ctx: &ParseContext,
 ) -> Result<Vec<FieldInfo>, BindgenError> {
     let mut result = Vec::new();
     match fields {
@@ -298,7 +311,7 @@ fn parse_struct_fields(
                     .as_ref()
                     .map(|id| id.to_string())
                     .unwrap_or_default();
-                let ty = parse_type(&field.ty, type_decls)?;
+                let ty = parse_type_at(&field.ty, ctx, "unsupported exported field type")?;
                 result.push(FieldInfo {
                     name,
                     ty,
@@ -309,7 +322,7 @@ fn parse_struct_fields(
         syn::Fields::Unnamed(unnamed) => {
             for (idx, field) in unnamed.unnamed.iter().enumerate() {
                 let skip_serde = has_serde_skip(&field.attrs);
-                let ty = parse_type(&field.ty, type_decls)?;
+                let ty = parse_type_at(&field.ty, ctx, "unsupported exported field type")?;
                 result.push(FieldInfo {
                     name: idx.to_string(),
                     ty,
@@ -344,7 +357,7 @@ fn visit_enum(e: &syn::ItemEnum, ctx: &mut ParseContext) -> Result<(), BindgenEr
                     .iter()
                     .map(|f| {
                         let name = f.ident.as_ref().map(|i| i.to_string()).unwrap_or_default();
-                        let ty = parse_type(&f.ty, &ctx.type_decls)?;
+                        let ty = parse_type_at(&f.ty, ctx, "unsupported exported enum field type")?;
                         let skip = has_serde_skip(&f.attrs);
                         Ok(FieldInfo {
                             name,
@@ -360,7 +373,7 @@ fn visit_enum(e: &syn::ItemEnum, ctx: &mut ParseContext) -> Result<(), BindgenEr
                     .iter()
                     .enumerate()
                     .map(|(i, f)| {
-                        let ty = parse_type(&f.ty, &ctx.type_decls)?;
+                        let ty = parse_type_at(&f.ty, ctx, "unsupported exported enum field type")?;
                         let skip = has_serde_skip(&f.attrs);
                         Ok(FieldInfo {
                             name: format!("field{i}"),
@@ -419,7 +432,11 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
     for input in &f.sig.inputs {
         if let syn::FnArg::Typed(pat_type) = input {
             let param_name = pat_ident(&pat_type.pat).unwrap_or_else(|| "arg".into());
-            let param_ty = parse_type(&pat_type.ty, &ctx.type_decls)?;
+            let param_ty = parse_type_at(
+                &pat_type.ty,
+                ctx,
+                "unsupported exported function parameter type",
+            )?;
             params.push(ParamInfo {
                 name: param_name,
                 ty: param_ty,
@@ -429,7 +446,9 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
 
     let ret_ty = match &f.sig.output {
         syn::ReturnType::Default => FFIType::Unit,
-        syn::ReturnType::Type(_, ty) => parse_type(ty, &ctx.type_decls)?,
+        syn::ReturnType::Type(_, ty) => {
+            parse_type_at(ty, ctx, "unsupported exported function return type")?
+        }
     };
 
     ctx.functions.push(FnInfo {
@@ -500,7 +519,11 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
                 }
                 syn::FnArg::Typed(pat_type) => {
                     let param_name = pat_ident(&pat_type.pat).unwrap_or_else(|| "arg".into());
-                    let mut param_ty = parse_type(&pat_type.ty, &ctx.type_decls)?;
+                    let mut param_ty = parse_type_at(
+                        &pat_type.ty,
+                        ctx,
+                        "unsupported exported method parameter type",
+                    )?;
                     param_ty = replace_self(param_ty, &parent_name, &ctx.type_decls);
                     params.push(ParamInfo {
                         name: param_name,
@@ -512,7 +535,9 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
 
         let mut ret_ty = match &method.sig.output {
             syn::ReturnType::Default => FFIType::Unit,
-            syn::ReturnType::Type(_, ty) => parse_type(ty, &ctx.type_decls)?,
+            syn::ReturnType::Type(_, ty) => {
+                parse_type_at(ty, ctx, "unsupported exported method return type")?
+            }
         };
         ret_ty = replace_self(ret_ty, &parent_name, &ctx.type_decls);
 
@@ -600,6 +625,15 @@ pub fn parse_type(
             )))
         }
     }
+}
+
+pub fn parse_type_at(
+    ty: &syn::Type,
+    ctx: &ParseContext,
+    err_msg: &str,
+) -> Result<FFIType, BindgenError> {
+    parse_type(ty, &ctx.type_decls)
+        .map_err(|_| BindgenError::UnsupportedType(format!("{}: {}", err_msg, quote::quote!(#ty),)))
 }
 
 fn parse_reference(

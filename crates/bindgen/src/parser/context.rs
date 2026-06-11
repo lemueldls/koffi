@@ -123,4 +123,9 @@ impl ParseContext {
     pub fn current_module_path(&self) -> Vec<String> {
         self.module_stack.clone()
     }
+
+    #[must_use]
+    pub fn current_file(&self) -> Option<&PathBuf> {
+        self.file_stack.last()
+    }
 }

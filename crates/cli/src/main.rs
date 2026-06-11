@@ -93,15 +93,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     pkg.version.clone(),
                     &pkg.koffi_meta,
                     &pkg_schemas,
-                )?;
-
-                info!(
-                    "Parsed bindings for crate {} v{}",
-                    ir.crate_name, ir.version
                 );
 
-                pkg_schemas.push(ir.clone());
-                parsed_packages.push((pkg, ir));
+                match ir {
+                    Ok(ir) => {
+                        info!(
+                            "Parsed bindings for crate {} v{}",
+                            ir.crate_name, ir.version
+                        );
+
+                        pkg_schemas.push(ir.clone());
+                        parsed_packages.push((pkg, ir));
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e.diagnostic().render_cli());
+                    }
+                }
             }
 
             if parsed_packages.is_empty() {

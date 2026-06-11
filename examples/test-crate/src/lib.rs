@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::sync::RwLock;
+
 pub mod util;
 
 // Primitive FFI
@@ -9,8 +11,9 @@ pub fn r#add_i32(a: i32, b: i32) -> i32 {
 }
 
 #[koffi::export]
-pub fn toggle_bool(val: bool) -> bool {
-    !val
+pub fn toggle_bool(val: RwLock<bool>) -> bool {
+    let v = val.read().unwrap();
+    !*v
 }
 
 // String & Bytes FFI
