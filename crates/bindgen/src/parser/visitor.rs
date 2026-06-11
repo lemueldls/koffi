@@ -1,20 +1,20 @@
-//! Phase 1 parser: syn-based attribute harvesting, namespace resolution,
-//! and Rust module-path tracking.
+//! Phase 1 parser: syn-based attribute harvesting and namespace/module-path resolution.
 //!
-//! ## Two sub-passes
+//! This module performs two sub-passes over the source tree:
 //!
 //! **Sub-pass A** (`collect_type_declarations`) is a lightweight traversal that
-//! builds a map of every `#[koffi::opaque]` and `#[koffi::data]` type name.
-//! This is needed before function signatures can be resolved, because a
+//! builds a map of every `#[koffi::opaque]` and `#[koffi::data]` type name in the
+//! crate. This is needed before any function signatures can be resolved, because a
 //! function may reference a type declared in a different file.
 //!
-//! **Sub-pass B** (`visit_items`) is the full parse that records structs, enums,
-//! and functions into [`ParseContext`], resolving namespaces and module paths
-//! as it goes.
+//! **Sub-pass B** (`visit_items`) is the full parse that records structs, enums, and
+//! functions into `ParseContext`, resolving both Kotlin namespaces and Rust module
+//! paths as it descends the module tree.
 //!
-//! The resulting `PartialInterface` carries:
-//! - `TypeRef`s with empty `crate_id` (filled by Phase 2).
-//! - `rust_module_path` on every item (used by codegen for `use` paths and unique C/JNI symbol names).
+//! The resulting `PartialInterface` carries `TypeRef`s whose `crate_id` field is
+//! empty (`""`). Phase 2 (`rustdoc.rs`) fills in the real crate identity and
+//! module path for every type reference. The `rust_module_path` fields on
+//! `FnInfo` / `StructInfo` / `EnumInfo` are set here and preserved by Phase 2 unchanged.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -28,12 +28,12 @@ use koffi_ir::{
     ReceiverType, StructInfo, TypeRef,
 };
 
-use crate::{
-    BindgenError,
-    parser::context::{ParseContext, TypeDeclarationMap},
-};
+use crate::{BindgenError, parser::context::ParseContext};
 
-/// Output of Phase 1: all collected items with placeholder `TypeRef`s.
+/// The result of Phase 1: IR with placeholder `TypeRef`s.
+///
+/// Every `TypeRef` in this struct has an empty `crate_id.name` and a zero
+/// `schema_hash`; both are filled in by Phase 2.
 #[derive(Debug)]
 pub struct PartialInterface {
     pub namespace: String,
@@ -43,6 +43,12 @@ pub struct PartialInterface {
     pub enums: Vec<EnumInfo>,
     pub functions: Vec<FnInfo>,
 }
+
+/// `true` -> opaque handle, `false` -> postcard-serializable data.
+type TypeKind = bool;
+
+/// `type_name -> is_opaque`. Built by sub-pass A.
+pub type TypeDeclarationMap = HashMap<String, TypeKind>;
 
 /// Run the full Phase 1 parse against a crate rooted at `crate_path`.
 pub fn parse_syn(
@@ -91,8 +97,6 @@ pub fn parse_syn(
 
 /// Walk the entire source tree starting from `entry` and collect every type
 /// annotated with `#[koffi::opaque]` or `#[koffi::data]`.
-///
-/// Returns `HashMap<type_name, is_opaque>`.
 pub fn collect_type_declarations(
     entry: &Path,
     src_dir: &Path,
@@ -123,6 +127,7 @@ fn collect_in_file(
             format!("{}: {}", file_path.display(), e),
         ))
     })?;
+
     let file = syn::parse_file(&source)?;
 
     collect_in_items(&file.items, src_dir, decls, visited)
@@ -161,7 +166,6 @@ fn collect_in_items(
             _ => {}
         }
     }
-
     Ok(())
 }
 
@@ -194,7 +198,8 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
         ctx.push_namespace(ns.clone());
     }
 
-    // Always push the module name onto the Rust path stack.
+    // Push the module name onto the Rust module path stack so all items
+    // inside this module record their full path from the crate root.
     ctx.push_module(mod_name.clone());
 
     match &m.content {
@@ -203,7 +208,7 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
             visit_items(inner_items, ctx, src_dir)?;
         }
 
-        // File-backed module: find the file and recurse.
+        // File-backed module: locate the file and recurse into it.
         None => {
             if let Some((child_path, child_src_dir)) = resolve_mod_file(src_dir, &mod_name) {
                 let source = fs::read_to_string(&child_path).map_err(|e| {
@@ -214,8 +219,8 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
                 })?;
                 let file = syn::parse_file(&source)?;
 
-                // A file-level inner namespace attr applies if no outer attr was found
-                // on the mod declaration in the parent file.
+                // A file-level inner namespace attr applies only when no outer
+                // attr was found on the mod declaration in the parent file.
                 let child_ns = if ns_override.is_none() {
                     file_level_namespace(&file.attrs)
                 } else {
@@ -233,12 +238,12 @@ fn visit_mod(m: &syn::ItemMod, ctx: &mut ParseContext, src_dir: &Path) -> Result
                     ctx.pop_namespace();
                 }
             }
-            // Unknown module (external, generated, or cfg-gated). skip silently.
+            // Unknown / cfg-gated / external module skip silently.
         }
     }
 
+    // Restore stacks.
     ctx.pop_module();
-
     if ns_override.is_some() {
         ctx.pop_namespace();
     }
@@ -314,6 +319,7 @@ fn parse_struct_fields(
         }
         syn::Fields::Unit => {}
     }
+
     Ok(result)
 }
 
@@ -390,7 +396,6 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
         None => return Ok(()),
     };
 
-    // Only public free functions.
     if !matches!(f.vis, syn::Visibility::Public(_)) {
         return Ok(());
     }
@@ -446,13 +451,11 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
 }
 
 fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), BindgenError> {
-    // Only impl blocks explicitly annotated with `#[koffi::export]`.
     let impl_attr = match get_koffi_attr(&impl_item.attrs, "export") {
         Some(a) => a,
         None => return Ok(()),
     };
 
-    // Trait impls (impl Foo for Bar) are not supported.
     if impl_item.trait_.is_some() {
         return Ok(());
     }
@@ -468,7 +471,8 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
         None => return Ok(()),
     };
 
-    // The module path where the impl block (and typically the type) lives.
+    // Module path where this impl block lives; used as both the function's module
+    // path and the parent struct's module path (they should match in idiomatic Rust).
     let impl_module_path = ctx.current_module_path();
 
     for member in &impl_item.items {
@@ -477,7 +481,6 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
             _ => continue,
         };
 
-        // Only public methods.
         if !matches!(method.vis, syn::Visibility::Public(_)) {
             continue;
         }
@@ -498,7 +501,6 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
                 syn::FnArg::Typed(pat_type) => {
                     let param_name = pat_ident(&pat_type.pat).unwrap_or_else(|| "arg".into());
                     let mut param_ty = parse_type(&pat_type.ty, &ctx.type_decls)?;
-                    // Replace `Self` type references with the concrete parent name.
                     param_ty = replace_self(param_ty, &parent_name, &ctx.type_decls);
                     params.push(ParamInfo {
                         name: param_name,
@@ -514,7 +516,7 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
         };
         ret_ty = replace_self(ret_ty, &parent_name, &ctx.type_decls);
 
-        // Per-method `#[koffi::export(...)]` can override name/package.
+        // Per-method `#[koffi::export(...)]` overrides name/package.
         let method_args = get_koffi_attr(&method.attrs, "export")
             .map(|a| parse_export_args(&a))
             .unwrap_or_else(|| impl_args.clone());
@@ -549,12 +551,6 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
     Ok(())
 }
 
-/// Convert a [`syn::Type`] to [`FFIType`].
-///
-/// Custom (user-defined) types are looked up in `type_decls`:
-/// - known opaque types  -> `FFIType::Opaque(placeholder_ref)`
-/// - known data types    -> `FFIType::Data(placeholder_ref)`
-/// - unknown types       -> `FFIType::Data(placeholder_ref)` (Phase 2 will correct)
 pub fn parse_type(
     ty: &syn::Type,
     type_decls: &TypeDeclarationMap,
@@ -566,9 +562,12 @@ pub fn parse_type(
                 "Non-unit tuples are not supported across the FFI boundary".into(),
             ))
         }
+
         syn::Type::Reference(r) => parse_reference(r, type_decls),
+
         syn::Type::Slice(s) => {
             let inner = parse_type(&s.elem, type_decls)?;
+
             if inner == FFIType::U8 {
                 Ok(FFIType::Bytes)
             } else {
@@ -577,6 +576,7 @@ pub fn parse_type(
                 ))
             }
         }
+
         syn::Type::Path(tp) => {
             let segment = tp
                 .path
@@ -586,14 +586,16 @@ pub fn parse_type(
 
             parse_type_segment(&segment.ident.to_string(), &segment.arguments, type_decls)
         }
+
         syn::Type::Infer(_) => {
             Err(BindgenError::UnsupportedType(
                 "Inferred types (`_`) are not supported in koffi signatures".into(),
             ))
         }
+
         other => {
             Err(BindgenError::UnsupportedType(format!(
-                "Unsupported type: {}",
+                "Unsupported syn type: {}",
                 quote::quote!(#other),
             )))
         }
@@ -614,13 +616,14 @@ fn parse_reference(
             if inner == FFIType::U8 {
                 Ok(FFIType::Bytes)
             } else {
-                Err(BindgenError::UnsupportedType(
-                    "&[T] is only supported for T = u8".into(),
-                ))
+                Err(BindgenError::UnsupportedType(format!(
+                    "&[{}] is not supported; only &[u8] maps to Bytes",
+                    quote::quote!(#s),
+                )))
             }
         }
 
-        // &T pass through; handles &Self, &Struct, etc.
+        // &T pass through
         other => parse_type(other, type_decls),
     }
 }
@@ -683,7 +686,6 @@ fn parse_type_segment(
         _ => {}
     }
 
-    // `Self` is a special case: replaced later by `replace_self`.
     let is_opaque = *type_decls.get(name).unwrap_or(&false);
     let type_ref = placeholder_type_ref(name.to_string());
 
@@ -783,7 +785,6 @@ fn replace_self(ty: FFIType, parent: &str, type_decls: &TypeDeclarationMap) -> F
     }
 }
 
-#[must_use]
 const fn detect_receiver(rec: &syn::Receiver) -> ReceiverType {
     if rec.reference.is_some() {
         if rec.mutability.is_some() {
@@ -899,7 +900,7 @@ pub fn extract_doc(attrs: &[syn::Attribute]) -> Vec<String> {
         })
         .collect();
 
-    if lines.is_empty() { Vec::new() } else { lines }
+    lines
 }
 
 fn has_serde_skip(attrs: &[syn::Attribute]) -> bool {
@@ -921,6 +922,11 @@ fn has_serde_skip(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
+/// Resolve `pub mod <name>;` given the parent's `src_dir`.
+///
+/// Returns `(file_path, child_src_dir)`. Checks:
+///   1. `<src_dir>/<name>.rs`
+///   2. `<src_dir>/<name>/mod.rs`
 #[must_use]
 pub fn resolve_mod_file(src_dir: &Path, name: &str) -> Option<(PathBuf, PathBuf)> {
     let flat = src_dir.join(format!("{name}.rs"));
@@ -950,6 +956,7 @@ fn entry_point(src_dir: &Path) -> Option<PathBuf> {
 }
 
 /// Return the last path segment as an owned `String`.
+/// (Avoids the dangling-reference anti-pattern of converting to `&str`.)
 fn path_last_str(tp: &syn::TypePath) -> String {
     tp.path
         .segments
@@ -966,7 +973,7 @@ fn pat_ident(pat: &syn::Pat) -> Option<String> {
     }
 }
 
-/// Create a placeholder `TypeRef` with empty `crate_id` and zero `schema_hash`.
+/// Create a placeholder `TypeRef` with an empty `crate_id`.
 /// Phase 2 replaces these with fully-qualified refs.
 #[must_use]
 pub const fn placeholder_type_ref(name: String) -> TypeRef {

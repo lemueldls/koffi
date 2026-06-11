@@ -24,7 +24,7 @@ pub fn get(app_name: &str) -> AppDirs {
 }
 
 /// Stores Android-provided paths. No-op on every other platform.
-pub fn android_init(
+pub const fn android_init(
     files_dir: &str,
     cache_dir: &str,
     no_backup_dir: &str,
@@ -55,7 +55,7 @@ fn get_impl(app_name: &str) -> AppDirs {
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 #[allow(unused_variables)]
-fn android_init_impl(
+const fn android_init_impl(
     files_dir: &str,
     cache_dir: &str,
     no_backup_dir: &str,

@@ -118,7 +118,7 @@ pub fn app_dirs(app_name: &str) -> AppDirs {
 /// * `no_backup_dir` - `context.noBackupFilesDir.absolutePath`
 /// * `external_files_dir` - `context.getExternalFilesDir(null)?.absolutePath ?: ""`
 #[koffi::export]
-pub fn app_dirs_android_init(
+pub const fn app_dirs_android_init(
     files_dir: &str,
     cache_dir: &str,
     no_backup_dir: &str,

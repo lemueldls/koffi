@@ -4,14 +4,14 @@ pub mod visitor;
 
 use std::path::Path;
 
-use koffi_ir::{CrateInterface, EnumInfo, FnInfo, StructInfo};
+use koffi_ir::CrateInterface;
 
 use crate::{BindgenError, meta::KoffiPackageMeta};
 
 /// Full parse pipeline: syn pass -> rustdoc resolution -> [`CrateInterface`].
 pub fn parse_crate(
     crate_path: &Path,
-    workspace_root: &Path,
+    _workspace_root: &Path,
     crate_name: String,
     version: String,
     meta: &KoffiPackageMeta,
@@ -24,7 +24,7 @@ pub fn parse_crate(
 
     let partial = visitor::parse_syn(crate_path, crate_namespace, crate_name, version)?;
 
-    let rustdoc_path = rustdoc::ensure_json(crate_path, workspace_root)?;
+    let rustdoc_path = rustdoc::ensure_json(crate_path)?;
     let resolved = rustdoc::resolve_types(partial, &rustdoc_path, dep_schemas)?;
 
     Ok(resolved)

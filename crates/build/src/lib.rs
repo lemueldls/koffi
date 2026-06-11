@@ -42,7 +42,7 @@ use std::{
 pub use koffi_bindgen::BindgenError;
 use koffi_bindgen::{
     build_steps::BuildSteps,
-    codegen::{self, GeneratedPaths},
+    codegen::{self},
     meta::{DepInfo, collect_koffi_deps},
     parser,
 };

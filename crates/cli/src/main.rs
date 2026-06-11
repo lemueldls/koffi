@@ -1,10 +1,10 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use facet::Facet;
 use figue::{self as args, FigueBuiltins};
 use koffi_bindgen::{
     build_steps::BuildSteps,
-    codegen::{copy_runtime, generate_all},
+    codegen::{copy_runtime, emit_schema, generate_all},
     meta::collect_koffi_deps,
     parser::parse_crate,
 };
@@ -31,9 +31,8 @@ pub enum Command {
     #[facet(rename = "gen")]
     Generate(GenerateArgs),
 
-    /// Package platform artifacts.
-    #[facet(rename = "pack")]
-    Package {},
+    /// Dump crate IR (for debugging).
+    DumpIr(GenerateArgs),
 }
 
 #[derive(Facet, Debug)]
@@ -167,7 +166,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 info!("Generation complete!");
             }
         }
-        Command::Package { .. } => {}
+        Command::DumpIr(args) => {
+            let crate_manifest = args.crate_path.join("Cargo.toml");
+            let deps = collect_koffi_deps(&crate_manifest)?;
+
+            for dep in &deps {
+                let crate_path = dep
+                    .package
+                    .manifest_path
+                    .parent()
+                    .map_or_else(|| PathBuf::from("."), |p| p.as_std_path().to_path_buf());
+                let crate_name = dep.package.name.to_string();
+                let version = dep.package.version.to_string();
+
+                let ir = parse_crate(
+                    &crate_path,
+                    &dep.workspace_root,
+                    crate_name,
+                    version,
+                    &dep.koffi_meta,
+                    &[],
+                )?;
+
+                println!("IR for crate {} v{}:", ir.crate_name, ir.version);
+                println!("{ir:#?}");
+            }
+        }
     }
 
     Ok(())
