@@ -7,7 +7,7 @@ use cargo_metadata::{Metadata, MetadataCommand, Package, PackageId};
 use koffi_ir::CrateInterface;
 use serde::{Deserialize, Serialize};
 
-use crate::BindgenError;
+use crate::{BindgenError, build_steps::TargetPlatforms};
 
 /// Contents of `[package.metadata.koffi]` in any koffi-aware crate's Cargo.toml.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -34,6 +34,11 @@ pub struct KoffiPackageMeta {
 
     /// Minimum koffi-bindgen version required to process this crate.
     pub min_bindgen_version: Option<String>,
+
+    /// Kotlin target platforms to generate and build for.
+    ///
+    /// Example: `target-platforms = ["jvm", "android", "iosArm64"]`
+    pub target_platforms: Option<TargetPlatforms>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -64,6 +69,7 @@ pub struct KoffiPackage {
     pub workspace_root: PathBuf,
     pub koffi_meta: KoffiPackageMeta,
     pub schema: Option<CrateInterface>, // None if no schema.json exists
+    pub is_root: bool,
 }
 
 /// Walk the full dependency graph of the root crate and collect all
@@ -81,13 +87,14 @@ pub fn collect_koffi_packages(root_manifest: &Path) -> Result<Vec<KoffiPackage>,
     let mut visited = HashSet::new();
     let mut result = Vec::new();
 
-    collect_recursive(root_id, &metadata, &mut visited, &mut result)?;
+    collect_recursive(root_id, root_id, &metadata, &mut visited, &mut result)?;
 
     Ok(result)
 }
 
 fn collect_recursive(
     pkg_id: &PackageId,
+    root_id: &PackageId,
     metadata: &Metadata,
     visited: &mut HashSet<PackageId>,
     out: &mut Vec<KoffiPackage>,
@@ -101,6 +108,16 @@ fn collect_recursive(
         .iter()
         .find(|p| &p.id == pkg_id)
         .ok_or_else(|| BindgenError::PackageNotFound(pkg_id.to_string()))?;
+
+    // Recurse into dependencies first so callers can parse dependencies before
+    // dependents and pass their schemas forward.
+    if let Some(resolve) = &metadata.resolve
+        && let Some(node) = resolve.nodes.iter().find(|n| &n.id == pkg_id)
+    {
+        for dep_id in &node.dependencies {
+            collect_recursive(dep_id, root_id, metadata, visited, out)?;
+        }
+    }
 
     if let Some(koffi_meta) = extract_koffi_meta(pkg) {
         let crate_root = pkg
@@ -120,16 +137,8 @@ fn collect_recursive(
             workspace_root,
             koffi_meta,
             schema,
+            is_root: pkg_id == root_id,
         });
-    }
-
-    // Recurse into dependencies
-    if let Some(resolve) = &metadata.resolve
-        && let Some(node) = resolve.nodes.iter().find(|n| &n.id == pkg_id)
-    {
-        for dep_id in &node.dependencies {
-            collect_recursive(dep_id, metadata, visited, out)?;
-        }
     }
 
     Ok(())

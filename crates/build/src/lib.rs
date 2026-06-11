@@ -26,7 +26,7 @@
 //!    `cargo_metadata`.
 //! 2. Runs the two-phase parse pipeline (syn + rustdoc JSON) on each koffi-
 //!    aware crate in topological order, passing earlier crates' schemas as
-//!    `dep_schemas` to later ones.
+//!    `pkg_schemas` to later ones.
 //! 3. Generates Kotlin expect/actual files, a Rust JNI glue crate, a Rust C-ABI
 //!    glue crate, a C header, and a cinterop `.def` file.
 //! 4. Copies the koffi-runtime Kotlin sources into the output directory.
@@ -41,10 +41,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub use koffi_bindgen::BindgenError;
+pub use koffi_bindgen::{BindgenError, build_steps::TargetPlatforms as Targets};
 use koffi_bindgen::{
     build_steps::BuildSteps,
-    codegen::{self},
+    codegen::{self, BindingPackage},
     meta::{KoffiPackage, collect_koffi_packages},
     parser,
 };
@@ -78,38 +78,6 @@ pub struct Builder {
     full_parse: bool,
 }
 
-/// Controls which native target sets are compiled.
-///
-/// Compiling all targets requires the corresponding Rust cross-compilation
-/// toolchains to be installed. Use `jvm_only()` during development.
-#[derive(Debug, Clone, Default)]
-pub struct Targets {
-    pub android: bool,
-    pub jvm: bool,
-    pub ios: bool,
-}
-
-impl Targets {
-    /// Compile for all supported platforms.
-    #[must_use]
-    pub const fn all() -> Self {
-        Self {
-            android: true,
-            jvm: true,
-            ios: true,
-        }
-    }
-
-    /// Only compile the host-native jvm library. Fastest for development.
-    #[must_use]
-    pub fn jvm_only() -> Self {
-        Self {
-            jvm: true,
-            ..Default::default()
-        }
-    }
-}
-
 impl Builder {
     /// Create a `Builder` from `CARGO_*` environment variables set by Cargo
     /// when running a `build.rs` script.
@@ -138,7 +106,7 @@ impl Builder {
             out_dir,
             runtime_src,
             workspace_root,
-            targets: Targets::all(),
+            targets: Targets::default(),
             full_parse: true,
         }
     }
@@ -159,7 +127,7 @@ impl Builder {
 
     /// Set which native targets to compile.
     #[must_use]
-    pub const fn targets(mut self, t: Targets) -> Self {
+    pub fn targets(mut self, t: Targets) -> Self {
         self.targets = t;
         self
     }
@@ -203,8 +171,8 @@ impl Builder {
         }
 
         // Parse crates in topological order so each crate can see dep schemas.
-        let mut dep_schemas: Vec<CrateInterface> = Vec::new();
-        let mut all_build_steps: Vec<(BuildSteps, KoffiPackage)> = Vec::new();
+        let mut pkg_schemas: Vec<CrateInterface> = Vec::new();
+        let mut parsed_packages: Vec<(KoffiPackage, CrateInterface)> = Vec::new();
 
         for pkg in packages {
             let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
@@ -216,7 +184,7 @@ impl Builder {
                     pkg.name.clone(),
                     pkg.version.clone(),
                     &pkg.koffi_meta,
-                    &dep_schemas,
+                    &pkg_schemas,
                 )?
             } else {
                 // Phase 1 only. Faster, less accurate.
@@ -228,11 +196,6 @@ impl Builder {
                 )?
             };
 
-            let runtime_src = std::path::absolute(&self.runtime_src)?;
-            let _paths = codegen::generate_all(&ir, &out_dir, crate_path, &runtime_src)?;
-
-            codegen::copy_runtime(&runtime_src, &out_dir)?;
-
             // Optionally emit schema.json next to the crate (for plugin crates
             // that want to check it in).
             if pkg.koffi_meta.schema.is_some() {
@@ -243,36 +206,62 @@ impl Builder {
                 codegen::emit_schema(&ir, &schema_path)?;
             }
 
-            let crate_ident = ir.crate_name.replace('-', "_");
-            let lib_name = format!("{crate_ident}_koffi_glue");
-
-            all_build_steps.push((
-                BuildSteps {
-                    crate_path: crate_path.to_path_buf(),
-                    out_dir: out_dir.clone(),
-                    glue_path: out_dir.join("rust"),
-                    crate_ident: crate_ident.clone(),
-                    lib_name,
-                },
-                pkg,
-            ));
-
-            dep_schemas.push(ir);
+            pkg_schemas.push(ir.clone());
+            parsed_packages.push((pkg, ir));
         }
+
+        let root_index = parsed_packages
+            .iter()
+            .position(|(pkg, _)| pkg.is_root)
+            .unwrap_or_else(|| parsed_packages.len().saturating_sub(1));
+        let (root_pkg, root_ir) = &parsed_packages[root_index];
+        let target_platforms = root_pkg
+            .koffi_meta
+            .target_platforms
+            .clone()
+            .unwrap_or_else(|| self.targets.clone());
+        let namespace = root_pkg
+            .koffi_meta
+            .namespace
+            .as_deref()
+            .unwrap_or(&root_ir.namespace);
+        let runtime_src = std::path::absolute(&self.runtime_src)?;
+        let binding_packages = parsed_packages
+            .iter()
+            .map(|(pkg, ir)| {
+                BindingPackage {
+                    ir,
+                    crate_path: pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")),
+                }
+            })
+            .collect::<Vec<_>>();
+
+        codegen::generate_package_set(
+            &binding_packages,
+            namespace,
+            &root_ir.crate_name,
+            &root_ir.version,
+            &out_dir,
+            &runtime_src,
+            &target_platforms,
+        )?;
+        codegen::copy_runtime(&runtime_src, &out_dir)?;
 
         // Compile native libraries after all code generation is done, so that
         // the generated Rust glue crate sees all types from all plugins.
-        for (steps, _dep) in all_build_steps {
-            if self.targets.android {
-                steps.run_android()?;
-            }
-            if self.targets.jvm {
-                steps.run_jvm()?;
-            }
-            if self.targets.ios {
-                steps.run_ios()?;
-            }
-        }
+        let crate_ident = root_ir.crate_name.replace('-', "_");
+        let steps = BuildSteps {
+            crate_path: root_pkg
+                .manifest_path
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .to_path_buf(),
+            out_dir: out_dir.clone(),
+            glue_path: out_dir.join("rust"),
+            crate_ident: crate_ident.clone(),
+            lib_name: format!("{crate_ident}_koffi_glue"),
+        };
+        steps.run_targets(&target_platforms)?;
 
         Ok(())
     }

@@ -6,11 +6,10 @@ use koffi_ir::{EnumInfo, FFIType, FnInfo, ParamInfo, StructInfo};
 /// (root) `add_i32`     -> `"add_i32"`
 #[must_use]
 pub fn rust_fn_use_path(f: &FnInfo) -> String {
-    let raw = f.rust_name.trim_start_matches("r#");
     if f.rust_module_path.is_empty() {
-        raw.to_string()
+        f.rust_name.clone()
     } else {
-        format!("{}::{raw}", f.rust_module_path.join("::"))
+        format!("{}::{}", f.rust_module_path.join("::"), f.rust_name)
     }
 }
 
@@ -45,6 +44,20 @@ pub fn rust_parent_use_path(f: &FnInfo) -> String {
         parent.to_string()
     } else {
         format!("{}::{parent}", f.parent_rust_module_path.join("::"))
+    }
+}
+
+#[must_use]
+pub fn rust_use_path_with_parent(f: &FnInfo) -> String {
+    if let Some(parent) = &f.parent_struct {
+        let parent_path = if f.parent_rust_module_path.is_empty() {
+            parent.to_owned()
+        } else {
+            format!("{}::{}", f.parent_rust_module_path.join("::"), parent)
+        };
+        format!("{}::{}", parent_path, f.rust_name)
+    } else {
+        rust_fn_use_path(f)
     }
 }
 

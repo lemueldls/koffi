@@ -9,9 +9,12 @@ crate-type = ["lib", "staticlib", "cdylib"]
 [dependencies]
 serde.workspace = true
 
+koffi-plugin-app-dirs = { path = "../../plugins/app-dirs" }
+
 koffi.workspace = true
 koffi-macros.workspace = true
 koffi-runtime.workspace = true
 
 [package.metadata.koffi]
 namespace = "rs.koffi.example"
+target-platforms = ["jvm"]

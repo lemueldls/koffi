@@ -105,7 +105,7 @@ pub struct FnInfo {
 
 /// The complete exported interface of a single crate, ready for codegen.
 /// This is also the schema serialized to `koffi/schema.json`.
-#[derive(Debug, Facet)]
+#[derive(Debug, Clone, Facet)]
 pub struct CrateInterface {
     /// Default Kotlin package namespace for all items in this crate.
     pub namespace: String,

@@ -15,7 +15,7 @@ pub fn parse_crate(
     crate_name: String,
     version: String,
     meta: &KoffiPackageMeta,
-    dep_schemas: &[CrateInterface], // pre-loaded from dependency schema.json files
+    pkg_schemas: &[CrateInterface], // pre-loaded from dependency schema.json files
 ) -> Result<CrateInterface, BindgenError> {
     let crate_namespace = meta
         .namespace
@@ -25,7 +25,7 @@ pub fn parse_crate(
     let partial = visitor::parse_syn(crate_path, crate_namespace, crate_name, version)?;
 
     let rustdoc_path = rustdoc::ensure_json(crate_path)?;
-    let resolved = rustdoc::resolve_types(partial, &rustdoc_path, dep_schemas)?;
+    let resolved = rustdoc::resolve_types(partial, &rustdoc_path, pkg_schemas)?;
 
     Ok(resolved)
 }

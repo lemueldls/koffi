@@ -6,6 +6,8 @@ pub mod rust;
 use askama::Template;
 use koffi_ir::{CrateInterface, FFIType, ReceiverType};
 
+use crate::codegen::GlueDependency;
+
 #[derive(Template)]
 #[template(path = "kotlin/common.kt.j2", escape = "none")]
 pub struct KotlinCommonTemplate<'a> {
@@ -50,10 +52,8 @@ pub struct KotlinLoaderTemplate<'a> {
 
 #[derive(Template)]
 #[template(path = "kotlin/module.yaml.j2", escape = "none")]
-pub struct KotlinModuleTemplate<'a> {
-    pub namespace: &'a str,
-    pub pkg_pascal: &'a str,
-    pub crate_name: &'a str,
+pub struct KotlinModuleTemplate {
+    pub platforms: Vec<&'static str>,
 }
 
 #[derive(Template)]
@@ -63,6 +63,7 @@ pub struct RustJniTemplate<'a> {
     pub pkg_pascal: &'a str,
     pub crate_ident: &'a str, // crate name with hyphens -> underscores
     pub ir: &'a CrateInterface,
+    pub emit_handle_release: bool,
 }
 
 #[derive(Template)]
@@ -98,9 +99,10 @@ pub struct CinteropDefTemplate<'a> {
 
 #[derive(Template)]
 #[template(path = "rust/lib.rs.j2", escape = "none")]
-pub struct GlueLibTemplate<'a> {
-    pub crate_ident: &'a str,
-    pub ir: &'a CrateInterface,
+pub struct GlueLibTemplate {
+    pub cabi_modules: Vec<String>,
+    pub jni_modules: Vec<String>,
+    pub wasm_modules: Vec<String>,
 }
 
 #[derive(Template)]
@@ -108,6 +110,6 @@ pub struct GlueLibTemplate<'a> {
 pub struct GlueCargoTemplate<'a> {
     pub crate_name: &'a str,
     pub version: &'a str,
-    pub crate_path: &'a str,
+    pub dependencies: Vec<GlueDependency>,
     pub runtime_path: &'a str,
 }

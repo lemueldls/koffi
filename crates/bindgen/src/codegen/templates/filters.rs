@@ -168,6 +168,11 @@ pub fn rust_parent_use_path(f: &FnInfo, _env: &dyn askama::Values) -> askama::Re
 }
 
 #[askama::filter_fn]
+pub fn rust_use_path_with_parent(f: &FnInfo, _env: &dyn askama::Values) -> askama::Result<String> {
+    Ok(rust::rust_use_path_with_parent(f))
+}
+
+#[askama::filter_fn]
 pub fn rust_parent_alias(f: &FnInfo, _env: &dyn askama::Values) -> askama::Result<String> {
     Ok(rust::rust_parent_alias(f))
 }

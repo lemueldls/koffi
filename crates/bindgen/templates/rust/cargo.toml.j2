@@ -11,9 +11,11 @@ edition = "2024"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-{{ crate_name }} = { path = "{{ crate_path }}" }
+{% for dependency in dependencies %}
+{{ dependency.package_name }} = { path = "{{ dependency.path }}" }
+{% endfor %}
 koffi-runtime = { path = "{{ runtime_path }}" }
-jni = { version = "0.22.4", optional = true }
+jni = { version = "0.22", optional = true }
 postcard = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
 

@@ -5,7 +5,7 @@ use facet_pretty::{FacetPretty, PrettyPrinter};
 use figue::{self as args, FigueBuiltins};
 use koffi_bindgen::{
     build_steps::BuildSteps,
-    codegen::{copy_runtime, generate_all},
+    codegen::{BindingPackage, copy_runtime, generate_package_set},
     meta::collect_koffi_packages,
     parser::parse_crate,
 };
@@ -76,7 +76,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let packages = collect_koffi_packages(&crate_manifest)?;
             debug!("Found {} koffi packages", packages.len());
 
-            for pkg in &packages {
+            let mut pkg_schemas = Vec::new();
+            let mut parsed_packages = Vec::new();
+
+            for pkg in packages {
                 info!("Found koffi package: {} v{}", pkg.name, pkg.version);
 
                 let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
@@ -89,46 +92,86 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     pkg.name.clone(),
                     pkg.version.clone(),
                     &pkg.koffi_meta,
-                    &[],
+                    &pkg_schemas,
                 )?;
 
-                let out_dir = std::path::absolute(&args.out)?;
-                let runtime_path = std::path::absolute(&args.runtime_path)?;
-
-                debug!("Generating bindings to {}", out_dir.display());
-                debug!("Using koffi-runtime at {}", runtime_path.display());
-
                 info!(
-                    "Generating bindings for crate {} v{}",
+                    "Parsed bindings for crate {} v{}",
                     ir.crate_name, ir.version
                 );
-                generate_all(&ir, &out_dir, crate_path, &runtime_path)?;
 
-                let kotlin_runtime_path = PathBuf::from("crates/runtime/kotlin");
-                debug!(
-                    "Copying koffi-runtime from {} to {}",
-                    kotlin_runtime_path.display(),
-                    out_dir.join("kotlin/runtime").display()
-                );
-                copy_runtime(&kotlin_runtime_path, &out_dir)?;
-
-                let build = BuildSteps {
-                    crate_path: args.crate_path.clone(),
-                    out_dir: out_dir.clone(),
-                    glue_path: out_dir.join("rust"),
-                    crate_ident: ir.crate_name.replace('-', "_"),
-                    lib_name: format!("{}_koffi_glue", ir.crate_name.replace('-', "_")),
-                };
-
-                info!("Building JVM artifacts...");
-                build.run_jvm()?;
-                // info!("Building native artifacts...");
-                // build.run_native_mingw()?;
-                // info!("Building Android artifacts...");
-                // build.run_android()?;
-
-                info!("Generation complete!");
+                pkg_schemas.push(ir.clone());
+                parsed_packages.push((pkg, ir));
             }
+
+            if parsed_packages.is_empty() {
+                return Ok(());
+            }
+
+            let root_index = parsed_packages
+                .iter()
+                .position(|(pkg, _)| pkg.is_root)
+                .unwrap_or_else(|| parsed_packages.len().saturating_sub(1));
+            let (root_pkg, root_ir) = &parsed_packages[root_index];
+            let target_platforms = root_pkg
+                .koffi_meta
+                .target_platforms
+                .clone()
+                .unwrap_or_default();
+            let namespace = root_pkg
+                .koffi_meta
+                .namespace
+                .as_deref()
+                .unwrap_or(&root_ir.namespace);
+            let out_dir = std::path::absolute(&args.out)?;
+            let runtime_path = std::path::absolute(&args.runtime_path)?;
+            let binding_packages = parsed_packages
+                .iter()
+                .map(|(pkg, ir)| {
+                    BindingPackage {
+                        ir,
+                        crate_path: pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")),
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            debug!("Generating bindings to {}", out_dir.display());
+            debug!("Using koffi-runtime at {}", runtime_path.display());
+            generate_package_set(
+                &binding_packages,
+                namespace,
+                &root_ir.crate_name,
+                &root_ir.version,
+                &out_dir,
+                &runtime_path,
+                &target_platforms,
+            )?;
+
+            let kotlin_runtime_path = PathBuf::from("crates/runtime/kotlin");
+            debug!(
+                "Copying koffi-runtime from {} to {}",
+                kotlin_runtime_path.display(),
+                out_dir.join("kotlin/runtime").display()
+            );
+            copy_runtime(&kotlin_runtime_path, &out_dir)?;
+
+            let crate_ident = root_ir.crate_name.replace('-', "_");
+            let build = BuildSteps {
+                crate_path: root_pkg
+                    .manifest_path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .to_path_buf(),
+                out_dir: out_dir.clone(),
+                glue_path: out_dir.join("rust"),
+                crate_ident: crate_ident.clone(),
+                lib_name: format!("{crate_ident}_koffi_glue"),
+            };
+
+            info!("Building artifacts for targets: {}", target_platforms);
+            build.run_targets(&target_platforms)?;
+
+            info!("Generation complete!");
         }
 
         Command::DumpIr(args) => {

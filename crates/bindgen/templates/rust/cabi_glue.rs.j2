@@ -25,7 +25,7 @@ use {{ crate_ident }}::{
 
 {% for f in ir.functions %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
-/// `{{ crate_ident }}::{{ f.rust_name }}`
+/// `{{ crate_ident }}::{{ f | rust_use_path_with_parent }}`
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn {{ sym }}(
 {%- if f.receiver.is_some() %}

@@ -71,7 +71,7 @@ pub fn ensure_json(crate_path: &Path) -> Result<PathBuf, BindgenError> {
 pub fn resolve_types(
     partial: PartialInterface,
     json_path: &Path,
-    dep_schemas: &[CrateInterface],
+    pkg_schemas: &[CrateInterface],
 ) -> Result<CrateInterface, BindgenError> {
     let json = fs::read_to_string(json_path)?;
     let krate: Crate = serde_json::from_str(&json)?;
@@ -87,7 +87,7 @@ pub fn resolve_types(
         &krate,
         partial.crate_name.clone(),
         partial.version.clone(),
-        dep_schemas,
+        pkg_schemas,
         local_decls,
     );
 
@@ -156,7 +156,7 @@ struct TypeResolver<'a> {
     crate_name: String,
     crate_ident: String,
     crate_version: String,
-    dep_schemas: &'a [CrateInterface],
+    pkg_schemas: &'a [CrateInterface],
     local_decls: HashMap<String, bool>,
     /// item name -> list of item Ids.
     name_to_ids: HashMap<String, Vec<Id>>,
@@ -169,7 +169,7 @@ impl<'a> TypeResolver<'a> {
         krate: &'a Crate,
         crate_name: String,
         crate_version: String,
-        dep_schemas: &'a [CrateInterface],
+        pkg_schemas: &'a [CrateInterface],
         local_decls: HashMap<String, bool>,
     ) -> Self {
         let crate_ident = crate_name.replace('-', "_");
@@ -192,7 +192,7 @@ impl<'a> TypeResolver<'a> {
             crate_name,
             crate_ident,
             crate_version,
-            dep_schemas,
+            pkg_schemas,
             local_decls,
             name_to_ids,
             path_index,
@@ -701,7 +701,7 @@ impl<'a> TypeResolver<'a> {
             });
         }
 
-        for dep in self.dep_schemas {
+        for dep in self.pkg_schemas {
             if let Some(ty) = find_in_dep(dep, name) {
                 return Ok(ty);
             }
@@ -788,7 +788,7 @@ impl<'a> TypeResolver<'a> {
             return found;
         }
 
-        for dep in self.dep_schemas {
+        for dep in self.pkg_schemas {
             if let Some(tr) = find_type_ref_in_dep(dep, name) {
                 return tr;
             }
@@ -945,14 +945,14 @@ impl<'a> TypeResolver<'a> {
             .unwrap_or_default();
 
         let version = self
-            .dep_schemas
+            .pkg_schemas
             .iter()
             .find(|d| d.crate_name.replace('-', "_") == ext_name)
             .map(|d| d.version.clone())
             .unwrap_or_default();
 
         let crate_pkg = self
-            .dep_schemas
+            .pkg_schemas
             .iter()
             .find(|d| d.crate_name.replace('-', "_") == ext_name)
             .map(|d| d.crate_name.clone())
@@ -962,7 +962,7 @@ impl<'a> TypeResolver<'a> {
     }
 
     fn dep_opaque(&self, crate_name: &str, type_name: &str) -> bool {
-        self.dep_schemas
+        self.pkg_schemas
             .iter()
             .find(|d| d.crate_name == crate_name || d.crate_name.replace('-', "_") == crate_name)
             .map(|d| d.is_opaque(type_name))

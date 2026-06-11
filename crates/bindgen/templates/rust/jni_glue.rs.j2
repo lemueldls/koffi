@@ -33,7 +33,7 @@ use {{ crate_ident }}::{
 
 {% for f in ir.functions %}
 {%- let jni_name = f | kotlin_jni_method_name %}
-/// `{{ f.namespace }}::{{ f.rust_name }}`
+/// `{{ crate_ident }}::{{ f | rust_use_path_with_parent }}`
 #[jni_mangle("{{ f.namespace }}.{{ pkg_pascal }}Jni", "{{ jni_name }}")]
 pub fn {{ jni_name }}<'a>(
     mut env: EnvUnowned<'a>,
@@ -159,6 +159,7 @@ pub fn {{ jni_name }}<'a>(
 {% endfor %}
 
 
+{% if emit_handle_release %}
 /// Called by `KoffiHandleBase.close()` and the JVM `Cleaner` finalizer.
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_rs_koffi_KoffiHandleBase_koffi_1handle_1release(
@@ -168,3 +169,4 @@ pub unsafe extern "system" fn Java_rs_koffi_KoffiHandleBase_koffi_1handle_1relea
 ) {
     HandleRegistry::global().remove(handle as u64);
 }
+{% endif %}
