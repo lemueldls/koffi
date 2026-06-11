@@ -1,3 +1,5 @@
+#![allow(clippy::needless_doctest_main)]
+
 //! Build-time integration helper for koffi.
 //!
 //! Add this to your crate's `build.rs`:

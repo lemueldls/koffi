@@ -102,7 +102,11 @@ fn collect_recursive(
         .ok_or_else(|| BindgenError::PackageNotFound(pkg_id.to_string()))?;
 
     if let Some(koffi_meta) = extract_koffi_meta(pkg) {
-        let crate_root = pkg.manifest_path.parent().unwrap().as_std_path();
+        let crate_root = pkg
+            .manifest_path
+            .parent()
+            .expect("manifest should have a parent directory")
+            .as_std_path();
         let schema = load_schema(&koffi_meta, crate_root);
         let workspace_root = metadata.workspace_root.clone().into_std_path_buf();
         out.push(DepInfo {

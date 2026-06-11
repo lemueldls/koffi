@@ -27,12 +27,6 @@ pub fn serialize_envelope<T: serde::Serialize>(
 /// # Safety
 ///
 /// The pointer must be valid for `len` bytes.
-///
-/// # Panics
-///
-/// This function will panic if the input is not a valid envelope, or if the
-/// schema hash does not match (unless `expected_hash` is 0, in which case the
-/// hash is ignored).
 pub unsafe fn deserialize_envelope<T: serde::de::DeserializeOwned>(
     ptr: *const u8,
     len: usize,
@@ -43,10 +37,10 @@ pub unsafe fn deserialize_envelope<T: serde::de::DeserializeOwned>(
     }
     let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
 
-    let magic = u16::from_le_bytes(bytes[0..2].try_into().unwrap());
-    let version = u16::from_le_bytes(bytes[2..4].try_into().unwrap());
+    let magic = u16::from_le_bytes(bytes[0..2].try_into().expect("Invalid magic bytes"));
+    let version = u16::from_le_bytes(bytes[2..4].try_into().expect("Invalid version bytes"));
     // bytes[4..8] = padding
-    let hash = u64::from_le_bytes(bytes[8..16].try_into().unwrap());
+    let hash = u64::from_le_bytes(bytes[8..16].try_into().expect("Invalid hash bytes"));
 
     if magic != MAGIC {
         return Err(EnvelopeError::BadMagic(magic));

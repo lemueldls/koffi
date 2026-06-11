@@ -23,7 +23,7 @@ impl BuildSteps {
         ];
 
         for (target, abi) in targets {
-            let so = self.cargo_build_cdylib(target, "android", "lib", ".so")?;
+            let so = self.cargo_build_cdylib_ndk(target, "android")?;
             let dest = self
                 .out_dir
                 .join("kotlin/jniLibs")
@@ -121,6 +121,35 @@ impl BuildSteps {
             .join(target)
             .join("release")
             .join(format!("{prefix}{}{ext}", self.lib_name.replace('-', "_")));
+
+        Ok(artifact)
+    }
+
+    fn cargo_build_cdylib_ndk(&self, target: &str, feature: &str) -> Result<PathBuf, BindgenError> {
+        let status = std::process::Command::new("cargo")
+            .args([
+                "ndk",
+                "--target",
+                target,
+                "build",
+                "--release",
+                "--manifest-path",
+                &self.glue_path.join("Cargo.toml").display().to_string(),
+                "--features",
+                feature,
+            ])
+            .status()?;
+        if !status.success() {
+            return Err(BindgenError::CargoBuildFailed(target.into()));
+        }
+
+        // Locate the artifact
+        let artifact = self
+            .glue_path
+            .join("target")
+            .join(target)
+            .join("release")
+            .join(format!("lib{}.so", self.lib_name.replace('-', "_")));
 
         Ok(artifact)
     }

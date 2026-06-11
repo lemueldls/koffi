@@ -11,8 +11,6 @@ use koffi_runtime::{
     envelope::serialize_envelope,
 };
 
-// ── Module-aware imports ──────────────────────────────────────────────────────
-
 use {{ crate_ident }}::{
 {%- for s in ir.structs %}
     {{ s | rust_struct_use_path }} as {{ s | rust_struct_alias }},
@@ -25,7 +23,6 @@ use {{ crate_ident }}::{
 {%- endfor %}
 };
 
-// ── C-ABI functions ───────────────────────────────────────────────────────────
 {% for f in ir.functions %}
 {%- let sym = f | c_abi_symbol(crate_ident) %}
 /// `{{ crate_ident }}::{{ f.rust_name }}`
@@ -48,7 +45,6 @@ pub unsafe extern "C" fn {{ sym }}(
 {%- endfor %}
 ) -> {{ f.ret_ty | rust_c_native_return_type }}
 {
-    // ── Parameter conversions ─────────────────────────────────────────────
 {%- for p in f.params %}
 {%- match p.ty %}
 {%- when FFIType::String %}
@@ -74,7 +70,6 @@ pub unsafe extern "C" fn {{ sym }}(
 {%- endmatch %}
 {%- endfor %}
 
-    // ── Receiver / handle setup ───────────────────────────────────────────
 {%- if let Some(_parent) = f.parent_struct %}
 {%- match f.receiver %}
 {%- when Some with (ReceiverType::Ref) %}
@@ -97,11 +92,10 @@ pub unsafe extern "C" fn {{ sym }}(
         .ok()
         .expect("koffi: cannot consume handle");
 {%- when None %}
-    // Static method — no handle lookup.
+    // Static method. No handle lookup.
 {%- endmatch %}
 {%- endif %}
 
-    // ── Call ──────────────────────────────────────────────────────────────
     let __result = catch_panic(|| {
 {%- match f.receiver %}
 {%- when Some with (ReceiverType::Ref) %}
@@ -119,7 +113,6 @@ pub unsafe extern "C" fn {{ sym }}(
 {%- endmatch %}
     }).expect("koffi: Rust panic in C-ABI `{{ sym }}`");
 
-    // ── Return conversion ─────────────────────────────────────────────────
 {%- match f.ret_ty %}
 {%- when FFIType::Unit %}
 {%- when FFIType::String %}

@@ -16,8 +16,6 @@ use koffi_runtime::{
     envelope::serialize_envelope,
 };
 
-// ── Module-aware imports ──────────────────────────────────────────────────────
-//
 // Aliases are unique per crate: __koffi_{module_path}_{ItemName}.
 // This prevents collisions when the same type name appears in different modules.
 
@@ -33,7 +31,6 @@ use {{ crate_ident }}::{
 {%- endfor %}
 };
 
-// ── JNI glue functions ────────────────────────────────────────────────────────
 {% for f in ir.functions %}
 {%- let jni_name = f | kotlin_jni_method_name %}
 /// `{{ f.namespace }}::{{ f.rust_name }}`
@@ -49,7 +46,6 @@ pub fn {{ jni_name }}<'a>(
 {
     let outcome = env.with_env(|env| -> jni::errors::Result<{{ f.ret_ty | rust_jni_type }}> {
 
-        // ── Parameter conversions ─────────────────────────────────────────
 {%- for p in f.params %}
 {%- let pname = p.name | kotlin_sanitize_ident %}
 {%- match p.ty %}
@@ -70,7 +66,6 @@ pub fn {{ jni_name }}<'a>(
 {%- endmatch %}
 {%- endfor %}
 
-        // ── Receiver / handle setup ───────────────────────────────────────
 {%- if let Some(parent) = f.parent_struct %}
 {%- match f.receiver %}
 {%- when Some with (ReceiverType::Ref) %}
@@ -92,13 +87,12 @@ pub fn {{ jni_name }}<'a>(
         HandleRegistry::global().remove(handle as u64);
         let __obj_owned = Arc::try_unwrap(__arc)
             .ok()
-            .expect("koffi: cannot consume handle — other references exist");
+            .expect("koffi: cannot consume handle. other references exist");
 {%- when None %}
-        // Static method — no handle lookup needed.
+        // Static method. No handle lookup needed.
 {%- endmatch %}
 {%- endif %}
 
-        // ── Call ──────────────────────────────────────────────────────────
         let __result = catch_panic(|| {
 {%- match f.receiver %}
 {%- when Some with (ReceiverType::Ref) %}
@@ -116,7 +110,6 @@ pub fn {{ jni_name }}<'a>(
 {%- endmatch %}
         });
 
-        // ── Return conversion ─────────────────────────────────────────────
         __result
             .map(|val| {
 {%- match f.ret_ty %}
@@ -165,7 +158,6 @@ pub fn {{ jni_name }}<'a>(
 }
 {% endfor %}
 
-// ── Handle release ────────────────────────────────────────────────────────────
 
 /// Called by `KoffiHandleBase.close()` and the JVM `Cleaner` finalizer.
 #[unsafe(no_mangle)]

@@ -1,10 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use facet::Facet;
 use figue::{self as args, FigueBuiltins};
 use koffi_bindgen::{
     build_steps::BuildSteps,
-    codegen::{copy_runtime, emit_schema, generate_all},
+    codegen::{copy_runtime, generate_all},
     meta::collect_koffi_deps,
     parser::parse_crate,
 };
@@ -162,10 +162,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 steps.run_jvm()?;
                 // info!("Building native artifacts...");
                 // steps.run_native_mingw()?;
+                info!("Building Android artifacts...");
+                steps.run_android()?;
 
                 info!("Generation complete!");
             }
         }
+
         Command::DumpIr(args) => {
             let crate_manifest = args.crate_path.join("Cargo.toml");
             let deps = collect_koffi_deps(&crate_manifest)?;

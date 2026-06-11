@@ -144,7 +144,6 @@ pub fn kotlin_jni_return_expr(
         }
     }
 
-    // Call the external fun — jni_name already carries the full prefix.
     let call = format!("{pkg_pascal}Jni.{jni_name}({})", args.join(", "));
 
     // Wrap in deserialization for non-trivial returns.

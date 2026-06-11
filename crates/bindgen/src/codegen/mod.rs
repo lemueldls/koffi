@@ -235,7 +235,23 @@ fn write_template<T: Template>(t: &T, path: &Path) -> Result<PathBuf, BindgenErr
     Ok(path.to_path_buf())
 }
 
+pub fn copy_runtime(runtime_path: &Path, out_dir: &Path) -> Result<(), BindgenError> {
+    let common_src = runtime_path.join("src");
+    let common_dst = out_dir.join("kotlin").join("src");
+    copy_kotlin_prebuilt(&common_src, &common_dst)?;
+
+    let platforms = ["android", "jvm", "native", "web"];
+    for platform in platforms {
+        let src = runtime_path.join(format!("src@{platform}"));
+        let dst = out_dir.join("kotlin").join(format!("src@{platform}"));
+        copy_kotlin_prebuilt(&src, &dst)?;
+    }
+
+    Ok(())
+}
+
 fn copy_kotlin_prebuilt(src: &Path, kotlin_dir: &Path) -> Result<(), BindgenError> {
+    fs::create_dir_all(kotlin_dir)?;
     for entry in walkdir::WalkDir::new(src) {
         let entry = entry?;
         if entry.file_type().is_file() {
@@ -245,33 +261,6 @@ fn copy_kotlin_prebuilt(src: &Path, kotlin_dir: &Path) -> Result<(), BindgenErro
                 fs::create_dir_all(p)?;
             }
             fs::copy(entry.path(), dst)?;
-        }
-    }
-
-    Ok(())
-}
-
-pub fn copy_runtime(runtime_path: &Path, out_dir: &Path) -> Result<(), BindgenError> {
-    let common_src = runtime_path.join("src");
-    let common_dst = out_dir.join("kotlin").join("src");
-    fs::create_dir_all(&common_dst)?;
-    for entry in fs::read_dir(common_src)? {
-        let entry = entry?;
-        if entry.file_type()?.is_file() {
-            fs::copy(entry.path(), common_dst.join(entry.file_name()))?;
-        }
-    }
-
-    let platforms = ["android", "jvm", "native", "web"];
-    for platform in platforms {
-        let src = runtime_path.join(format!("src@{platform}"));
-        let dst = out_dir.join("kotlin").join(format!("src@{platform}"));
-        fs::create_dir_all(&dst)?;
-        for entry in fs::read_dir(src)? {
-            let entry = entry?;
-            if entry.file_type()?.is_file() {
-                fs::copy(entry.path(), dst.join(entry.file_name()))?;
-            }
         }
     }
 

@@ -158,9 +158,9 @@ struct TypeResolver<'a> {
     crate_version: String,
     dep_schemas: &'a [CrateInterface],
     local_decls: HashMap<String, bool>,
-    /// item name → list of item Ids.
+    /// item name -> list of item Ids.
     name_to_ids: HashMap<String, Vec<Id>>,
-    /// item Id → (full path segments, `crate_id_u32`).
+    /// item Id -> (full path segments, `crate_id_u32`).
     path_index: HashMap<Id, (Vec<String>, u32)>,
 }
 

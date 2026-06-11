@@ -2,8 +2,8 @@ use koffi_ir::{EnumInfo, FFIType, FnInfo, ParamInfo, StructInfo};
 
 /// Crate-relative path for a free function's `use` statement.
 ///
-/// `camera::take_photo` → `"camera::take_photo"`
-/// (root) `add_i32`     → `"add_i32"`
+/// `camera::take_photo` -> `"camera::take_photo"`
+/// (root) `add_i32`     -> `"add_i32"`
 #[must_use]
 pub fn rust_fn_use_path(f: &FnInfo) -> String {
     let raw = f.rust_name.trim_start_matches("r#");
@@ -54,8 +54,8 @@ pub fn rust_parent_use_path(f: &FnInfo) -> String {
 
 /// Unique alias for a free function import.
 ///
-/// `camera::take_photo`  → `__koffi_camera__take_photo`
-/// (root) `add_i32`      → `__koffi__add_i32`
+/// `camera::take_photo`  -> `__koffi_camera__take_photo`
+/// (root) `add_i32`      -> `__koffi__add_i32`
 #[must_use]
 pub fn rust_fn_alias(f: &FnInfo) -> String {
     let raw = f.rust_name.trim_start_matches("r#");

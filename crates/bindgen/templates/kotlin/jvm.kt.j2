@@ -5,8 +5,6 @@ import rs.koffi.KoffiHandleBase
 import rs.koffi.KoffiHandle
 import rs.koffi.KoffiSerializer
 
-// ── JNI native declarations ───────────────────────────────────────────────────
-//
 // One `external fun` per exported function. The JNI symbol is derived from
 // the package, class name, and method name by the JVM at runtime.
 // Method names incorporate the Rust module path to guarantee uniqueness across
@@ -66,7 +64,7 @@ actual class {{ s.name }} actual private constructor(handleId: Long) :
 {%- endif %}
 {%- endfor %}
 
-{#- Free function actuals — iterate only free functions, not methods -#}
+{#- Free function actuals. Iterate only free functions, not methods -#}
 {%- for f in ir.free_functions() %}
 {%- let jni_name = f | kotlin_jni_method_name %}
 
