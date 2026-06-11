@@ -119,7 +119,7 @@ fn collect_recursive(
         }
     }
 
-    if let Some(koffi_meta) = extract_koffi_meta(pkg) {
+    if let Some(koffi_meta) = extract_koffi_meta(pkg)? {
         let crate_root = pkg
             .manifest_path
             .parent()
@@ -144,9 +144,16 @@ fn collect_recursive(
     Ok(())
 }
 
-fn extract_koffi_meta(pkg: &Package) -> Option<KoffiPackageMeta> {
-    let koffi_value = pkg.metadata.get("koffi")?;
-    serde_json::from_value::<KoffiPackageMeta>(koffi_value.clone()).ok()
+fn extract_koffi_meta(pkg: &Package) -> Result<Option<KoffiPackageMeta>, BindgenError> {
+    let value = pkg.metadata.get("koffi");
+
+    match value {
+        Some(v) => {
+            let meta = serde_json::from_value::<KoffiPackageMeta>(v.clone())?;
+            Ok(Some(meta))
+        }
+        None => Ok(None),
+    }
 }
 
 fn load_schema(meta: &KoffiPackageMeta, crate_root: &Path) -> Option<CrateInterface> {
