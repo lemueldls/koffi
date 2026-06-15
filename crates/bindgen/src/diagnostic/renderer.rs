@@ -1,11 +1,10 @@
+#![allow(unused)]
+
 use std::{cmp, fs, io, path::Path, str::FromStr};
 
-use crossterm::{
-    ExecutableCommand, event, execute,
-    style::{
-        Attribute::{Bold, Dim, NoBold, Reset},
-        Color, Print, ResetColor, SetBackgroundColor, SetForegroundColor,
-    },
+use crossterm::style::{
+    Attribute::{Bold, Dim, Reset},
+    Color, ResetColor, SetForegroundColor,
 };
 use syntect::{
     easy::HighlightLines, highlighting::Theme, parsing::SyntaxSet, util::as_24_bit_terminal_escaped,

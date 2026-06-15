@@ -3,9 +3,6 @@ name = "example-project"
 version.workspace = true
 edition.workspace = true
 
-[lib]
-crate-type = ["lib", "staticlib", "cdylib"]
-
 [dependencies]
 serde.workspace = true
 

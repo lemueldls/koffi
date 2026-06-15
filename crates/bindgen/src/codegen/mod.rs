@@ -357,7 +357,7 @@ pub fn generate_package_set(
                 .join(&pkg_file),
         )?;
 
-        let jni_module = format!("jni_glue_{crate_ident}");
+        let jni_module = format!("{crate_ident}_jni_glue");
         write_template(
             &templates::RustJniTemplate {
                 namespace,
@@ -370,7 +370,7 @@ pub fn generate_package_set(
         )?;
         jni_modules.push(jni_module);
 
-        let cabi_module = format!("cabi_glue_{crate_ident}");
+        let cabi_module = format!("{crate_ident}_cabi_glue");
         write_template(
             &templates::RustCabiTemplate {
                 crate_ident: &crate_ident,
@@ -380,7 +380,7 @@ pub fn generate_package_set(
         )?;
         cabi_modules.push(cabi_module);
 
-        let wasm_module = format!("wasm_glue_{crate_ident}");
+        let wasm_module = format!("{crate_ident}_wasm_glue");
         write_template(
             &templates::RustWasmTemplate {
                 crate_ident: &crate_ident,
@@ -415,6 +415,7 @@ pub fn generate_package_set(
             .display()
             .to_string()
             .replace('\\', "/");
+
         dependencies.push(GlueDependency {
             package_name: crate_name.to_string(),
             path: rel_crate_path,

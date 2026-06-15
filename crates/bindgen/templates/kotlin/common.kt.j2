@@ -1,9 +1,6 @@
 {#- commonMain: expect declarations -#}
-package {{ namespace }}
 
-import rs.koffi.KoffiHandleBase
-import rs.koffi.KoffiHandle
-import rs.koffi.KoffiSerializer
+package {{ namespace }}
 
 {# {%~ for i in ir.imports %}
 import {{ i | qualified_name }}
@@ -12,7 +9,6 @@ import {{ i | qualified_name }}
 {#~ Data types -#}
 {%- for s in ir.structs %}
 {%- if !s.is_opaque %}
-
 {%- if s.doc.len() > 0 %}
 /**
 {%- for line in s.doc %}
@@ -22,9 +18,28 @@ import {{ i | qualified_name }}
 {%- endif %}
 data class {{ s.name }}(
 {%- for field in s.fields %}
-    val {{ field.name | camel_case }}: {{ field.ty | kotlin_type }},
+    val {{ field.name | kotlin_sanitize_ident }}: {{ field.ty | kotlin_type }},
 {%- endfor %}
-)
+) {
+    fun writeDataWire(writer: rs.koffi.KoffiWriter) = writer.apply {
+{%- for field in s.fields %}
+{%- if !field.skip_serde %}
+        {{ field.ty | kotlin_writer_expr(field.name) }}
+{%- endif %}
+{%- endfor %}
+    }
+
+    companion object {
+        fun readDataWire(reader: rs.koffi.KoffiReader) =
+            {{ s.name }}(
+{%- for field in s.fields %}
+{%- if !field.skip_serde %}
+                {{ field.name | kotlin_sanitize_ident }} = reader.{{ field.ty | kotlin_reader_expr }},
+{%- endif %}
+{%- endfor %}
+            )
+    }
+}
 {%- endif %}
 {%- endfor %}
 
@@ -44,7 +59,7 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
 {%- else %}
     data class {{ variant.name }}(
 {%- for field in variant.fields %}
-        val {{ field.name | camel_case }}: {{ field.ty | kotlin_type }},
+        val {{ field.name | kotlin_sanitize_ident }}: {{ field.ty | kotlin_type }},
 {%- endfor %}
     ) : {{ e.name }}()
 {%- endif %}

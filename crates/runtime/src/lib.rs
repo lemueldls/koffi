@@ -131,7 +131,6 @@ where F: FnOnce() -> R + UnwindSafe {
 /// Serializes an object using postcard into a `KoffiByteBuf`.
 pub fn serialize_to_buf<T: serde::Serialize>(val: &T) -> Result<KoffiByteBuf, postcard::Error> {
     let bytes = postcard::to_allocvec(val)?;
-
     Ok(KoffiByteBuf::new(bytes))
 }
 
@@ -144,8 +143,6 @@ pub unsafe fn deserialize_from_raw<T: serde::de::DeserializeOwned>(
     ptr: *const u8,
     len: usize,
 ) -> Result<T, postcard::Error> {
-    unsafe {
-        let slice = std::slice::from_raw_parts(ptr, len);
-        postcard::from_bytes(slice)
-    }
+    let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
+    postcard::from_bytes(slice)
 }

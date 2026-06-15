@@ -1,9 +1,6 @@
 {#- JVM + Android: JNI actual implementations -#}
-package {{ namespace }}
 
-import rs.koffi.KoffiHandleBase
-import rs.koffi.KoffiHandle
-import rs.koffi.KoffiSerializer
+package {{ namespace }}
 
 // One `external fun` per exported function. The JNI symbol is derived from
 // the package, class name, and method name by the JVM at runtime.

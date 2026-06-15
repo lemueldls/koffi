@@ -48,6 +48,7 @@ pub fn c_type(ty: &FFIType) -> String {
         FFIType::String => "const uint8_t*".into(),
         FFIType::Bytes => "const uint8_t*".into(),
         FFIType::Opaque(_) => "uint64_t".into(),
+        FFIType::Data(_) => "const uint8_t*".into(),
         _ => "KoffiByteBuf".into(),
     }
 }

@@ -287,7 +287,7 @@ impl BuildSteps {
 
     fn run_native_targets(&self, targets: &[(&str, &str)]) -> Result<(), BindgenError> {
         for (target, slice) in targets {
-            info!("Building native target {target} for slice {slice}");
+            info!("Building native target {target} for {slice}");
             let lib = self.cargo_build_staticlib(target, "native")?;
             let dest = self
                 .out_dir
@@ -303,7 +303,7 @@ impl BuildSteps {
 
     fn run_ios_targets(&self, targets: &[(&str, &str)]) -> Result<(), BindgenError> {
         for (target, slice) in targets {
-            info!("Building iOS target {target} for slice {slice}");
+            info!("Building iOS target {target} for {slice}");
             let lib = self.cargo_build_staticlib(target, "native")?;
             let dest = self
                 .out_dir

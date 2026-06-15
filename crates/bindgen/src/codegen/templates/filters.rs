@@ -25,6 +25,20 @@ pub fn kotlin_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<St
 }
 
 #[askama::filter_fn]
+pub fn kotlin_writer_expr(
+    ty: &FFIType,
+    _env: &dyn askama::Values,
+    val: &str,
+) -> askama::Result<String> {
+    Ok(kotlin::kotlin_writer_expr(ty, val))
+}
+
+#[askama::filter_fn]
+pub fn kotlin_reader_expr(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
+    Ok(kotlin::kotlin_reader_expr(ty))
+}
+
+#[askama::filter_fn]
 pub fn kotlin_jni_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
     Ok(kotlin::kotlin_jni_type(ty))
 }
@@ -114,16 +128,13 @@ pub fn rust_params_jni(
 }
 
 #[askama::filter_fn]
-pub fn rust_c_native_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
-    Ok(rust::rust_c_native_type(ty))
+pub fn rust_cabi_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
+    Ok(rust::rust_cabi_type(ty))
 }
 
 #[askama::filter_fn]
-pub fn rust_c_native_return_type(
-    ty: &FFIType,
-    _env: &dyn askama::Values,
-) -> askama::Result<String> {
-    Ok(rust::rust_c_native_return_type(ty))
+pub fn rust_cabi_return_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
+    Ok(rust::rust_cabi_return_type(ty))
 }
 
 #[askama::filter_fn]

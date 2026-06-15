@@ -32,9 +32,9 @@ pub unsafe extern "C" fn {{ sym }}(
     __handle: u64,
 {%- endif %}
 {%- for p in f.params %}
-    _p_{{ p.name }}: {{ p.ty | rust_c_native_type }}{% if p.ty.needs_len_param() %}, _p_{{ p.name }}_len: usize{% endif %},
+    _p_{{ p.name }}: {{ p.ty | rust_cabi_type }}{% if p.ty.needs_len_param() %}, _p_{{ p.name }}_len: usize{% endif %},
 {%- endfor %}
-) -> {{ f.ret_ty | rust_c_native_return_type }}
+) -> {{ f.ret_ty | rust_cabi_return_type }}
 {
 {%- for p in f.params %}
 {%- match p.ty %}
@@ -105,6 +105,8 @@ pub unsafe extern "C" fn {{ sym }}(
     }).expect("koffi: Rust panic in C-ABI `{{ sym }}`");
 
 {%- match f.ret_ty %}
+{%- when FFIType::Bool | FFIType::I8 | FFIType::I16 | FFIType::I32 | FFIType::I64 | FFIType::U8 | FFIType::U16 | FFIType::U32 | FFIType::U64 | FFIType::F32 | FFIType::F64 %}
+    __result as _
 {%- when FFIType::Unit %}
 {%- when FFIType::String %}
     KoffiByteBuf::new(__result.into_bytes())
@@ -112,11 +114,9 @@ pub unsafe extern "C" fn {{ sym }}(
     KoffiByteBuf::new(__result)
 {%- when FFIType::Opaque(_) %}
     HandleRegistry::global().insert(__result)
-{%- when FFIType::Data(_) %}
+{%- else %}
     serialize_envelope(&__result, {{ f.ret_ty | schema_hash_hex }})
         .expect("koffi: postcard serialization failed")
-{%- else %}
-    __result as _
 {%- endmatch %}
 }
 {% endfor %}

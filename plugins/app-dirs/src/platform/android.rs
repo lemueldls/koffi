@@ -73,7 +73,7 @@ fn from_state(s: &AndroidState) -> AppDirs {
 /// Best-effort fallback paths when `init()` was not called.
 ///
 /// On a standard Android device, the app's user-data partition is always at
-/// `/data/data/<package-name>/…`. However, koffi-plugin-app-dirs does not
+/// `/data/data/<package-name>/...`. However, koffi-plugin-app-dirs does not
 /// know the package name at Rust compile-time, so we use `app_name` as a
 /// placeholder. If `app_name` equals the actual package name this will be
 /// correct; otherwise call `init()` from Kotlin.

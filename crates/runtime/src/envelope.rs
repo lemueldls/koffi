@@ -45,9 +45,11 @@ pub unsafe fn deserialize_envelope<T: serde::de::DeserializeOwned>(
     if magic != MAGIC {
         return Err(EnvelopeError::BadMagic(magic));
     }
+
     if version != VERSION {
         return Err(EnvelopeError::UnsupportedVersion(version));
     }
+
     if expected_hash != 0 && hash != expected_hash {
         return Err(EnvelopeError::HashMismatch {
             expected: expected_hash,

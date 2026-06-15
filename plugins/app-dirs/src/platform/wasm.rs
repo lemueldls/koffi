@@ -4,7 +4,7 @@
 //! path strings that are suitable for use as **key prefixes** in browser
 //! storage APIs (IndexedDB, localStorage, Origin Private File System).
 //!
-//! The paths follow a `/app/{app_name}/…` convention so that they are:
+//! The paths follow a `/app/{app_name}/...` convention so that they are:
 //! - Hierarchical and namespaced per application.
 //! - Clearly virtual (start with `/app/` rather than a real FS root).
 //! - Safe to use as OPFS directory names via the Origin Private File System API.

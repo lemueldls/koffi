@@ -159,7 +159,7 @@ pub fn rust_params_jni(params: &[ParamInfo], has_receiver: bool) -> String {
 }
 
 #[must_use]
-pub fn rust_c_native_type(ty: &FFIType) -> String {
+pub fn rust_cabi_type(ty: &FFIType) -> String {
     match ty {
         FFIType::Bool => "bool".into(),
         FFIType::I8 => "i8".into(),
@@ -180,7 +180,7 @@ pub fn rust_c_native_type(ty: &FFIType) -> String {
 }
 
 #[must_use]
-pub fn rust_c_native_return_type(ty: &FFIType) -> String {
+pub fn rust_cabi_return_type(ty: &FFIType) -> String {
     match ty {
         FFIType::Unit => "()".into(),
         FFIType::Bool => "bool".into(),

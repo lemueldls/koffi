@@ -35,6 +35,90 @@ pub fn kotlin_type(ty: &FFIType) -> String {
     }
 }
 
+#[must_use]
+pub fn kotlin_writer_expr(ty: &FFIType, val: &str) -> String {
+    let val = kotlin_sanitize_ident(val);
+
+    match ty {
+        FFIType::Bool => format!("writeBool({val})"),
+        FFIType::I8 => format!("writeByteVal({val})"),
+        FFIType::I16 => format!("writeShort({val})"),
+        FFIType::I32 => format!("writeInt({val})"),
+        FFIType::I64 => format!("writeLong({val})"),
+        FFIType::U8 => format!("writeUByte({val})"),
+        FFIType::U16 => format!("writeUShort({val})"),
+        FFIType::U32 => format!("writeUInt({val})"),
+        FFIType::U64 => format!("writeULong({val})"),
+        FFIType::F32 => format!("writeFloat({val})"),
+        FFIType::F64 => format!("writeDouble({val})"),
+        FFIType::String => format!("writeString({val})"),
+        FFIType::Bytes => format!("writeByteArray({val})"),
+        FFIType::Option(inner) => {
+            format!(
+                "writeOption({val}) {{ {} }}",
+                kotlin_writer_expr(inner, &val)
+            )
+        }
+        FFIType::Vec(inner) => {
+            format!("writeList({val}) {{ {} }}", kotlin_writer_expr(inner, &val))
+        }
+        FFIType::Map(k, v) => {
+            format!(
+                "writeMap({val}, {{ {} }}, {{ {} }})",
+                kotlin_writer_expr(k, &val),
+                kotlin_writer_expr(v, &val)
+            )
+        }
+        FFIType::Set(inner) => format!("writeSet({val}) {{ {} }}", kotlin_writer_expr(inner, &val)),
+        FFIType::Result(ok, err) => {
+            format!(
+                "writeResult({val}, {{ {} }}, {{ {} }})",
+                kotlin_writer_expr(ok, &val),
+                kotlin_writer_expr(err, &val)
+            )
+        }
+        FFIType::Data(_) => format!("{val}.writeDataWire(this)"),
+        _ => "/* unsupported */".into(),
+    }
+}
+
+#[must_use]
+pub fn kotlin_reader_expr(ty: &FFIType) -> String {
+    match ty {
+        FFIType::Bool => "readBool()".into(),
+        FFIType::I8 => "readByteVal()".into(),
+        FFIType::I16 => "readShort()".into(),
+        FFIType::I32 => "readInt()".into(),
+        FFIType::I64 => "readLong()".into(),
+        FFIType::U8 => "readUByte()".into(),
+        FFIType::U16 => "readUShort()".into(),
+        FFIType::U32 => "readUInt()".into(),
+        FFIType::U64 => "readULong()".into(),
+        FFIType::F32 => "readFloat()".into(),
+        FFIType::F64 => "readDouble()".into(),
+        FFIType::String => "readString()".into(),
+        FFIType::Vec(inner) => format!("readList {{ {} }}", kotlin_reader_expr(inner)),
+        FFIType::Map(k, v) => {
+            format!(
+                "readMap({{ {} }}, {{ {} }})",
+                kotlin_reader_expr(k),
+                kotlin_reader_expr(v)
+            )
+        }
+        FFIType::Set(inner) => format!("readSet {{ {} }}", kotlin_reader_expr(inner)),
+        FFIType::Option(inner) => format!("readOption {{ {} }}", kotlin_reader_expr(inner)),
+        FFIType::Result(ok, err) => {
+            format!(
+                "readResult({{ {} }}, {{ {} }})",
+                kotlin_reader_expr(ok),
+                kotlin_reader_expr(err)
+            )
+        }
+        FFIType::Data(r) => format!("{}.readDataWire(this)", r.name),
+        _ => "/* unsupported */".into(),
+    }
+}
+
 /// Map [`FFIType`] to its JNI wire type (what crosses the JNI boundary).
 #[must_use]
 pub fn kotlin_jni_type(ty: &FFIType) -> String {
@@ -134,9 +218,12 @@ pub fn kotlin_jni_return_expr(f: &FnInfo, pkg_pascal: &str, jni_name: &str) -> S
         let name = kotlin_sanitize_ident(&p.name);
         let serialized = !p.ty.is_blittable() && p.ty != FFIType::String && p.ty != FFIType::Bytes;
         if serialized {
-            args.push(format!("rs.koffi.KoffiSerializer.serialize({name})"));
+            args.push(format!(
+                "rs.koffi.KoffiSerializer.serializeRaw({name}) {{ {} }}",
+                kotlin_writer_expr(&p.ty, &name)
+            ));
         } else {
-            args.push(name);
+            args.push(jni_simple_convert(&p.ty, &name));
         }
     }
 
@@ -152,7 +239,24 @@ pub fn kotlin_jni_return_expr(f: &FnInfo, pkg_pascal: &str, jni_name: &str) -> S
     } else if let FFIType::Opaque(r) = &f.ret_ty {
         format!("return {}({call})", r.name)
     } else {
-        format!("return rs.koffi.KoffiSerializer.deserialize({call})")
+        let hash = schema_hash_for(&f.ret_ty);
+
+        format!(
+            "return rs.koffi.KoffiSerializer.deserialize({call}, {hash}uL) {{ {} }}",
+            kotlin_reader_expr(&f.ret_ty)
+        )
+    }
+}
+
+fn jni_simple_convert(ty: &FFIType, var: &str) -> String {
+    match ty {
+        FFIType::I8 | FFIType::U8 => format!("{var}.toByte()"),
+        FFIType::I16 | FFIType::U16 => format!("{var}.toShort()"),
+        FFIType::I32 | FFIType::U32 => format!("{var}.toInt()"),
+        FFIType::I64 | FFIType::U64 => format!("{var}.toLong()"),
+        FFIType::F32 => format!("{var}.toFloat()"),
+        FFIType::F64 => format!("{var}.toDouble()"),
+        _ => var.to_string(),
     }
 }
 
@@ -244,10 +348,12 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
             FFIType::String => {
                 defs.push(format!("val {name}Bytes = {name}.encodeToByteArray()"));
                 defs.push(format!("val {name}Pinned = {name}Bytes.pin()"));
+
                 setup.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
                 setup.push(format!("val {name}Len = {name}Bytes.size.toULong()"));
+
                 pinned.push(format!("{name}Pinned"));
             }
             FFIType::Bytes => {
@@ -258,17 +364,18 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
                 setup.push(format!("val {name}Len = {name}.size.toULong()"));
                 pinned.push(format!("{name}Pinned"));
             }
-            FFIType::Data(r) => {
-                let hash = r.schema_hash;
-                let type_name = &r.name;
+            FFIType::Data(_) => {
                 defs.push(format!(
-                    "val {name}Bytes = KoffiSerializer.serialize({name}, 0x{hash:016x}_uL) {{ write{type_name}(it) }}"
+                    "val {name}Bytes = KoffiSerializer.serializeRaw({name}) {{ {} }}",
+                    kotlin_writer_expr(&p.ty, &name)
                 ));
                 defs.push(format!("val {name}Pinned = {name}Bytes.pin()"));
+
                 setup.push(format!(
                     "val {name}Ptr = {name}Pinned.addressOf(0).reinterpret<UByteVar>()"
                 ));
                 setup.push(format!("val {name}Len = {name}Bytes.size.toULong()"));
+
                 pinned.push(format!("{name}Pinned"));
             }
             _ => {}
@@ -279,14 +386,14 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
     let needs_scope = !setup.is_empty() || needs_buf_read(&f.ret_ty);
 
     if !needs_scope {
-        let ret = simple_convert(&f.ret_ty, &call);
+        let ret = native_simple_convert(&f.ret_ty, &call);
         return format!("return {ret}");
     }
 
     let mut body = setup;
     body.push(format!("val __result = {call}"));
 
-    let convert = buf_convert(&f.ret_ty, "__result");
+    let convert = native_buf_convert(&f.ret_ty, "__result");
     let unpin_stmts: Vec<String> = pinned.iter().map(|n| format!("{n}.unpin()")).collect();
 
     if unpin_stmts.is_empty() {
@@ -320,10 +427,20 @@ pub fn kotlin_native_return_expr(f: &FnInfo, c_sym: &str) -> String {
 }
 
 const fn needs_buf_read(ty: &FFIType) -> bool {
-    matches!(ty, FFIType::String | FFIType::Bytes | FFIType::Data(_))
+    matches!(
+        ty,
+        FFIType::String
+            | FFIType::Bytes
+            | FFIType::Data(_)
+            | FFIType::Vec(_)
+            | FFIType::Map(..)
+            | FFIType::Set(_)
+            | FFIType::Option(_)
+            | FFIType::Result(..)
+    )
 }
 
-fn simple_convert(ty: &FFIType, call: &str) -> String {
+fn native_simple_convert(ty: &FFIType, call: &str) -> String {
     match ty {
         FFIType::Unit => call.to_string(),
         FFIType::Bool => call.to_string(),
@@ -342,7 +459,7 @@ fn simple_convert(ty: &FFIType, call: &str) -> String {
     }
 }
 
-fn buf_convert(ty: &FFIType, var: &str) -> String {
+fn native_buf_convert(ty: &FFIType, var: &str) -> String {
     match ty {
         FFIType::String => {
             format!(
@@ -352,14 +469,27 @@ fn buf_convert(ty: &FFIType, var: &str) -> String {
         FFIType::Bytes => {
             format!("memScoped {{ readAndFreeByteBuf({var}.useContents {{ this }}) }}")
         }
+        FFIType::Vec(_) | FFIType::Map(..) | FFIType::Set(_) | FFIType::Option(_) => {
+            format!(
+                "memScoped {{ KoffiSerializer.deserialize(readAndFreeByteBuf({var}.useContents {{ this }}), 0uL) {{ {} }} }}",
+                kotlin_reader_expr(ty)
+            )
+        }
         FFIType::Data(r) => {
             let hash = r.schema_hash;
             let type_name = &r.name;
 
             format!(
-                "KoffiSerializer.deserialize(readAndFreeByteBuf({var}), 0x{hash:016x}_uL) {{ read{type_name}() }}"
+                "memScoped {{ KoffiSerializer.deserialize(readAndFreeByteBuf({var}.useContents {{ this }}), 0x{hash:016x}_uL) {{ {type_name}.readDataWire(this) }} }}"
             )
         }
-        _ => simple_convert(ty, var),
+        _ => native_simple_convert(ty, var),
+    }
+}
+
+const fn schema_hash_for(ty: &FFIType) -> u64 {
+    match ty {
+        FFIType::Data(r) | FFIType::Opaque(r) => r.schema_hash,
+        _ => 0,
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! Uses the [`dirs`] crate which follows:
 //! - **Linux** - XDG Base Directory Specification
-//! - **macOS** - `~/Library/…` conventions
+//! - **macOS** - `~/Library/...` conventions
 //! - **Windows** - `%APPDATA%` / `%LOCALAPPDATA%` `SHGetKnownFolderPath` paths
 //!
 //! Each path has `app_name` appended so directories are isolated per application.
