@@ -72,49 +72,36 @@ pub struct KoffiPackage {
 pub fn collect_koffi_packages(root_manifest: &Path) -> Result<Vec<KoffiPackage>, BindgenError> {
     let metadata = MetadataCommand::new().manifest_path(root_manifest).exec()?;
 
-    let resolve = metadata
-        .resolve
-        .as_ref()
-        .ok_or(BindgenError::NoResolveGraph)?;
-
-    let root_id = resolve.root.as_ref().ok_or(BindgenError::NoRootPackage)?;
+    let root_pkg = metadata.root_package().ok_or(BindgenError::NoRootPackage)?;
 
     let mut visited = HashSet::new();
     let mut result = Vec::new();
 
-    collect_recursive(root_id, root_id, &metadata, &mut visited, &mut result)?;
+    collect_recursive(root_pkg, true, &metadata, &mut visited, &mut result)?;
 
     Ok(result)
 }
 
 fn collect_recursive(
-    pkg_id: &PackageId,
-    root_id: &PackageId,
+    pkg: &Package,
+    is_root: bool,
     metadata: &Metadata,
     visited: &mut HashSet<PackageId>,
     out: &mut Vec<KoffiPackage>,
 ) -> Result<(), BindgenError> {
-    if !visited.insert(pkg_id.clone()) {
-        return Ok(());
-    }
-
-    let pkg = metadata
-        .packages
-        .iter()
-        .find(|p| &p.id == pkg_id)
-        .ok_or_else(|| BindgenError::PackageNotFound(pkg_id.to_string()))?;
-
-    // Recurse into dependencies first so callers can parse dependencies before
-    // dependents and pass their schemas forward.
-    if let Some(resolve) = &metadata.resolve
-        && let Some(node) = resolve.nodes.iter().find(|n| &n.id == pkg_id)
-    {
-        for dep_id in &node.dependencies {
-            collect_recursive(dep_id, root_id, metadata, visited, out)?;
-        }
-    }
-
     if let Some(koffi_meta) = extract_koffi_meta(pkg)? {
+        // Recurse into dependencies first so callers can parse dependencies before
+        // dependents and pass their schemas forward.
+        if let Some(resolve) = &metadata.resolve
+            && let Some(node) = resolve.nodes.iter().find(|n| n.id == pkg.id)
+        {
+            for pkg_id in &node.dependencies {
+                if visited.insert(pkg_id.clone()) {
+                    collect_recursive(&metadata[pkg_id], false, metadata, visited, out)?;
+                }
+            }
+        }
+
         let crate_root = pkg
             .manifest_path
             .parent()
@@ -125,6 +112,7 @@ fn collect_recursive(
         let version = pkg.version.to_string();
         let manifest_path = pkg.manifest_path.clone().into_std_path_buf();
         let workspace_root = metadata.workspace_root.clone().into_std_path_buf();
+
         out.push(KoffiPackage {
             name,
             version,
@@ -132,7 +120,7 @@ fn collect_recursive(
             workspace_root,
             koffi_meta,
             schema,
-            is_root: pkg_id == root_id,
+            is_root,
         });
     }
 
