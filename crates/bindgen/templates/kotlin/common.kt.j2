@@ -21,10 +21,10 @@ data class {{ s.name }}(
     val {{ field.name | kotlin_sanitize_ident }}: {{ field.ty | kotlin_type }},
 {%- endfor %}
 ) {
-    fun writeDataWire(writer: rs.koffi.KoffiWriter) = writer.apply {
+    fun writeDataWire(writer: rs.koffi.KoffiWriter) {
 {%- for field in s.fields %}
 {%- if !field.skip_serde %}
-        {{ field.ty | kotlin_writer_expr(field.name) }}
+        writer.{{ field.ty | kotlin_writer_expr(field.name) }}
 {%- endif %}
 {%- endfor %}
     }
@@ -55,7 +55,7 @@ data class {{ s.name }}(
 sealed class {{ e.name }} : rs.koffi.KoffiError() {
 {%- for variant in e.variants %}
 {%- if variant.fields.is_empty() %}
-    object {{ variant.name }} : {{ e.name }}()
+    class {{ variant.name }} : {{ e.name }}()
 {%- else %}
     data class {{ variant.name }}(
 {%- for field in variant.fields %}
@@ -64,6 +64,44 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
     ) : {{ e.name }}()
 {%- endif %}
 {%- endfor %}
+    fun writeDataWire(writer: rs.koffi.KoffiWriter) {
+        when (this) {
+{%- for variant in e.variants %}
+{%- if variant.fields.is_empty() %}
+            is {{ variant.name }} -> {
+                writer.writeByte({{ loop.index0 }})
+            }
+{%- else %}
+            is {{ variant.name }} -> {
+                writer.writeByte({{ loop.index0 }})
+{%- for field in variant.fields %}
+{%- if !field.skip_serde %}
+                writer.{{ field.ty | kotlin_writer_expr(field.name) }}
+{%- endif %}
+{%- endfor %}
+            }
+{%- endif %}
+{%- endfor %}
+        }
+    }
+
+    companion object {
+        fun readDataWire(reader: rs.koffi.KoffiReader): {{ e.name }} =
+            when (val idx = reader.readByte()) {
+{%- for variant in e.variants %}
+{%- if variant.fields.is_empty() %}
+                {{ loop.index0 }}.toByte() -> {{ e.name }}.{{ variant.name }}()
+{%- else %}
+                {{ loop.index0 }}.toByte() -> {{ e.name }}.{{ variant.name }}(
+{%- for field in variant.fields %}
+                    {{ field.name | kotlin_sanitize_ident }} = reader.{{ field.ty | kotlin_reader_expr }},
+{%- endfor %}
+                )
+{%- endif %}
+{%- endfor %}
+                else -> throw IllegalStateException("Invalid enum discriminant: $idx")
+            }
+    }
 }
 {%- endfor %}
 
@@ -72,9 +110,9 @@ sealed class {{ e.name }} : rs.koffi.KoffiError() {
 {%- if s.is_opaque %}
 {%- if s.doc.len() > 0 %}
 /**
- {%- for line in s.doc %}
+{%- for line in s.doc %}
  *{{ line }}
- {%- endfor %}
+{%- endfor %}
  */
 {%- endif %}
 expect class {{ s.name }} : rs.koffi.KoffiHandleBase {

@@ -89,3 +89,20 @@ pub fn format_profile(profile: UserProfile) -> String {
         profile.id, profile.username, profile.is_admin
     )
 }
+
+#[koffi::data]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub enum UserRole {
+    Admin,
+    User,
+    Guest(u32),
+}
+
+#[koffi::export]
+pub fn role_to_string(role: UserRole) -> String {
+    match role {
+        UserRole::Admin => "admin".to_string(),
+        UserRole::User => "user".to_string(),
+        UserRole::Guest(id) => format!("guest_{}", id),
+    }
+}
