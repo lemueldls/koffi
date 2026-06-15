@@ -46,9 +46,9 @@ pub struct GenerateArgs {
     #[facet(args::named, args::short = 'o', default = "generated")]
     pub out: PathBuf,
 
-    /// Path to the koffi-runtime crate (required when building the glue crate).
-    #[facet(args::named, args::short = 'r', default = "crates/runtime")]
-    pub runtime_path: PathBuf,
+    /// Enable release mode.
+    #[facet(args::named, args::short = 'r')]
+    pub release: bool,
 
     /// Rerun on Rust source changes.
     #[facet(args::named, args::short = 'w')]
@@ -131,7 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .as_deref()
                 .unwrap_or(&root_ir.namespace);
             let out_dir = std::path::absolute(&args.out)?;
-            let runtime_path = std::path::absolute(&args.runtime_path)?;
+            let runtime_path = std::path::absolute("crates/runtime")?;
             let binding_packages = parsed_packages
                 .iter()
                 .map(|(pkg, ir)| {
@@ -176,7 +176,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             info!("Building artifacts for targets: {}", target_platforms);
-            build.run_targets(&target_platforms)?;
+            build.run_targets(&target_platforms, args.release)?;
 
             info!("Generation complete!");
         }

@@ -73,6 +73,8 @@ pub struct Builder {
     workspace_root: PathBuf,
     /// Which native targets to compile.
     targets: Targets,
+    /// Whether to enable release mode when compiling libraries.
+    release: bool,
     /// Whether to emit rustdoc-JSON-based type resolution (Phase 2).
     /// Disable only for fast iteration; schema hashes will be zero.
     full_parse: bool,
@@ -82,9 +84,9 @@ impl Builder {
     /// Create a `Builder` from `CARGO_*` environment variables set by Cargo
     /// when running a `build.rs` script.
     ///
-    /// | Variable | Used for |
-    /// |---|---|
-    /// | `CARGO_MANIFEST_DIR` | Crate root |
+    /// | Variable                                        | Used for       |
+    /// |-------------------------------------------------|----------------|
+    /// | `CARGO_MANIFEST_DIR`                            | Crate root     |
     /// | `CARGO_WORKSPACE_DIR` (if set) or auto-detected | Workspace root |
     pub fn from_env() -> Self {
         let manifest_dir = PathBuf::from(
@@ -107,6 +109,7 @@ impl Builder {
             runtime_src,
             workspace_root,
             targets: Targets::default(),
+            release: false,
             full_parse: true,
         }
     }
@@ -129,6 +132,13 @@ impl Builder {
     #[must_use]
     pub fn targets(mut self, t: Targets) -> Self {
         self.targets = t;
+        self
+    }
+
+    /// Set release mode when compiling libraries.
+    #[must_use]
+    pub const fn release(mut self, release: bool) -> Self {
+        self.release = release;
         self
     }
 
@@ -261,7 +271,7 @@ impl Builder {
             crate_ident: crate_ident.clone(),
             lib_name: format!("{crate_ident}_koffi_glue"),
         };
-        steps.run_targets(&target_platforms)?;
+        steps.run_targets(&target_platforms, self.release)?;
 
         Ok(())
     }

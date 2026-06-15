@@ -235,20 +235,24 @@ pub struct BuildSteps {
 }
 
 impl BuildSteps {
-    pub fn run_targets(&self, targets: &TargetPlatforms) -> Result<(), BindgenError> {
+    pub fn run_targets(
+        &self,
+        targets: &TargetPlatforms,
+        release: bool,
+    ) -> Result<(), BindgenError> {
         if targets.contains(TargetPlatform::Android) {
-            self.run_android()?;
+            self.run_android(release)?;
         }
         if targets.contains(TargetPlatform::Jvm) {
-            self.run_jvm()?;
+            self.run_jvm(release)?;
         }
-        self.run_ios_targets(&targets.ios_targets())?;
-        self.run_native_targets(&targets.native_targets())?;
+        self.run_ios_targets(&targets.ios_targets(), release)?;
+        self.run_native_targets(&targets.native_targets(), release)?;
 
         Ok(())
     }
 
-    pub fn run_android(&self) -> Result<(), BindgenError> {
+    pub fn run_android(&self, release: bool) -> Result<(), BindgenError> {
         let targets = [
             ("aarch64-linux-android", "arm64-v8a"),
             ("armv7-linux-androideabi", "armeabi-v7a"),
@@ -258,7 +262,7 @@ impl BuildSteps {
 
         for (target, abi) in targets {
             info!("Building Android target {target} for ABI {abi}");
-            let so = self.cargo_build_cdylib_ndk(target, "android")?;
+            let so = self.cargo_build_cdylib_ndk(target, "android", release)?;
             let dest = self
                 .out_dir
                 .join("kotlin/jniLibs")
@@ -271,9 +275,9 @@ impl BuildSteps {
         Ok(())
     }
 
-    pub fn run_jvm(&self) -> Result<(), BindgenError> {
+    pub fn run_jvm(&self, release: bool) -> Result<(), BindgenError> {
         let (target, classifier, prefix, ext) = host_triple();
-        let lib = self.cargo_build_cdylib(target, "jvm", prefix, ext)?;
+        let lib = self.cargo_build_cdylib(target, "jvm", release, prefix, ext)?;
         let dest = self
             .out_dir
             .join("kotlin/resources@jvm/natives")
@@ -285,10 +289,14 @@ impl BuildSteps {
         Ok(())
     }
 
-    fn run_native_targets(&self, targets: &[(&str, &str)]) -> Result<(), BindgenError> {
+    fn run_native_targets(
+        &self,
+        targets: &[(&str, &str)],
+        release: bool,
+    ) -> Result<(), BindgenError> {
         for (target, slice) in targets {
             info!("Building native target {target} for {slice}");
-            let lib = self.cargo_build_staticlib(target, "native")?;
+            let lib = self.cargo_build_staticlib(target, "native", release)?;
             let dest = self
                 .out_dir
                 .join("kotlin/cinterop")
@@ -301,10 +309,10 @@ impl BuildSteps {
         Ok(())
     }
 
-    fn run_ios_targets(&self, targets: &[(&str, &str)]) -> Result<(), BindgenError> {
+    fn run_ios_targets(&self, targets: &[(&str, &str)], release: bool) -> Result<(), BindgenError> {
         for (target, slice) in targets {
             info!("Building iOS target {target} for {slice}");
-            let lib = self.cargo_build_staticlib(target, "native")?;
+            let lib = self.cargo_build_staticlib(target, "native", release)?;
             let dest = self
                 .out_dir
                 .join("kotlin/cinterop")
@@ -320,22 +328,26 @@ impl BuildSteps {
     fn cargo_build_cdylib(
         &self,
         target: &str,
-        feature: &str,
+        features: &str,
+        release: bool,
         prefix: &str,
         ext: &str,
     ) -> Result<PathBuf, BindgenError> {
-        let status = std::process::Command::new("cargo")
-            .args([
-                "build",
-                "--release",
-                "--manifest-path",
-                &self.glue_path.join("Cargo.toml").display().to_string(),
-                "--target",
-                target,
-                "--features",
-                feature,
-            ])
-            .status()?;
+        let manifest = self.glue_path.join("Cargo.toml").display().to_string();
+        let mut args = vec![
+            "build",
+            "--manifest-path",
+            &manifest,
+            "--target",
+            target,
+            "--features",
+            features,
+        ];
+        if release {
+            args.push("--release");
+        }
+
+        let status = std::process::Command::new("cargo").args(args).status()?;
         if !status.success() {
             return Err(BindgenError::CargoBuildFailed(target.into()));
         }
@@ -345,26 +357,34 @@ impl BuildSteps {
             .glue_path
             .join("target")
             .join(target)
-            .join("release")
+            .join(if release { "release" } else { "debug" })
             .join(format!("{prefix}{}{ext}", self.lib_name.replace('-', "_")));
 
         Ok(artifact)
     }
 
-    fn cargo_build_cdylib_ndk(&self, target: &str, feature: &str) -> Result<PathBuf, BindgenError> {
-        let status = std::process::Command::new("cargo")
-            .args([
-                "ndk",
-                "--target",
-                target,
-                "build",
-                "--release",
-                "--manifest-path",
-                &self.glue_path.join("Cargo.toml").display().to_string(),
-                "--features",
-                feature,
-            ])
-            .status()?;
+    fn cargo_build_cdylib_ndk(
+        &self,
+        target: &str,
+        features: &str,
+        release: bool,
+    ) -> Result<PathBuf, BindgenError> {
+        let manifest = self.glue_path.join("Cargo.toml").display().to_string();
+        let mut args = vec![
+            "ndk",
+            "--target",
+            target,
+            "build",
+            "--manifest-path",
+            &manifest,
+            "--features",
+            features,
+        ];
+        if release {
+            args.push("--release");
+        }
+
+        let status = std::process::Command::new("cargo").args(args).status()?;
         if !status.success() {
             return Err(BindgenError::CargoBuildFailed(target.into()));
         }
@@ -374,25 +394,33 @@ impl BuildSteps {
             .glue_path
             .join("target")
             .join(target)
-            .join("release")
+            .join(if release { "release" } else { "debug" })
             .join(format!("lib{}.so", self.lib_name.replace('-', "_")));
 
         Ok(artifact)
     }
 
-    fn cargo_build_staticlib(&self, target: &str, feature: &str) -> Result<PathBuf, BindgenError> {
-        let status = std::process::Command::new("cargo")
-            .args([
-                "build",
-                "--release",
-                "--manifest-path",
-                &self.glue_path.join("Cargo.toml").display().to_string(),
-                "--target",
-                target,
-                "--features",
-                feature,
-            ])
-            .status()?;
+    fn cargo_build_staticlib(
+        &self,
+        target: &str,
+        features: &str,
+        release: bool,
+    ) -> Result<PathBuf, BindgenError> {
+        let manifest = self.glue_path.join("Cargo.toml").display().to_string();
+        let mut args = vec![
+            "build",
+            "--manifest-path",
+            &manifest,
+            "--target",
+            target,
+            "--features",
+            features,
+        ];
+        if release {
+            args.push("--release");
+        }
+
+        let status = std::process::Command::new("cargo").args(args).status()?;
         if !status.success() {
             return Err(BindgenError::CargoBuildFailed(target.into()));
         }
@@ -401,7 +429,7 @@ impl BuildSteps {
             .glue_path
             .join("target")
             .join(target)
-            .join("release")
+            .join(if release { "release" } else { "debug" })
             .join(format!("lib{}.a", self.lib_name.replace('-', "_")));
 
         Ok(artifact)
