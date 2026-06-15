@@ -106,3 +106,25 @@ pub fn role_to_string(role: UserRole) -> String {
         UserRole::Guest(id) => format!("guest_{}", id),
     }
 }
+
+#[koffi::export]
+pub fn role_from_string(role_str: &str) -> UserRole {
+    match role_str {
+        "admin" => UserRole::Admin,
+        "user" => UserRole::User,
+        _ => {
+            if let Ok(id) = role_str.strip_prefix("guest_").unwrap_or("").parse::<u32>() {
+                UserRole::Guest(id)
+            } else {
+                panic!("Invalid role string: {}", role_str);
+            }
+        }
+    }
+}
+
+#[koffi::export]
+impl UserRole {
+    pub fn is_admin(&self) -> bool {
+        matches!(self, UserRole::Admin)
+    }
+}

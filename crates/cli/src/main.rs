@@ -5,7 +5,7 @@ use facet_pretty::{FacetPretty, PrettyPrinter};
 use figue::{self as args, FigueBuiltins};
 use koffi_bindgen::{
     build_steps::BuildSteps,
-    codegen::{BindingPackage, copy_runtime, generate_package_set},
+    codegen::{BindingPackage, generate_package_set},
     meta::collect_koffi_packages,
     parser::parse_crate,
 };
@@ -125,20 +125,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .target_platforms
                 .clone()
                 .unwrap_or_default();
-            let namespace = root_pkg
-                .koffi_meta
-                .namespace
-                .as_deref()
-                .unwrap_or(&root_ir.namespace);
             let out_dir = std::path::absolute(&args.out)?;
             let runtime_path = std::path::absolute("crates/runtime")?;
             let binding_packages = parsed_packages
                 .iter()
                 .map(|(pkg, ir)| {
-                    BindingPackage {
-                        ir,
-                        crate_path: pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")),
-                    }
+                    let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
+                    BindingPackage { ir, crate_path }
                 })
                 .collect::<Vec<_>>();
 
@@ -146,21 +139,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             debug!("Using koffi-runtime at {}", runtime_path.display());
             generate_package_set(
                 &binding_packages,
-                namespace,
                 &root_ir.crate_name,
                 &root_ir.version,
                 &out_dir,
-                &runtime_path,
                 &target_platforms,
             )?;
-
-            let kotlin_runtime_path = PathBuf::from("crates/runtime/kotlin");
-            debug!(
-                "Copying koffi-runtime from {} to {}",
-                kotlin_runtime_path.display(),
-                out_dir.join("kotlin/runtime").display()
-            );
-            copy_runtime(&kotlin_runtime_path, &out_dir)?;
 
             let crate_ident = root_ir.crate_name.replace('-', "_");
             let build = BuildSteps {

@@ -758,6 +758,7 @@ name = "koffi"
 version = "0.1.0"
 dependencies = [
  "koffi-macros",
+ "koffi-runtime",
 ]
 
 [[package]]

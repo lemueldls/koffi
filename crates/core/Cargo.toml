@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 koffi-macros.workspace = true
+koffi-runtime.workspace = true
 
 [lints]
 workspace = true

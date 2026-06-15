@@ -23,11 +23,6 @@ pub struct KoffiPackageMeta {
     /// Default: "koffi/schema.json"
     pub schema: Option<PathBuf>,
 
-    /// Path to pre-generated Kotlin sources, relative to the crate root.
-    /// When present, bindgen copies these instead of regenerating.
-    /// Example: "koffi/kotlin"
-    pub kotlin_prebuilt: Option<PathBuf>,
-
     /// Feature-gated additional exports.
     #[serde(default)]
     pub features: HashMap<String, KoffiFeatureMeta>,

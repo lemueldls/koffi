@@ -633,7 +633,7 @@ pub fn parse_type_at(
     err_msg: &str,
 ) -> Result<FFIType, BindgenError> {
     parse_type(ty, &ctx.type_decls)
-        .map_err(|_| BindgenError::UnsupportedType(format!("{}: {}", err_msg, quote::quote!(#ty),)))
+        .map_err(|_| BindgenError::UnsupportedType(format!("{}: {}", err_msg, quote::quote!(#ty))))
 }
 
 fn parse_reference(

@@ -11,7 +11,6 @@ use crate::codegen::GlueDependency;
 #[derive(Template)]
 #[template(path = "kotlin/common.kt.j2", escape = "none")]
 pub struct KotlinCommonTemplate<'a> {
-    pub namespace: &'a str,
     pub crate_name: &'a str,
     pub ir: &'a CrateInterface,
 }
@@ -19,7 +18,6 @@ pub struct KotlinCommonTemplate<'a> {
 #[derive(Template)]
 #[template(path = "kotlin/jvm.kt.j2", escape = "none")]
 pub struct KotlinJvmTemplate<'a> {
-    pub namespace: &'a str,
     pub pkg_pascal: &'a str, // PascalCase crate name, used for JNI object name
     pub crate_name: &'a str, // snake_case library name for System.loadLibrary
     pub lib_name: &'a str,   // actual .so/.dylib name without prefix/ext
@@ -59,7 +57,6 @@ pub struct KotlinModuleTemplate {
 #[derive(Template)]
 #[template(path = "rust/jni_glue.rs.j2", escape = "none")]
 pub struct RustJniTemplate<'a> {
-    pub namespace: &'a str,
     pub pkg_pascal: &'a str,
     pub crate_ident: &'a str, // crate name with hyphens -> underscores
     pub ir: &'a CrateInterface,
@@ -111,5 +108,4 @@ pub struct GlueCargoTemplate<'a> {
     pub crate_name: &'a str,
     pub version: &'a str,
     pub dependencies: Vec<GlueDependency>,
-    pub runtime_path: &'a str,
 }

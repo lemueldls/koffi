@@ -65,10 +65,6 @@ pub struct Builder {
     /// Where to write all generated output. Default:
     /// `<manifest_dir>/generated`.
     out_dir: PathBuf,
-    /// Path to the `koffi-runtime` crate sources (for copying Kotlin runtime
-    /// files into the generated output). Default: `crates/runtime` relative
-    /// to the workspace root.
-    runtime_src: PathBuf,
     /// Workspace root directory.
     workspace_root: PathBuf,
     /// Which native targets to compile.
@@ -100,13 +96,11 @@ impl Builder {
             .map(PathBuf::from)
             .unwrap_or_else(|_| detect_workspace_root(&manifest_dir));
 
-        let runtime_src = workspace_root.join("crates/runtime");
         let out_dir = manifest_dir.join("generated");
 
         Self {
             manifest_dir,
             out_dir,
-            runtime_src,
             workspace_root,
             targets: Targets::default(),
             release: false,
@@ -118,13 +112,6 @@ impl Builder {
     #[must_use]
     pub fn out_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.out_dir = dir.into();
-        self
-    }
-
-    /// Override the path to the `koffi-runtime` crate.
-    #[must_use]
-    pub fn runtime_src(mut self, path: impl Into<PathBuf>) -> Self {
-        self.runtime_src = path.into();
         self
     }
 
@@ -230,32 +217,21 @@ impl Builder {
             .target_platforms
             .clone()
             .unwrap_or_else(|| self.targets.clone());
-        let namespace = root_pkg
-            .koffi_meta
-            .namespace
-            .as_deref()
-            .unwrap_or(&root_ir.namespace);
-        let runtime_src = std::path::absolute(&self.runtime_src)?;
         let binding_packages = parsed_packages
             .iter()
             .map(|(pkg, ir)| {
-                BindingPackage {
-                    ir,
-                    crate_path: pkg.manifest_path.parent().unwrap_or_else(|| Path::new(".")),
-                }
+                let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
+                BindingPackage { ir, crate_path }
             })
             .collect::<Vec<_>>();
 
         codegen::generate_package_set(
             &binding_packages,
-            namespace,
             &root_ir.crate_name,
             &root_ir.version,
             &out_dir,
-            &runtime_src,
             &target_platforms,
         )?;
-        codegen::copy_runtime(&runtime_src, &out_dir)?;
 
         // Compile native libraries after all code generation is done, so that
         // the generated Rust glue crate sees all types from all plugins.
