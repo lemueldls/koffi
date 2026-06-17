@@ -5,5 +5,7 @@ pub mod error;
 pub mod meta;
 pub mod parser;
 
-pub use diagnostic::{Diagnostic, Label, LabelStyle, Severity, SourcePosition, SourceSpan};
+pub use diagnostic::{
+    Diagnostic, DiagnosticSink, Label, LabelStyle, Severity, SourcePosition, SourceSpan,
+};
 pub use error::BindgenError;

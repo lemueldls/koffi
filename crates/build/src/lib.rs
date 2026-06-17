@@ -43,6 +43,7 @@ use std::{
 
 pub use koffi_bindgen::{BindgenError, build_steps::TargetPlatforms as Targets};
 use koffi_bindgen::{
+    DiagnosticSink,
     build_steps::BuildSteps,
     codegen::{self, BindingPackage},
     meta::{KoffiPackage, collect_koffi_packages},
@@ -79,19 +80,12 @@ pub struct Builder {
 impl Builder {
     /// Create a `Builder` from `CARGO_*` environment variables set by Cargo
     /// when running a `build.rs` script.
-    ///
-    /// | Variable                                        | Used for       |
-    /// |-------------------------------------------------|----------------|
-    /// | `CARGO_MANIFEST_DIR`                            | Crate root     |
-    /// | `CARGO_WORKSPACE_DIR` (if set) or auto-detected | Workspace root |
     pub fn from_env() -> Self {
         let manifest_dir = PathBuf::from(
             std::env::var("CARGO_MANIFEST_DIR")
                 .expect("CARGO_MANIFEST_DIR must be set (call from build.rs)"),
         );
 
-        // Try CARGO_WORKSPACE_DIR (set by some cargo versions), else walk up
-        // from manifest_dir until we find a workspace Cargo.toml.
         let workspace_root = std::env::var("CARGO_WORKSPACE_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| detect_workspace_root(&manifest_dir));
@@ -129,18 +123,13 @@ impl Builder {
         self
     }
 
-    /// Only compile for the host jvm. Shorthand for
-    /// `.targets(Targets::jvm_only())`.
+    /// Only compile for the host JVM. Shorthand for `.targets(Targets::jvm_only())`.
     #[must_use]
     pub fn jvm_only(self) -> Self {
         self.targets(Targets::jvm_only())
     }
 
     /// Disable Phase 2 (rustdoc JSON) type resolution.
-    ///
-    /// With Phase 2 disabled, type resolution falls back to Phase 1 (syn-only)
-    /// results. Cross-crate type identities and schema hashes will be missing
-    /// or zero. Use only for rapid iteration; disable before publishing.
     #[must_use]
     pub const fn skip_rustdoc(mut self) -> Self {
         self.full_parse = false;
@@ -154,8 +143,6 @@ impl Builder {
         let manifest = self.manifest_dir.join("Cargo.toml");
         let out_dir = std::path::absolute(&self.out_dir)?;
 
-        // Collect all koffi-aware crates in the dependency graph, including
-        // the root crate itself if it has [package.metadata.koffi].
         let packages = collect_koffi_packages(&manifest)?;
 
         if packages.is_empty() {
@@ -163,18 +150,19 @@ impl Builder {
                 "koffi-build: no [package.metadata.koffi] found in {} or its dependencies",
                 manifest.display(),
             );
-
             return Ok(());
         }
 
-        // Parse crates in topological order so each crate can see dep schemas.
         let mut pkg_schemas: Vec<CrateInterface> = Vec::new();
         let mut parsed_packages: Vec<(KoffiPackage, CrateInterface)> = Vec::new();
+
+        let mut all_diagnostics = DiagnosticSink::new();
+        let mut had_errors = false;
 
         for pkg in packages {
             let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
-            let ir = if self.full_parse {
+            let parse_result = if self.full_parse {
                 parser::parse_crate(
                     crate_path,
                     &self.workspace_root,
@@ -182,29 +170,60 @@ impl Builder {
                     pkg.version.clone(),
                     &pkg.koffi_meta,
                     &pkg_schemas,
-                )?
+                )
             } else {
-                // Phase 1 only. Faster, less accurate.
                 parser::parse_crate_syn_only(
                     crate_path,
                     pkg.name.clone(),
                     pkg.version.clone(),
                     &pkg.koffi_meta,
-                )?
+                )
             };
 
-            // Optionally emit schema.json next to the crate (for plugin crates
-            // that want to check it in).
-            if pkg.koffi_meta.schema.is_some() {
-                let schema_path = crate_path.join("koffi/schema.json");
-                if let Some(parent) = schema_path.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-                codegen::emit_schema(&ir, &schema_path)?;
-            }
+            match parse_result {
+                Ok((ir, sink)) => {
+                    // Collect diagnostics. Errors in the sink mean some items
+                    // were skipped, but we continue so all problems are visible.
+                    if sink.has_errors() {
+                        had_errors = true;
+                    }
+                    all_diagnostics.extend(sink);
 
-            pkg_schemas.push(ir.clone());
-            parsed_packages.push((pkg, ir));
+                    if pkg.koffi_meta.schema.is_some() {
+                        let schema_path = crate_path.join("koffi/schema.json");
+                        if let Some(parent) = schema_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
+                        codegen::emit_schema(&ir, &schema_path)?;
+                    }
+
+                    pkg_schemas.push(ir.clone());
+                    parsed_packages.push((pkg, ir));
+                }
+                Err(e) => {
+                    // Fatal (I/O, rustdoc crash, etc.) — emit accumulated
+                    // diagnostics first so the user sees all prior warnings,
+                    // then propagate the error.
+                    all_diagnostics.emit();
+
+                    return Err(e);
+                }
+            }
+        }
+
+        // Emit all collected diagnostics before deciding whether to abort.
+        all_diagnostics.emit();
+
+        if had_errors {
+            return Err(BindgenError::from_diagnostic(
+                koffi_bindgen::Diagnostic::error(
+                    "koffi: errors found during parsing — see diagnostics above",
+                ),
+            ));
+        }
+
+        if parsed_packages.is_empty() {
+            return Ok(());
         }
 
         let root_index = parsed_packages
@@ -233,8 +252,6 @@ impl Builder {
             &target_platforms,
         )?;
 
-        // Compile native libraries after all code generation is done, so that
-        // the generated Rust glue crate sees all types from all plugins.
         let crate_ident = root_ir.crate_name.replace('-', "_");
         let steps = BuildSteps {
             crate_path: root_pkg
@@ -253,13 +270,10 @@ impl Builder {
     }
 }
 
-/// Emit `cargo:rerun-if-changed` for the crate source tree so that Cargo
-/// re-runs `build.rs` whenever a Rust source file changes.
 fn emit_rerun_directives(manifest_dir: &Path) {
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=src/");
 
-    // Also rerun if any `.rs` file inside src/ changes (belt-and-suspenders).
     if let Ok(entries) = walkdir_rs(manifest_dir.join("src")) {
         for path in entries {
             println!("cargo:rerun-if-changed={}", path.display());
@@ -267,11 +281,9 @@ fn emit_rerun_directives(manifest_dir: &Path) {
     }
 }
 
-/// Walk a directory and collect all `.rs` file paths.
 fn walkdir_rs(dir: impl AsRef<Path>) -> std::io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     walk_rs_inner(dir.as_ref(), &mut out)?;
-
     Ok(out)
 }
 
@@ -285,11 +297,9 @@ fn walk_rs_inner(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
             out.push(path);
         }
     }
-
     Ok(())
 }
 
-/// Walk up from `start` until a `Cargo.toml` containing `[workspace]` is found.
 fn detect_workspace_root(start: &Path) -> PathBuf {
     let mut current = start.to_path_buf();
 

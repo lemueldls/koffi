@@ -76,64 +76,45 @@ impl BindgenError {
         match self {
             Self::Diagnostic(diagnostic) => *diagnostic.clone(),
             Self::RustdocFailed(message) => Diagnostic::error("Rustdoc resolution failed")
-                .with_code("rustdoc")
                 .with_note(message),
             Self::UnsupportedType(message) => Diagnostic::error("Unsupported type")
-                .with_code("type")
                 .with_note(message)
                 .with_help(
                     "Use FFI-safe primitives, String/&str, Vec<T>, &[u8], Option<T>, Result<T, E>, maps, sets, or #[koffi::data]/#[koffi::opaque] types.",
                 ),
             Self::NoResolveGraph => Diagnostic::error("Cargo metadata did not include a resolve graph")
-                .with_code("metadata")
                 .with_help("Run Koffi from a normal Cargo package with dependency resolution enabled."),
-            Self::NoRootPackage => Diagnostic::error("Cargo metadata did not identify a root package")
-                .with_code("metadata"),
+            Self::NoRootPackage => Diagnostic::error("Cargo metadata did not identify a root package"),
             Self::PackageNotFound(package) => Diagnostic::error("Package not found in Cargo metadata")
-                .with_code("metadata")
                 .with_note(package),
             Self::CargoBuildFailed(target) => Diagnostic::error("Cargo build failed")
-                .with_code("build")
                 .with_note(format!("target: {target}")),
-            Self::EmptyTypePath => Diagnostic::error("Empty type path").with_code("type"),
+            Self::EmptyTypePath => Diagnostic::error("Empty type path"),
             Self::ExpectedOneGeneric(parent) => Diagnostic::error("Invalid generic argument count")
-                .with_code("type")
                 .with_note(format!("expected 1 generic argument for {parent}")),
             Self::ExpectedTwoGenerics(parent) => Diagnostic::error("Invalid generic argument count")
-                .with_code("type")
                 .with_note(format!("expected 2 generic arguments for {parent}")),
             Self::CargoTomlError(message) => Diagnostic::error("Cargo.toml error")
-                .with_code("metadata")
                 .with_note(message),
             Self::IoError(err) => Diagnostic::error("I/O error")
-                .with_code("io")
                 .with_note(err.to_string()),
             Self::EnvError(err) => Diagnostic::error("Environment variable error")
-                .with_code("env")
                 .with_note(err.to_string()),
             Self::SyntaxError(err) => Diagnostic::error("Rust syntax error")
-                .with_code("syntax")
                 .with_note(err.to_string()),
             Self::CargoMetadataError(err) => Diagnostic::error("Cargo metadata error")
-                .with_code("metadata")
                 .with_note(err.to_string()),
             Self::SerdeJsonError(err) => Diagnostic::error("JSON error")
-                .with_code("json")
                 .with_note(err.to_string()),
             Self::FacetJsonSerializeError(err) => Diagnostic::error("Facet JSON serialization error")
-                .with_code("json")
                 .with_note(err.to_string()),
             Self::TomlError(err) => Diagnostic::error("TOML parsing error")
-                .with_code("toml")
                 .with_note(err.to_string()),
             Self::TemplateError(err) => Diagnostic::error("Template rendering error")
-                .with_code("template")
                 .with_note(err.to_string()),
             Self::WalkDirError(err) => Diagnostic::error("Directory walk error")
-                .with_code("io")
                 .with_note(err.to_string()),
             Self::StripPrefixError(err) => Diagnostic::error("Path error")
-                .with_code("path")
                 .with_note(err.to_string()),
         }
     }

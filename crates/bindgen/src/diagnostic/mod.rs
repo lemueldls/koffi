@@ -121,7 +121,6 @@ impl Label {
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub severity: Severity,
-    pub code: Option<String>,
     pub message: String,
     pub labels: Vec<Label>,
     pub notes: Vec<String>,
@@ -143,18 +142,11 @@ impl Diagnostic {
     pub fn new(severity: Severity, message: impl Into<String>) -> Self {
         Self {
             severity,
-            code: None,
             message: message.into(),
             labels: Vec::new(),
             notes: Vec::new(),
             help: Vec::new(),
         }
-    }
-
-    #[must_use]
-    pub fn with_code(mut self, code: impl Into<String>) -> Self {
-        self.code = Some(code.into());
-        self
     }
 
     #[must_use]
@@ -197,12 +189,143 @@ impl Diagnostic {
 
 impl fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(code) = &self.code {
-            write!(f, "{}[{code}]: {}", self.severity, self.message)
-        } else {
-            write!(f, "{}: {}", self.severity, self.message)
-        }
+        write!(f, "{}: {}", self.severity, self.message)
     }
 }
 
 impl std::error::Error for Diagnostic {}
+
+/// Collects diagnostics (errors and warnings) during a parse or codegen run.
+///
+/// Fatal errors that must immediately halt processing are returned as
+/// `Err(BindgenError)`. This sink accumulates *all* non-immediately-fatal
+/// issues so that a single pass can surface every problem at once.
+///
+/// After the pass completes, callers should:
+/// 1. Call [`DiagnosticSink::emit`] to print everything.
+/// 2. Call [`DiagnosticSink::has_errors`] to decide whether to abort.
+#[derive(Debug, Default, Clone)]
+pub struct DiagnosticSink {
+    diagnostics: Vec<Diagnostic>,
+}
+
+impl DiagnosticSink {
+    /// Create an empty sink.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            diagnostics: Vec::new(),
+        }
+    }
+
+    /// Add a diagnostic.
+    pub fn push(&mut self, d: Diagnostic) {
+        self.diagnostics.push(d);
+    }
+
+    /// Whether any error-severity diagnostics have been added.
+    #[must_use]
+    pub fn has_errors(&self) -> bool {
+        self.diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Error)
+    }
+
+    /// Whether any warning-severity diagnostics have been added.
+    #[must_use]
+    pub fn has_warnings(&self) -> bool {
+        self.diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Warning)
+    }
+
+    /// Whether the sink is empty.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.diagnostics.is_empty()
+    }
+
+    /// Number of diagnostics.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.diagnostics.len()
+    }
+
+    /// Iterate over all diagnostics.
+    pub fn iter(&self) -> impl Iterator<Item = &Diagnostic> {
+        self.diagnostics.iter()
+    }
+
+    /// Iterate over error diagnostics only.
+    pub fn errors(&self) -> impl Iterator<Item = &Diagnostic> {
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Error)
+    }
+
+    /// Iterate over warning diagnostics only.
+    pub fn warnings(&self) -> impl Iterator<Item = &Diagnostic> {
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Warning)
+    }
+
+    /// Merge another sink's diagnostics into this one.
+    pub fn extend(&mut self, other: DiagnosticSink) {
+        self.diagnostics.extend(other.diagnostics);
+    }
+
+    /// Render and print all diagnostics to stderr.
+    ///
+    /// Does nothing if the sink is empty.
+    pub fn emit(&self) {
+        if self.diagnostics.is_empty() {
+            return;
+        }
+        let renderer = CliRenderer::default();
+        for d in &self.diagnostics {
+            eprintln!("{}", renderer.render(d));
+        }
+    }
+
+    /// Emit all diagnostics then return a summary line (e.g. for build output).
+    ///
+    /// Returns `None` if the sink is empty.
+    #[must_use]
+    pub fn emit_and_summarize(&self) -> Option<String> {
+        if self.diagnostics.is_empty() {
+            return None;
+        }
+
+        self.emit();
+
+        let errors = self
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Error)
+            .count();
+        let warnings = self
+            .diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Warning)
+            .count();
+
+        let mut parts = Vec::new();
+
+        if errors > 0 {
+            parts.push(format!(
+                "{errors} error{}",
+                if errors == 1 { "" } else { "s" }
+            ));
+        }
+
+        if warnings > 0 {
+            parts.push(format!(
+                "{warnings} warning{}",
+                if warnings == 1 { "" } else { "s" }
+            ));
+        }
+
+        Some(parts.join(", "))
+    }
+}

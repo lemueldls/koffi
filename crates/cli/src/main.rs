@@ -4,12 +4,13 @@ use facet::Facet;
 use facet_pretty::{FacetPretty, PrettyPrinter};
 use figue::{self as args, FigueBuiltins};
 use koffi_bindgen::{
+    DiagnosticSink,
     build_steps::BuildSteps,
     codegen::{BindingPackage, generate_package_set},
     meta::collect_koffi_packages,
     parser::parse_crate,
 };
-use tracing::{Level, debug, info};
+use tracing::{Level, debug, info, warn};
 
 #[derive(Facet)]
 pub struct Cli {
@@ -53,6 +54,10 @@ pub struct GenerateArgs {
     /// Rerun on Rust source changes.
     #[facet(args::named, args::short = 'w')]
     pub watch: bool,
+
+    /// Treat warnings as errors and abort generation if any are found.
+    #[facet(args::named, args::short = 'D')]
+    pub deny_warnings: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -78,6 +83,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut pkg_schemas = Vec::new();
             let mut parsed_packages = Vec::new();
+            // Collect diagnostics from all packages before deciding to abort.
+            let mut all_diagnostics = DiagnosticSink::new();
+            let mut had_errors = false;
 
             for pkg in packages {
                 info!("Found koffi package: {} v{}", pkg.name, pkg.version);
@@ -86,32 +94,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 debug!("Parsing crate at {}", crate_path.display());
 
-                let ir = parse_crate(
+                match parse_crate(
                     crate_path,
                     &pkg.workspace_root,
                     pkg.name.clone(),
                     pkg.version.clone(),
                     &pkg.koffi_meta,
                     &pkg_schemas,
-                );
-
-                match ir {
-                    Ok(ir) => {
+                ) {
+                    Ok((ir, sink)) => {
                         info!(
-                            "Parsed bindings for crate {} v{}",
-                            ir.crate_name, ir.version
+                            "Parsed bindings for crate {} v{}: {} structs, {} enums, {} functions",
+                            ir.crate_name,
+                            ir.version,
+                            ir.structs.len(),
+                            ir.enums.len(),
+                            ir.functions.len(),
                         );
+
+                        if sink.has_errors() {
+                            had_errors = true;
+                        }
+                        if args.deny_warnings && sink.has_warnings() {
+                            had_errors = true;
+                        }
+                        all_diagnostics.extend(sink);
 
                         pkg_schemas.push(ir.clone());
                         parsed_packages.push((pkg, ir));
                     }
                     Err(e) => {
+                        // Fatal error (I/O, rustdoc crash, etc.) — emit all
+                        // prior diagnostics first so the user sees everything.
+                        all_diagnostics.emit();
                         eprintln!("{}", e.diagnostic().render_cli());
+                        had_errors = true;
                     }
                 }
             }
 
+            // Always emit all collected diagnostics before proceeding.
+            all_diagnostics.emit();
+
+            if had_errors {
+                let flag = if args.deny_warnings {
+                    " (--deny-warnings is set)"
+                } else {
+                    ""
+                };
+                eprintln!("\nkoffi: aborting generation due to errors{flag}");
+                std::process::exit(1);
+            }
+
             if parsed_packages.is_empty() {
+                warn!("No koffi packages parsed successfully; nothing to generate.");
                 return Ok(());
             }
 
@@ -126,7 +162,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .clone()
                 .unwrap_or_default();
             let out_dir = std::path::absolute(&args.out)?;
-            let runtime_path = std::path::absolute("crates/runtime")?;
             let binding_packages = parsed_packages
                 .iter()
                 .map(|(pkg, ir)| {
@@ -136,7 +171,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>();
 
             debug!("Generating bindings to {}", out_dir.display());
-            debug!("Using koffi-runtime at {}", runtime_path.display());
             generate_package_set(
                 &binding_packages,
                 &root_ir.crate_name,
@@ -171,21 +205,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for pkg in &packages {
                 let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
 
-                let ir = parse_crate(
+                match parse_crate(
                     crate_path,
                     &pkg.workspace_root,
                     pkg.name.clone(),
                     pkg.version.clone(),
                     &pkg.koffi_meta,
                     &[],
-                )?;
+                ) {
+                    Ok((ir, sink)) => {
+                        // Emit diagnostics even in dump-ir mode so the user
+                        // can see what was skipped or warned about.
+                        if !sink.is_empty() {
+                            sink.emit();
+                            eprintln!();
+                        }
 
-                let printer = PrettyPrinter::new()
-                    .with_indent_size(4)
-                    .with_max_content_len(80);
+                        let printer = PrettyPrinter::new()
+                            .with_indent_size(4)
+                            .with_max_content_len(80);
 
-                info!("IR for crate {} v{}:", ir.crate_name, ir.version);
-                println!("{}", ir.pretty_with(printer));
+                        info!("IR for crate {} v{}:", ir.crate_name, ir.version);
+                        println!("{}", ir.pretty_with(printer));
+                    }
+                    Err(e) => {
+                        eprintln!("{}", e.diagnostic().render_cli());
+                    }
+                }
             }
         }
     }

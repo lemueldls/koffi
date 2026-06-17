@@ -66,7 +66,7 @@ pub fn maybe_float() -> Option<f64> {
 
 // Transparent Structs (Postcard Serialized) FFI
 #[koffi::data]
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct UserProfile {
     pub id: u64,
     pub username: String,

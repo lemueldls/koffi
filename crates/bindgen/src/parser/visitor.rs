@@ -27,13 +27,24 @@ use koffi_ir::{
     CrateId, EnumInfo, EnumVariantInfo, ExportArgs, FFIType, FieldInfo, FnInfo, ParamInfo,
     ReceiverType, StructInfo, TypeRef,
 };
+use syn::spanned::Spanned;
 
-use crate::{BindgenError, diagnostic::SourceSpan, parser::context::ParseContext};
+use crate::{
+    BindgenError,
+    diagnostic::{Diagnostic, DiagnosticSink, Label, SourceSpan},
+    parser::context::ParseContext,
+};
 
-/// The result of Phase 1: IR with placeholder `TypeRef`s.
+/// The result of Phase 1: IR with placeholder `TypeRef`s and accumulated
+/// diagnostics.
 ///
 /// Every `TypeRef` in this struct has an empty `crate_id.name` and a zero
 /// `schema_hash`; both are filled in by Phase 2.
+///
+/// Diagnostics in `sink` should be emitted and checked by the Phase 2 caller.
+/// Errors in the sink indicate items that were skipped; the caller should
+/// propagate them as failures after completing both phases so that all
+/// diagnostics are visible at once.
 #[derive(Debug)]
 pub struct PartialInterface {
     pub namespace: String,
@@ -42,6 +53,7 @@ pub struct PartialInterface {
     pub structs: Vec<StructInfo>,
     pub enums: Vec<EnumInfo>,
     pub functions: Vec<FnInfo>,
+    pub diagnostics: DiagnosticSink,
 }
 
 /// `true` -> opaque handle, `false` -> postcard-serializable data.
@@ -92,6 +104,7 @@ pub fn parse_syn(
         structs: ctx.structs,
         enums: ctx.enums,
         functions: ctx.functions,
+        diagnostics: ctx.sink,
     })
 }
 
@@ -166,6 +179,7 @@ fn collect_in_items(
             _ => {}
         }
     }
+
     Ok(())
 }
 
@@ -273,12 +287,40 @@ fn visit_struct(s: &syn::ItemStruct, ctx: &mut ParseContext) -> Result<(), Bindg
     }
 
     let name = s.ident.to_string();
+    let file = ctx.current_file().cloned();
+
+    if is_opaque && is_data {
+        let mut d = Diagnostic::error(format!(
+            "`{name}` cannot have both `#[koffi::data]` and `#[koffi::opaque]`"
+        ))
+        .with_note("These attributes are mutually exclusive.")
+        .with_help(
+            "Use `#[koffi::data]` to serialize the type across the FFI boundary with postcard, \
+             or `#[koffi::opaque]` to manage it as an integer handle in a HandleRegistry.",
+        );
+        if let Some(ref f) = file {
+            if let Some(span) = find_koffi_attr_span(&s.attrs, "data") {
+                d = d.with_label(Label::primary(f, span).with_message("#[koffi::data] here"));
+            }
+            if let Some(span) = find_koffi_attr_span(&s.attrs, "opaque") {
+                d = d.with_label(
+                    Label::secondary(f, span).with_message("conflicts with #[koffi::opaque]"),
+                );
+            }
+        }
+        ctx.sink.push(d);
+
+        return Ok(());
+    }
+
+    if is_data {
+        validate_data_derives(&s.attrs, &name, "struct", file.as_deref(), &mut ctx.sink);
+    }
+
     let namespace = ctx.current_namespace().to_string();
     let rust_module_path = ctx.current_module_path();
     let doc = extract_doc(&s.attrs);
 
-    // Opaque structs expose no fields to the Kotlin side.
-    // Data structs expose all fields that serde will serialize.
     let fields = if is_data {
         parse_struct_fields(&s.fields, ctx)?
     } else {
@@ -337,11 +379,44 @@ fn parse_struct_fields(
 }
 
 fn visit_enum(e: &syn::ItemEnum, ctx: &mut ParseContext) -> Result<(), BindgenError> {
-    if !has_koffi_attr(&e.attrs, "data") {
+    let is_data = has_koffi_attr(&e.attrs, "data");
+    let is_opaque = has_koffi_attr(&e.attrs, "opaque");
+
+    if !is_data && !is_opaque {
         return Ok(());
     }
 
     let name = e.ident.to_string();
+    let file = ctx.current_file().cloned();
+
+    if is_opaque {
+        let mut d = Diagnostic::error(format!(
+            "`{name}` is marked `#[koffi::opaque]` but enums cannot be opaque handles"
+        ))
+        .with_note(
+            "Opaque handles are heap-allocated structs tracked by a `HandleRegistry`. \
+             Enums are not heap-managed in this way.",
+        )
+        .with_help(
+            "Use `#[koffi::data]` to serialize the enum across the FFI boundary. \
+             If you need handle semantics, wrap the enum in a `#[koffi::opaque]` struct.",
+        );
+        if let Some(ref f) = file {
+            if let Some(span) = find_koffi_attr_span(&e.attrs, "opaque") {
+                d = d.with_label(
+                    Label::primary(f, span).with_message("remove this attribute from the enum"),
+                );
+            }
+        }
+        ctx.sink.push(d);
+
+        if !is_data {
+            return Ok(()); // skip entirely if only opaque
+        }
+    }
+
+    validate_data_derives(&e.attrs, &name, "enum", file.as_deref(), &mut ctx.sink);
+
     let namespace = ctx.current_namespace().to_string();
     let rust_module_path = ctx.current_module_path();
     let doc = extract_doc(&e.attrs);
@@ -410,6 +485,24 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
     };
 
     if !matches!(f.vis, syn::Visibility::Public(_)) {
+        let rust_name = f.sig.ident.to_string();
+        let file = ctx.current_file().cloned();
+        let mut d = Diagnostic::warning(format!(
+            "`#[koffi::export]` on non-`pub` function `{rust_name}` has no effect"
+        ))
+        .with_note(format!(
+            "`{rust_name}` is not `pub` and will be silently ignored by koffi."
+        ))
+        .with_help("Add `pub` visibility to export this function to Kotlin.");
+        if let Some(ref f_path) = file {
+            if let Some(span) = find_koffi_attr_span(&f.attrs, "export") {
+                d = d.with_label(
+                    Label::primary(f_path, span).with_message("attribute has no effect here"),
+                );
+            }
+        }
+        ctx.sink.push(d);
+
         return Ok(());
     }
 
@@ -501,6 +594,25 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
         };
 
         if !matches!(method.vis, syn::Visibility::Public(_)) {
+            let rust_name = method.sig.ident.to_string();
+            // Only warn if the method itself carries the attribute (not just the impl block).
+            if get_koffi_attr(&method.attrs, "export").is_some() {
+                let file = ctx.current_file().cloned();
+                let mut d = Diagnostic::warning(format!(
+                    "`#[koffi::export]` on non-`pub` method `{parent_name}::{rust_name}` has no effect"
+                ))
+                .with_help("Add `pub` visibility to include this method in the Kotlin bindings.");
+                if let Some(ref f_path) = file {
+                    if let Some(span) = find_koffi_attr_span(&method.attrs, "export") {
+                        d = d.with_label(
+                            Label::primary(f_path, span)
+                                .with_message("attribute has no effect here"),
+                        );
+                    }
+                }
+                ctx.sink.push(d);
+            }
+
             continue;
         }
 
@@ -574,6 +686,94 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
     }
 
     Ok(())
+}
+
+/// Validate that a `#[koffi::data]` type has the required derive macros
+/// (`serde::Serialize`, `serde::Deserialize`).
+fn validate_data_derives(
+    attrs: &[syn::Attribute],
+    type_name: &str,
+    kind: &str,
+    file: Option<&Path>,
+    sink: &mut DiagnosticSink,
+) {
+    let has_serialize = has_derive(attrs, "Serialize");
+    let has_deserialize = has_derive(attrs, "Deserialize");
+
+    if !has_serialize || !has_deserialize {
+        let missing: Vec<&str> = [
+            (!has_serialize).then_some("Serialize"),
+            (!has_deserialize).then_some("Deserialize"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        let missing_str = missing.join("`, `serde::");
+        let mut d = Diagnostic::warning(format!(
+            "`{type_name}` is marked `#[koffi::data]` but is missing derive macros: \
+             `serde::{missing_str}`"
+        ))
+        .with_note(
+            "All `#[koffi::data]` types must implement `serde::Serialize` and \
+             `serde::Deserialize` so they can be serialized with postcard across \
+             the FFI boundary.",
+        )
+        .with_help(format!(
+            "Add `#[derive(serde::Serialize, serde::Deserialize)]` to the {kind}."
+        ));
+
+        if let Some(f) = file {
+            if let Some(span) = find_koffi_attr_span(attrs, "data") {
+                d = d.with_label(
+                    Label::secondary(f, span).with_message("this attribute requires serde derives"),
+                );
+            }
+        }
+
+        sink.push(d);
+    }
+}
+
+/// Check whether any `#[derive(...)]` attribute on `attrs` includes `trait_name`
+/// as a direct or path-qualified derive target.
+#[must_use]
+fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {
+    attrs.iter().any(|attr| {
+        if !attr.path().is_ident("derive") {
+            return false;
+        }
+
+        let Ok(list) = attr.parse_args_with(
+            syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+        ) else {
+            return false;
+        };
+
+        list.iter()
+            .any(|path| path.segments.last().is_some_and(|s| s.ident == trait_name))
+    })
+}
+
+/// Return the `SourceSpan` of the koffi attribute named `name` within `attrs`,
+/// if one exists and span information is available.
+///
+/// Matches `#[name]`, `#[koffi::name]`, and raw-identifier variants.
+#[must_use]
+fn find_koffi_attr_span(attrs: &[syn::Attribute], name: &str) -> Option<SourceSpan> {
+    let attr = attrs.iter().find(|a| {
+        let segs = &a.path().segments;
+        match segs.len() {
+            1 => segs[0].ident == name || segs[0].ident == format!("r#{name}"),
+            2 => {
+                segs[0].ident == "koffi"
+                    && (segs[1].ident == name || segs[1].ident == format!("r#{name}"))
+            }
+            _ => false,
+        }
+    })?;
+
+    SourceSpan::from_proc_macro_span(attr.span())
 }
 
 pub fn parse_type(
@@ -990,7 +1190,6 @@ fn entry_point(src_dir: &Path) -> Option<PathBuf> {
 }
 
 /// Return the last path segment as an owned `String`.
-/// (Avoids the dangling-reference anti-pattern of converting to `&str`.)
 fn path_last_str(tp: &syn::TypePath) -> String {
     tp.path
         .segments

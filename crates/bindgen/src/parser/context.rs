@@ -4,6 +4,8 @@ use std::{collections::HashMap, path::PathBuf};
 
 use koffi_ir::{EnumInfo, FnInfo, StructInfo};
 
+use crate::diagnostic::DiagnosticSink;
+
 /// `true` -> opaque handle, `false` -> postcard-serializable data.
 type TypeKind = bool;
 
@@ -55,6 +57,11 @@ pub struct ParseContext {
     /// Accumulated function and method declarations.
     pub functions: Vec<FnInfo>,
 
+    /// Diagnostic sink for collecting errors and warnings encountered during the
+    /// Phase 1 traversal. Errors here cause the parse to fail after the full traversal
+    /// completes; warnings are surfaced to the user but do not abort parsing.
+    pub sink: DiagnosticSink,
+
     /// Type declaration map built by sub-pass A.
     /// Maps `type_name -> is_opaque`.
     /// Used by `parse_type` to correctly classify local user types.
@@ -75,6 +82,7 @@ impl ParseContext {
             structs: Vec::new(),
             enums: Vec::new(),
             functions: Vec::new(),
+            sink: DiagnosticSink::new(),
             type_decls,
         }
     }
