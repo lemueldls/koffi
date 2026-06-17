@@ -10,6 +10,12 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+[features]
+android = ["jni"]
+jvm = ["jni"]
+native = []
+wasm = []
+
 [dependencies]
 {% for dependency in dependencies %}
 {{ dependency.package_name }} = { path = "{{ dependency.path }}" }
@@ -17,9 +23,3 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 jni = { version = "0.22", optional = true }
 postcard = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
-
-[features]
-android = ["jni"]
-jvm = ["jni"]
-native = []
-wasm = []

@@ -16,7 +16,7 @@ figue.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
-koffi-bindgen.workspace = true
+koffi-bindgen = { workspace = true, features = ["cli"] }
 
 [lints]
 workspace = true

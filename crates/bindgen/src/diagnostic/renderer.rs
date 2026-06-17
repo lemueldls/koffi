@@ -79,17 +79,11 @@ impl CliRenderer {
 
     fn render_header(&self, diagnostic: &Diagnostic, out: &mut String) {
         let severity = self.paint_severity(diagnostic.severity);
-        if let Some(code) = &diagnostic.code {
-            out.push_str(&format!(
-                "{severity}[{code}]: {Bold}{}{Reset}\n",
-                diagnostic.message
-            ));
-        } else {
-            out.push_str(&format!(
-                "{severity}: {Bold}{}{Reset}\n",
-                diagnostic.message
-            ));
-        }
+
+        out.push_str(&format!(
+            "{severity}: {Bold}{}{Reset}\n",
+            diagnostic.message
+        ));
     }
 
     fn render_primary_location(&self, label: &Label, out: &mut String) {

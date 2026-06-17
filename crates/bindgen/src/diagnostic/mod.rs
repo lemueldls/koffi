@@ -1,3 +1,4 @@
+#[cfg(feature = "cli")]
 pub mod renderer;
 
 use std::{cmp, fmt, path::PathBuf};
@@ -5,6 +6,7 @@ use std::{cmp, fmt, path::PathBuf};
 use proc_macro2::TokenStream;
 use quote::quote;
 
+#[cfg(feature = "cli")]
 use crate::diagnostic::renderer::CliRenderer;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -182,6 +184,7 @@ impl Diagnostic {
     }
 
     #[must_use]
+    #[cfg(feature = "cli")]
     pub fn render_cli(&self) -> String {
         CliRenderer::default().render(self)
     }
@@ -278,6 +281,7 @@ impl DiagnosticSink {
     /// Render and print all diagnostics to stderr.
     ///
     /// Does nothing if the sink is empty.
+    #[cfg(feature = "cli")]
     pub fn emit(&self) {
         if self.diagnostics.is_empty() {
             return;
@@ -292,6 +296,7 @@ impl DiagnosticSink {
     ///
     /// Returns `None` if the sink is empty.
     #[must_use]
+    #[cfg(feature = "cli")]
     pub fn emit_and_summarize(&self) -> Option<String> {
         if self.diagnostics.is_empty() {
             return None;
