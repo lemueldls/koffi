@@ -1,5 +1,3 @@
-pub mod envelope;
-
 use std::{
     any::Any,
     panic::{UnwindSafe, catch_unwind},

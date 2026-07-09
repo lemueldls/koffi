@@ -246,6 +246,9 @@ impl BuildSteps {
         if targets.contains(TargetPlatform::Jvm) {
             self.run_jvm(release)?;
         }
+        if targets.contains(TargetPlatform::WasmJs) {
+            self.run_wasm_js(release)?;
+        }
         self.run_ios_targets(&targets.ios_targets(), release)?;
         self.run_native_targets(&targets.native_targets(), release)?;
 
@@ -280,7 +283,7 @@ impl BuildSteps {
         let lib = self.cargo_build_cdylib(target, "jvm", release, prefix, ext)?;
         let dest = self
             .out_dir
-            .join("kotlin/resources@jvm/natives")
+            .join("kotlin/resources@jvm/native")
             .join(classifier)
             .join(format!("{prefix}{}{ext}", self.lib_name));
         fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
@@ -299,7 +302,7 @@ impl BuildSteps {
             let lib = self.cargo_build_staticlib(target, "native", release)?;
             let dest = self
                 .out_dir
-                .join("kotlin/cinterop")
+                .join("kotlin/include")
                 .join(slice)
                 .join(format!("lib{}.a", self.lib_name));
             fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
@@ -315,11 +318,72 @@ impl BuildSteps {
             let lib = self.cargo_build_staticlib(target, "native", release)?;
             let dest = self
                 .out_dir
-                .join("kotlin/cinterop")
+                .join("kotlin/include")
                 .join(slice)
                 .join(format!("lib{}.a", self.lib_name));
             fs::create_dir_all(dest.parent().expect("should have a parent directory"))?;
             fs::copy(&lib, &dest)?;
+        }
+
+        Ok(())
+    }
+
+    /// Compile the glue crate for `wasm32-unknown-unknown`, then run `wasm-bindgen`
+    /// CLI (or `wasm-pack`) to generate the JS wrapper and output both artifacts
+    /// to `kotlin/resources@web/`.
+    pub fn run_wasm_js(&self, release: bool) -> Result<(), BindgenError> {
+        check_wasm_bindgen_installed()?;
+
+        let target = "wasm32-unknown-unknown";
+        let manifest = self.glue_path.join("Cargo.toml").display().to_string();
+
+        // 1. Cargo build for WASM target with the `wasm` feature
+        let mut args = vec![
+            "build",
+            "--manifest-path",
+            &manifest,
+            "--target",
+            target,
+            "--features",
+            "wasm",
+        ];
+        if release {
+            args.push("--release");
+        }
+
+        let status = std::process::Command::new("cargo").args(&args).status()?;
+        if !status.success() {
+            return Err(BindgenError::CargoBuildFailed(target.into()));
+        }
+
+        let profile = if release { "release" } else { "debug" };
+        let wasm_lib = format!("{}.wasm", self.lib_name.replace('-', "_"));
+        let wasm_in = self
+            .glue_path
+            .join("target")
+            .join(target)
+            .join(profile)
+            .join(&wasm_lib);
+
+        let web_dir = self.out_dir.join("kotlin/resources@web");
+        fs::create_dir_all(&web_dir)?;
+
+        let wb_status = std::process::Command::new("wasm-bindgen")
+            .args([
+                "--target",
+                "web",
+                "--out-dir",
+                &web_dir.display().to_string(),
+                "--out-name",
+                &self.lib_name,
+                &wasm_in.display().to_string(),
+            ])
+            .status()?;
+
+        if !wb_status.success() {
+            return Err(BindgenError::CargoBuildFailed(
+                "wasm-bindgen post-processing failed".into(),
+            ));
         }
 
         Ok(())
@@ -447,4 +511,20 @@ const fn host_triple() -> (&'static str, &'static str, &'static str, &'static st
     return ("aarch64-unknown-linux-gnu", "linux-aarch64", "lib", ".so");
     #[cfg(target_os = "windows")]
     return ("x86_64-pc-windows-msvc", "windows-x86_64", "", ".dll");
+}
+
+fn check_wasm_bindgen_installed() -> Result<(), BindgenError> {
+    let output = std::process::Command::new("wasm-bindgen")
+        .arg("--version")
+        .output();
+    match output {
+        Ok(o) if o.status.success() => Ok(()),
+        _ => {
+            Err(BindgenError::CargoBuildFailed(
+                "wasm-bindgen CLI not found. Install it with: \
+             cargo install wasm-bindgen-cli"
+                    .into(),
+            ))
+        }
+    }
 }

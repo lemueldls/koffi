@@ -14,6 +14,7 @@ pub enum ReceiverType {
 pub struct ParamInfo {
     pub name: String,
     pub ty: FFIType,
+    pub by_ref: bool,
 }
 
 /// Overrides and annotations parsed from `#[koffi::export(...)]`.

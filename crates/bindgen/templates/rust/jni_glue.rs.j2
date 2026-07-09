@@ -13,7 +13,6 @@ use koffi_runtime::{
     HandleRegistry,
     KoffiByteBuf,
     catch_panic,
-    envelope::serialize_envelope,
 };
 
 // Aliases are unique per crate: __koffi_{module_path}_{ItemName}.
@@ -50,18 +49,33 @@ pub fn {{ jni_name }}<'a>(
 {%- let pname = p.name | kotlin_sanitize_ident %}
 {%- match p.ty %}
 {%- when FFIType::String %}
+{%- if p.by_ref %}
         let _p_{{ p.name }} = &_p_{{ p.name }}.to_string();
+{%- else %}
+        let _p_{{ p.name }} = _p_{{ p.name }}.to_string();
+{%- endif %}
 {%- when FFIType::Bytes %}
+{%- if p.by_ref %}
         let _p_{{ p.name }} = &env.convert_byte_array(&_p_{{ p.name }})
             .expect("koffi: cannot read JVM byte array for `{{ p.name }}`");
+{%- else %}
+        let _p_{{ p.name }} = env.convert_byte_array(&_p_{{ p.name }})
+            .expect("koffi: cannot read JVM byte array for `{{ p.name }}`");
+{%- endif %}
 {%- else %}
 {%- if p.ty.is_blittable() %}
         let _p_{{ p.name }} = _p_{{ p.name }} as _;
 {%- else %}
         let _p_{{ p.name }}_bytes = env.convert_byte_array(&_p_{{ p.name }})
             .expect("koffi: cannot read JVM byte array for `{{ p.name }}`");
+{%- if p.by_ref %}
+        let _p_{{ p.name }}_owned = postcard::from_bytes(&_p_{{ p.name }}_bytes)
+            .expect("koffi: postcard deserialization failed for `{{ p.name }}`");
+        let _p_{{ p.name }} = &_p_{{ p.name }}_owned;
+{%- else %}
         let _p_{{ p.name }} = postcard::from_bytes(&_p_{{ p.name }}_bytes)
             .expect("koffi: postcard deserialization failed for `{{ p.name }}`");
+{%- endif %}
 {%- endif %}
 {%- endmatch %}
 {%- endfor %}
@@ -138,12 +152,10 @@ pub fn {{ jni_name }}<'a>(
 {%- when FFIType::Opaque(_) %}
                 HandleRegistry::global().insert(val) as jlong
 {%- else %}
-                {
-                    let bytes = serialize_envelope(&val, {{ f.ret_ty | schema_hash_hex }})
-                        .expect("koffi: postcard serialization failed");
-                    env.byte_array_from_slice(&unsafe { bytes.into_vec() })
-                        .expect("koffi: cannot create JVM byte array")
-                }
+                let bytes = postcard::to_allocvec(&val)
+                    .expect("koffi: postcard serialization failed");
+                env.byte_array_from_slice(&bytes)
+                    .expect("koffi: cannot create JVM byte array")
 {%- endmatch %}
             })
             .map_err(|msg| {

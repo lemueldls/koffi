@@ -95,6 +95,31 @@ pub fn kotlin_native_return_expr(
 }
 
 #[askama::filter_fn]
+pub fn kotlin_params_wasm_external(
+    params: &[ParamInfo],
+    _env: &dyn askama::Values,
+) -> askama::Result<String> {
+    Ok(kotlin::kotlin_params_wasm_external(params))
+}
+
+#[askama::filter_fn]
+pub fn kotlin_wasm_external_type(
+    ty: &FFIType,
+    _env: &dyn askama::Values,
+) -> askama::Result<String> {
+    Ok(kotlin::kotlin_wasm_external_type(ty))
+}
+
+#[askama::filter_fn]
+pub fn kotlin_wasm_return_expr(
+    f: &FnInfo,
+    _env: &dyn askama::Values,
+    js_name: &str,
+) -> askama::Result<String> {
+    Ok(kotlin::kotlin_wasm_return_expr(f, js_name))
+}
+
+#[askama::filter_fn]
 pub fn c_abi_symbol(
     f: &FnInfo,
     _env: &dyn askama::Values,
@@ -111,6 +136,11 @@ pub fn c_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String>
 #[askama::filter_fn]
 pub fn c_return_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
     Ok(c::c_return_type(ty))
+}
+
+#[askama::filter_fn]
+pub fn rust_primitive_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
+    Ok(rust::rust_primitive_type(ty))
 }
 
 #[askama::filter_fn]
@@ -135,6 +165,25 @@ pub fn rust_cabi_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result
 #[askama::filter_fn]
 pub fn rust_cabi_return_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
     Ok(rust::rust_cabi_return_type(ty))
+}
+
+#[askama::filter_fn]
+pub fn rust_params_wasm(params: &[ParamInfo], _env: &dyn askama::Values) -> askama::Result<String> {
+    Ok(rust::rust_params_wasm(params))
+}
+
+#[askama::filter_fn]
+pub fn rust_wasm_return_type(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
+    Ok(rust::rust_wasm_return_type(ty))
+}
+
+#[askama::filter_fn]
+pub fn wasm_rust_fn_ident(
+    f: &FnInfo,
+    _env: &dyn askama::Values,
+    crate_ident: &str,
+) -> askama::Result<String> {
+    Ok(rust::wasm_rust_fn_ident(f, crate_ident))
 }
 
 #[askama::filter_fn]
@@ -185,14 +234,4 @@ pub fn rust_parent_alias(f: &FnInfo, _env: &dyn askama::Values) -> askama::Resul
 #[askama::filter_fn]
 pub fn rust_call_args(params: &[ParamInfo], _env: &dyn askama::Values) -> askama::Result<String> {
     Ok(rust::rust_call_args(params))
-}
-
-#[askama::filter_fn]
-pub fn schema_hash_hex(ty: &FFIType, _env: &dyn askama::Values) -> askama::Result<String> {
-    let hash = match ty {
-        FFIType::Data(r) | FFIType::Opaque(r) => r.schema_hash,
-        _ => 0,
-    };
-
-    Ok(format!("0x{hash:016x}_u64"))
 }

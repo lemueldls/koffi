@@ -1,5 +1,25 @@
 use koffi_ir::{EnumInfo, FFIType, FnInfo, ParamInfo, StructInfo};
 
+use crate::codegen::templates::c::c_abi_symbol;
+
+pub fn rust_primitive_type(ty: &FFIType) -> String {
+    match ty {
+        FFIType::Bool => "bool".into(),
+        FFIType::I8 => "i8".into(),
+        FFIType::I16 => "i16".into(),
+        FFIType::I32 => "i32".into(),
+        FFIType::I64 => "i64".into(),
+        FFIType::U8 => "u8".into(),
+        FFIType::U16 => "u16".into(),
+        FFIType::U32 => "u32".into(),
+        FFIType::U64 => "u64".into(),
+        FFIType::F32 => "f32".into(),
+        FFIType::F64 => "f64".into(),
+        FFIType::Unit => "()".into(),
+        _ => panic!("not a primitive type: {ty:?}"),
+    }
+}
+
 /// Crate-relative path for a free function's `use` statement.
 ///
 /// `camera::take_photo` -> `"camera::take_photo"`
@@ -197,4 +217,46 @@ pub fn rust_cabi_return_type(ty: &FFIType) -> String {
         FFIType::Opaque(_) => "u64".into(),
         _ => "KoffiByteBuf".into(),
     }
+}
+
+pub fn rust_params_wasm(params: &[ParamInfo]) -> String {
+    params
+        .iter()
+        .map(|p| {
+            let ty = match &p.ty {
+                FFIType::Bool => "bool",
+                FFIType::I8 | FFIType::I16 | FFIType::I32 => "i32",
+                FFIType::U8 | FFIType::U16 | FFIType::U32 => "u32",
+                FFIType::I64 | FFIType::U64 => "f64",
+                FFIType::F32 => "f32",
+                FFIType::F64 => "f64",
+                FFIType::String => "String",
+                FFIType::Bytes => "Vec<u8>",
+                FFIType::Opaque(_) => "f64",
+                _ => "Vec<u8>", // serialized data
+            };
+            format!("_p_{}: {ty}", p.name.trim_start_matches("r#"))
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+pub fn rust_wasm_return_type(ty: &FFIType) -> String {
+    match ty {
+        FFIType::Unit => "()".into(),
+        FFIType::Bool => "bool".into(),
+        FFIType::I8 | FFIType::I16 | FFIType::I32 => "i32".into(),
+        FFIType::U8 | FFIType::U16 | FFIType::U32 => "u32".into(),
+        FFIType::I64 | FFIType::U64 => "f64".into(),
+        FFIType::F32 => "f32".into(),
+        FFIType::F64 => "f64".into(),
+        FFIType::String => "String".into(),
+        FFIType::Bytes => "Vec<u8>".into(),
+        FFIType::Opaque(_) => "f64".into(),
+        _ => "Vec<u8>".into(), // serialized data
+    }
+}
+
+pub fn wasm_rust_fn_ident(f: &FnInfo, crate_ident: &str) -> String {
+    format!("__wasm_{}", c_abi_symbol(f, crate_ident))
 }

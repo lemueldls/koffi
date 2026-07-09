@@ -52,13 +52,21 @@ pub fn generate_package_set(
 
     let kotlin_dir = out_dir.join("kotlin");
     let jni_dir = kotlin_dir.join("jniLibs");
-    let res_dir = kotlin_dir.join("resources@jvm/natives");
-    let cinterop = kotlin_dir.join("cinterop");
+    let res_dir = kotlin_dir.join("resources@jvm/native");
+    let include_dir = kotlin_dir.join("include");
+    let cinterop_dir = kotlin_dir.join("cinterop");
 
     let rust_dir = out_dir.join("rust");
     let rust_src = rust_dir.join("src");
 
-    for dir in [&kotlin_dir, &jni_dir, &res_dir, &cinterop, &rust_src] {
+    for dir in [
+        &kotlin_dir,
+        &jni_dir,
+        &res_dir,
+        &include_dir,
+        &cinterop_dir,
+        &rust_src,
+    ] {
         fs::create_dir_all(dir)?;
     }
 
@@ -138,6 +146,8 @@ pub fn generate_package_set(
                 crate_ident: &crate_ident,
                 namespace,
                 ir,
+                lib_name: &lib_name,
+                emit_handle_release: index == 0,
             },
             &kotlin_dir
                 .join("src@web")
@@ -174,12 +184,12 @@ pub fn generate_package_set(
             &templates::RustWasmTemplate {
                 crate_ident: &crate_ident,
                 ir,
+                emit_handle_release: index == 0,
             },
             &rust_src.join(format!("{wasm_module}.rs")),
         )?;
         wasm_modules.push(wasm_module);
 
-        let include_dir = cinterop.clone();
         write_template(
             &templates::CHeaderTemplate {
                 crate_ident: &crate_ident,
@@ -194,9 +204,9 @@ pub fn generate_package_set(
                 crate_ident: &crate_ident,
                 namespace,
                 lib_name: &lib_name,
-                include_dir: &include_dir.display().to_string(),
+                include_dir: &include_dir.display().to_string().replace('\\', "/"),
             },
-            &cinterop.join(format!("{crate_ident}.def")),
+            &cinterop_dir.join(format!("{crate_ident}.def")),
         )?;
 
         let rel_crate_path = diff_paths(package.crate_path, &rust_dir)

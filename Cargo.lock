@@ -381,6 +381,7 @@ dependencies = [
  "koffi",
  "koffi-macros",
  "koffi-runtime",
+ "rustc-hash",
  "serde",
 ]
 

@@ -35,8 +35,10 @@ pub struct KotlinNativeTemplate<'a> {
 #[derive(Template)]
 #[template(path = "kotlin/wasm.kt.j2", escape = "none")]
 pub struct KotlinWasmTemplate<'a> {
-    pub crate_ident: &'a str, // crate name with hyphens -> underscores
+    pub crate_ident: &'a str,
     pub namespace: &'a str,
+    pub lib_name: &'a str,
+    pub emit_handle_release: bool,
     pub ir: &'a CrateInterface,
 }
 
@@ -75,6 +77,7 @@ pub struct RustCabiTemplate<'a> {
 pub struct RustWasmTemplate<'a> {
     pub crate_ident: &'a str,
     pub ir: &'a CrateInterface,
+    pub emit_handle_release: bool,
 }
 
 #[derive(Template)]

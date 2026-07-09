@@ -530,9 +530,12 @@ fn visit_fn(f: &syn::ItemFn, ctx: &mut ParseContext) -> Result<(), BindgenError>
                 ctx,
                 "unsupported exported function parameter type",
             )?;
+            let param_by_ref = matches!(&*pat_type.ty, syn::Type::Reference(_));
+
             params.push(ParamInfo {
                 name: param_name,
                 ty: param_ty,
+                by_ref: param_by_ref,
             });
         }
     }
@@ -637,9 +640,12 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
                         "unsupported exported method parameter type",
                     )?;
                     param_ty = replace_self(param_ty, &parent_name, &ctx.type_decls);
+                    let param_by_ref = matches!(&*pat_type.ty, syn::Type::Reference(_));
+
                     params.push(ParamInfo {
                         name: param_name,
                         ty: param_ty,
+                        by_ref: param_by_ref,
                     });
                 }
             }

@@ -8,7 +8,6 @@ use koffi_runtime::{
     KoffiByteBuf,
     catch_panic,
     deserialize_from_raw,
-    envelope::serialize_envelope,
 };
 
 use {{ crate_ident }}::{
@@ -39,19 +38,40 @@ pub unsafe extern "C" fn {{ sym }}(
 {%- for p in f.params %}
 {%- match p.ty %}
 {%- when FFIType::String %}
+{%- if p.by_ref %}
     let _p_{{ p.name }}: &str = unsafe {
         std::str::from_utf8(std::slice::from_raw_parts(_p_{{ p.name }}, _p_{{ p.name }}_len))
             .expect("koffi: invalid UTF-8 for `{{ p.name }}`")
     };
+{%- else %}
+    let _p_{{ p.name }}: String = unsafe {
+        std::str::from_utf8(std::slice::from_raw_parts(_p_{{ p.name }}, _p_{{ p.name }}_len))
+            .expect("koffi: invalid UTF-8 for `{{ p.name }}`")
+    }.to_owned();
+{%- endif %}
 {%- when FFIType::Bytes %}
+{%- if p.by_ref %}
     let _p_{{ p.name }}: &[u8] = unsafe {
         std::slice::from_raw_parts(_p_{{ p.name }}, _p_{{ p.name }}_len)
     };
+{%- else %}
+    let _p_{{ p.name }}: Vec<u8> = unsafe {
+        std::slice::from_raw_parts(_p_{{ p.name }}, _p_{{ p.name }}_len)
+    }.to_vec();
+{%- endif %}
 {%- when FFIType::Data(_) %}
+{%- if p.by_ref %}
+    let _p_{{ p.name }}_owned = unsafe {
+        deserialize_from_raw(_p_{{ p.name }}, _p_{{ p.name }}_len)
+            .expect("koffi: postcard deserialization failed for `{{ p.name }}`")
+    };
+    let _p_{{ p.name }} = &_p_{{ p.name }}_owned;
+{%- else %}
     let _p_{{ p.name }} = unsafe {
         deserialize_from_raw(_p_{{ p.name }}, _p_{{ p.name }}_len)
             .expect("koffi: postcard deserialization failed for `{{ p.name }}`")
     };
+{%- endif %}
 {%- else %}
 {%- if p.ty.is_blittable() %}
     let _p_{{ p.name }} = _p_{{ p.name }} as _;
@@ -83,7 +103,7 @@ pub unsafe extern "C" fn {{ sym }}(
         .ok()
         .expect("koffi: cannot consume handle");
 {%- when None %}
-    // Static method. No handle lookup.
+    {# Static method. No handle lookup. #}
 {%- endmatch %}
 {%- endif %}
 
@@ -115,8 +135,8 @@ pub unsafe extern "C" fn {{ sym }}(
 {%- when FFIType::Opaque(_) %}
     HandleRegistry::global().insert(__result)
 {%- else %}
-    serialize_envelope(&__result, {{ f.ret_ty | schema_hash_hex }})
-        .expect("koffi: postcard serialization failed")
+    KoffiByteBuf::new(postcard::to_allocvec(&__result)
+        .expect("koffi: postcard serialization failed"))
 {%- endmatch %}
 }
 {% endfor %}

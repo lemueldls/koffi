@@ -1,56 +1,6 @@
 package rs.koffi
 
-/** Read two bytes at [offset] as an unsigned 16-bit little-endian integer. */
-private fun ByteArray.u16Le(offset: Int): UShort {
-    val lo = this[offset].toInt() and 0xFF
-    val hi = this[offset + 1].toInt() and 0xFF
-
-    return ((hi shl 8) or lo).toUShort()
-}
-
-/** Read eight bytes at [offset] as an unsigned 64-bit little-endian integer. */
-private fun ByteArray.u64Le(offset: Int): ULong {
-    var result = 0uL
-    for (i in 0 until 8) {
-        result = result or ((this[offset + i].toLong() and 0xFF).toULong() shl (i * 8))
-    }
-
-    return result
-}
-
 object KoffiSerializer {
-    private const val MAGIC: UShort = 0x4B46u
-    private const val VERSION: UShort = 0x0001u
-
-    fun <T> serialize(
-        value: T,
-        typeHash: ULong = 0uL,
-        writer: KoffiWriter.(T) -> Unit,
-    ): ByteArray {
-        val w = KoffiWriter()
-
-        // Write each field as raw little-endian bytes, not as postcard varints.
-
-        val magic = MAGIC.toInt()
-        w.writeByte((magic and 0xFF).toByte())           // byte 0: 0x46
-        w.writeByte(((magic ushr 8) and 0xFF).toByte())  // byte 1: 0x4B
-
-        val version = VERSION.toInt()
-        w.writeByte((version and 0xFF).toByte())          // byte 2: 0x01
-        w.writeByte(((version ushr 8) and 0xFF).toByte()) // byte 3: 0x00
-
-        w.writeBytes(ByteArray(4))                        // bytes 4-7: padding
-
-        var h = typeHash
-        repeat(8) {                                       // bytes 8-15: hash LE
-            w.writeByte((h and 0xFFuL).toByte())
-            h = h shr 8
-        }
-
-        w.writer(value)
-
-        return w.toByteArray()
-    }
 
     fun <T> serializeRaw(value: T, writer: KoffiWriter.(T) -> Unit): ByteArray {
         val w = KoffiWriter()
@@ -59,46 +9,10 @@ object KoffiSerializer {
         return w.toByteArray()
     }
 
-    fun <T> deserialize(
-        bytes: ByteArray,
-        expectedHash: ULong = 0uL,
-        reader: KoffiReader.() -> T,
-    ): T {
-        check(bytes.size >= 16) {
-            "koffi: envelope too short: ${bytes.size} bytes (minimum 16)"
-        }
-
-        // Read fixed-width LE header directly from the byte array.
-        // Using KoffiReader's readUShort/readULong here would be wrong: those
-        // methods decode ULEB128/zigzag varints, not fixed-width LE integers.
-        val magic = bytes.u16Le(0)
-        val version = bytes.u16Le(2)
-        // bytes[4..8] = padding, ignored
-        val hash = bytes.u64Le(8)
-
-        check(magic == MAGIC) {
-            "koffi: bad envelope magic 0x${magic.toString(16)}"
-        }
-        check(version == VERSION) {
-            "koffi: unsupported envelope version $version"
-        }
-
-        if (expectedHash != 0uL && hash != expectedHash) {
-            throw KoffiSchemaMismatch(expectedHash, hash)
-        }
-
-        // Hand off to a KoffiReader positioned past the 16-byte header so
-        // it reads the postcard payload with the correct varint methods.
+    fun <T> deserializeRaw(bytes: ByteArray, reader: KoffiReader.() -> T): T {
         val r = KoffiReader(bytes)
-        r.skipBytes(16)
-
         return r.reader()
     }
-}
-
-class KoffiSchemaMismatch(expected: ULong, actual: ULong) : KoffiError() {
-    override val message = "Schema mismatch: expected 0x${expected.toString(16)}, " +
-            "got 0x${actual.toString(16)}. Regenerate bindings with koffi."
 }
 
 /**
@@ -108,9 +22,6 @@ class KoffiSchemaMismatch(expected: ULong, actual: ULong) : KoffiError() {
  * (ULEB128 for unsigned, zigzag + ULEB128 for signed) as required by
  * postcard. Floats and doubles use 4- / 8-byte little-endian IEEE 754,
  * also as required by postcard.
- *
- * Do NOT use these methods for fixed-width binary structures such as the
- * envelope header. Use raw writeByte / writeBytes calls instead.
  */
 class KoffiWriter(initialCapacity: Int = 128) {
     private var buffer = ByteArray(initialCapacity)
@@ -210,9 +121,6 @@ class KoffiWriter(initialCapacity: Int = 128) {
  * All integer methods (readInt, readULong, ...) use varint decoding
  * (ULEB128 / zigzag + ULEB128) as required by postcard. Floats and
  * doubles use 4- / 8-byte little-endian IEEE 754.
- *
- * Do NOT use these methods for fixed-width binary structures such as the
- * envelope header.
  */
 class KoffiReader(private val buffer: ByteArray) {
     private var position = 0

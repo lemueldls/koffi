@@ -124,8 +124,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         parsed_packages.push((pkg, ir));
                     }
                     Err(e) => {
-                        // Fatal error (I/O, rustdoc crash, etc.) — emit all
-                        // prior diagnostics first so the user sees everything.
+                        // Fatal error (I/O, rustdoc crash, etc.)
+
+                        // emit all prior diagnostics first so the user sees everything.
                         all_diagnostics.emit();
                         eprintln!("{}", e.diagnostic().render_cli());
                         had_errors = true;

@@ -239,10 +239,8 @@ pub fn kotlin_jni_return_expr(f: &FnInfo, pkg_pascal: &str, jni_name: &str) -> S
     } else if let FFIType::Opaque(r) = &f.ret_ty {
         format!("return {}({call})", r.name)
     } else {
-        let hash = schema_hash_for(&f.ret_ty);
-
         format!(
-            "return rs.koffi.KoffiSerializer.deserialize({call}, {hash}uL) {{ {} }}",
+            "return rs.koffi.KoffiSerializer.deserializeRaw({call}) {{ {} }}",
             kotlin_reader_expr(&f.ret_ty)
         )
     }
@@ -471,25 +469,118 @@ fn native_buf_convert(ty: &FFIType, var: &str) -> String {
         }
         FFIType::Vec(_) | FFIType::Map(..) | FFIType::Set(_) | FFIType::Option(_) => {
             format!(
-                "memScoped {{ KoffiSerializer.deserialize(readAndFreeByteBuf({var}.useContents {{ this }}), 0uL) {{ {} }} }}",
+                "memScoped {{ KoffiSerializer.deserializeRaw(readAndFreeByteBuf({var}.useContents {{ this }})) {{ {} }} }}",
                 kotlin_reader_expr(ty)
             )
         }
         FFIType::Data(r) => {
-            let hash = r.schema_hash;
             let type_name = &r.name;
 
             format!(
-                "memScoped {{ KoffiSerializer.deserialize(readAndFreeByteBuf({var}.useContents {{ this }}), 0x{hash:016x}_uL) {{ {type_name}.readDataWire(this) }} }}"
+                "memScoped {{ KoffiSerializer.deserializeRaw(readAndFreeByteBuf({var}.useContents {{ this }})) {{ {type_name}.readDataWire(this) }} }}"
             )
         }
         _ => native_simple_convert(ty, var),
     }
 }
 
-const fn schema_hash_for(ty: &FFIType) -> u64 {
+#[must_use]
+pub fn kotlin_params_wasm_external(params: &[ParamInfo]) -> String {
+    params
+        .iter()
+        .map(|p| {
+            let ty = match &p.ty {
+                FFIType::Bool => "Boolean",
+                FFIType::I8 | FFIType::I16 | FFIType::I32 => "Int",
+                FFIType::U8 | FFIType::U16 | FFIType::U32 => "Int",
+                FFIType::I64 | FFIType::U64 => "Double",
+                FFIType::F32 => "Float",
+                FFIType::F64 => "Double",
+                FFIType::String => "String",
+                FFIType::Bytes => "JsAny",
+                FFIType::Opaque(_) => "Double",
+                _ => "JsAny", // all serialized types
+            };
+            format!("{}: {ty}", kotlin_sanitize_ident(&p.name))
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+#[must_use]
+pub fn kotlin_wasm_external_type(ty: &FFIType) -> String {
     match ty {
-        FFIType::Data(r) | FFIType::Opaque(r) => r.schema_hash,
-        _ => 0,
+        FFIType::Unit => "Unit".into(),
+        FFIType::Bool => "Boolean".into(),
+        FFIType::I8 | FFIType::I16 | FFIType::I32 => "Int".into(),
+        FFIType::U8 | FFIType::U16 | FFIType::U32 => "Int".into(),
+        FFIType::I64 | FFIType::U64 => "Double".into(),
+        FFIType::F32 => "Float".into(),
+        FFIType::F64 => "Double".into(),
+        FFIType::String => "String".into(),
+        FFIType::Bytes => "JsAny".into(),
+        FFIType::Opaque(_) => "Double".into(),
+        _ => "JsAny".into(),
+    }
+}
+
+#[must_use]
+pub fn kotlin_wasm_return_expr(f: &FnInfo, js_name: &str) -> String {
+    let mut args = Vec::new();
+
+    if f.receiver.is_some() {
+        args.push("handleId.toDouble()".to_string());
+    }
+
+    for p in &f.params {
+        let name = kotlin_sanitize_ident(&p.name);
+        let arg = match &p.ty {
+            FFIType::Bool | FFIType::F32 | FFIType::F64 => name,
+            FFIType::I8 | FFIType::I16 | FFIType::I32 => format!("{name}.toInt()"),
+            FFIType::U8 | FFIType::U16 | FFIType::U32 => format!("{name}.toInt()"),
+            FFIType::I64 | FFIType::U64 => format!("{name}.toDouble()"),
+            FFIType::String => name,
+            FFIType::Bytes => format!("{name}.toJsUint8Array()"),
+            FFIType::Opaque(_) => format!("{name}.handleId.toDouble()"),
+            _ => {
+                format!(
+                    "rs.koffi.KoffiSerializer.serializeRaw({name}) {{ {} }}.toJsUint8Array()",
+                    kotlin_writer_expr(&p.ty, &name)
+                )
+            }
+        };
+        args.push(arg);
+    }
+
+    let call = format!("{js_name}({})", args.join(", "));
+
+    match &f.ret_ty {
+        FFIType::Unit => call,
+        FFIType::Bool => format!("return {call}"),
+        FFIType::I8 | FFIType::I16 | FFIType::I32 => format!("return {call}.toInt()"),
+        FFIType::U8 | FFIType::U16 | FFIType::U32 => format!("return {call}.toInt()"),
+        FFIType::I64 | FFIType::U64 => format!("return {call}.toLong()"),
+        FFIType::F32 => format!("return {call}.toFloat()"),
+        FFIType::F64 => format!("return {call}"),
+        FFIType::String => format!("return {call}"),
+        FFIType::Bytes => format!("return {call}.toByteArray()"),
+        FFIType::Opaque(r) => {
+            format!(
+                "val __rawId: Double = {call}\n    return {}(__rawId.toLong())",
+                r.name
+            )
+        }
+        FFIType::Data(r) => {
+            format!(
+                "val __bytes: ByteArray = {call}.toByteArray()\n    return KoffiSerializer.deserializeRaw(__bytes) {{ {}.readDataWire(this) }}",
+                r.name
+            )
+        }
+        _ => {
+            format!(
+                "val __bytes: ByteArray = {call}.toByteArray()\n    return KoffiSerializer.deserializeRaw(__bytes) {{ {} }}",
+                kotlin_reader_expr(&f.ret_ty)
+            )
+        }
     }
 }

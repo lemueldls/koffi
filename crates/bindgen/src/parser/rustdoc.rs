@@ -478,9 +478,12 @@ impl<'a> TypeResolver<'a> {
             }
 
             let ty = self.resolve_rustdoc_type(param_type)?;
+            let by_ref = matches!(param_type, Type::BorrowedRef { .. });
+
             params.push(ParamInfo {
                 name: param_name.clone(),
                 ty,
+                by_ref,
             });
         }
 
@@ -491,20 +494,26 @@ impl<'a> TypeResolver<'a> {
                 .iter()
                 .enumerate()
                 .map(|(i, orig_p)| {
-                    let ty = func
+                    let param_type = func
                         .sig
                         .inputs
                         .get(i + usize::from(original.receiver.is_some()))
-                        .and_then(|(n, t)| if n == "self" { None } else { Some(t) })
+                        .and_then(|(n, t)| if n == "self" { None } else { Some(t) });
+
+                    let ty = param_type
                         .and_then(|t| self.resolve_rustdoc_type(t).ok())
                         .unwrap_or_else(|| {
                             self.resolve_ffi_type(orig_p.ty.clone())
                                 .unwrap_or_else(|_| orig_p.ty.clone())
                         });
 
+                    let by_ref =
+                        param_type.map_or(orig_p.by_ref, |t| matches!(t, Type::BorrowedRef { .. }));
+
                     ParamInfo {
                         name: orig_p.name.clone(),
                         ty,
+                        by_ref,
                     }
                 })
                 .collect();

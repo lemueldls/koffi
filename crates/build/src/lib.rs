@@ -201,9 +201,9 @@ impl Builder {
                     parsed_packages.push((pkg, ir));
                 }
                 Err(e) => {
-                    // Fatal (I/O, rustdoc crash, etc.) — emit accumulated
-                    // diagnostics first so the user sees all prior warnings,
-                    // then propagate the error.
+                    // Fatal (I/O, rustdoc crash, etc.)
+
+                    // emit accumulated diagnostics first so the user sees all prior warnings, then propagate the error.
                     all_diagnostics.emit();
 
                     return Err(e);
@@ -217,7 +217,7 @@ impl Builder {
         if had_errors {
             return Err(BindgenError::from_diagnostic(
                 koffi_bindgen::Diagnostic::error(
-                    "koffi: errors found during parsing — see diagnostics above",
+                    "koffi: errors found during parsing. see diagnostics above",
                 ),
             ));
         }

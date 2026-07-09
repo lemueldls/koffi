@@ -6,10 +6,12 @@ edition.workspace = true
 [dependencies]
 serde.workspace = true
 
+rustc-hash = "*"
+
 koffi.workspace = true
 koffi-macros.workspace = true
 koffi-runtime.workspace = true
 
 [package.metadata.koffi]
 namespace = "rs.koffi.example"
-target-platforms = ["jvm", "mingwX64"]
+target-platforms = ["jvm", "mingwX64", "wasmJs"]

@@ -36,7 +36,7 @@ internal object {{ pkg_pascal }}Loader {
             "win"  in os                      -> Triple("",   "dll",   "windows-x86_64")
             else -> error("Unsupported platform: $os / $arch")
         }
-        val resourcePath = "/natives/$classifier/$prefix$name.$ext"
+        val resourcePath = "/native/$classifier/$prefix$name.$ext"
         val stream = {{ pkg_pascal }}Loader::class.java
             .getResourceAsStream(resourcePath)
             ?: error("Native library not bundled: $resourcePath")

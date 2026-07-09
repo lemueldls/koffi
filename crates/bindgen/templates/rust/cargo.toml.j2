@@ -14,12 +14,14 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 android = ["jni"]
 jvm = ["jni"]
 native = []
-wasm = []
+wasm = ["wasm-bindgen", "js-sys"]
 
 [dependencies]
 {% for dependency in dependencies %}
 {{ dependency.package_name }} = { path = "{{ dependency.path }}" }
 {% endfor %}
 jni = { version = "0.22", optional = true }
+js-sys = { version = "0.3", optional = true }
 postcard = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
+wasm-bindgen = { version = "0.2", optional = true }
