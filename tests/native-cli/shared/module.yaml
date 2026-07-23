@@ -1,0 +1,9 @@
+product:
+  type: kmp/lib
+  platforms: [jvm, linuxArm64, linuxX64, macosArm64, mingwX64]
+
+dependencies:
+  - ../generated/kotlin
+
+test-dependencies@jvm:
+  - $kotlin.test.junit5
