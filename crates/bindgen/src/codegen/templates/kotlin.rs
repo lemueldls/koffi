@@ -460,16 +460,14 @@ fn native_simple_convert(ty: &FFIType, call: &str) -> String {
 fn native_buf_convert(ty: &FFIType, var: &str) -> String {
     match ty {
         FFIType::String => {
-            format!(
-                "memScoped {{ readAndFreeByteBuf({var}.useContents {{ this }}).decodeToString() }}"
-            )
+            format!("{var}.useContents {{ readAndFreeByteBuf(this) }}.decodeToString()")
         }
         FFIType::Bytes => {
-            format!("memScoped {{ readAndFreeByteBuf({var}.useContents {{ this }}) }}")
+            format!("{var}.useContents {{ readAndFreeByteBuf(this) }}")
         }
         FFIType::Vec(_) | FFIType::Map(..) | FFIType::Set(_) | FFIType::Option(_) => {
             format!(
-                "memScoped {{ KoffiSerializer.deserializeRaw(readAndFreeByteBuf({var}.useContents {{ this }})) {{ {} }} }}",
+                "KoffiSerializer.deserializeRaw({var}.useContents {{ readAndFreeByteBuf(this) }}) {{ {} }}",
                 kotlin_reader_expr(ty)
             )
         }
@@ -477,7 +475,7 @@ fn native_buf_convert(ty: &FFIType, var: &str) -> String {
             let type_name = &r.name;
 
             format!(
-                "memScoped {{ KoffiSerializer.deserializeRaw(readAndFreeByteBuf({var}.useContents {{ this }})) {{ {type_name}.readDataWire(this) }} }}"
+                "KoffiSerializer.deserializeRaw({var}.useContents {{ readAndFreeByteBuf(this) }}) {{ {type_name}.readDataWire(this) }}"
             )
         }
         _ => native_simple_convert(ty, var),

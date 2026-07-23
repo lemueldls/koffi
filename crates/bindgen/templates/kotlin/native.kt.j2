@@ -20,10 +20,15 @@ private val _runtimeInit: Unit = run {
 
 /**
  * Read a [KoffiByteBuf] returned from Rust into a Kotlin [ByteArray] and free
- * the Rust-owned memory. Must be called inside a [memScoped] block.
+ * the Rust-owned memory.
+ *
+ * Must be called from *inside* the `useContents` block that produced [buf].
+ * The struct view handed to a `useContents` lambda is only valid for the
+ * lifetime of that lambda; reading `buf.ptr` / `buf.len` after the lambda
+ * returns is undefined behavior.
  */
 @OptIn(ExperimentalForeignApi::class)
-private fun MemScope.readAndFreeByteBuf(buf: KoffiByteBuf): ByteArray {
+private fun readAndFreeByteBuf(buf: KoffiByteBuf): ByteArray {
     val len = buf.len.toInt()
     val bytes = ByteArray(len)
     if (len > 0 && buf.ptr != null) {

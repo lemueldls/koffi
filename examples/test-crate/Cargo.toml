@@ -14,4 +14,4 @@ koffi-runtime.workspace = true
 
 [package.metadata.koffi]
 namespace = "rs.koffi.example"
-target-platforms = ["jvm", "mingwX64", "wasmJs"]
+target-platforms = ["jvm", "linuxX64", "wasmJs"]
