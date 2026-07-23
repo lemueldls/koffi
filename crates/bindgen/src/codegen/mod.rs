@@ -245,7 +245,7 @@ pub fn generate_package_set(
         &rust_dir.join("Cargo.toml"),
     )?;
 
-    fs::write(&out_dir.join(".gitignore"), "*\\n")?; // ignore all files in the generated directory
+    fs::write(&out_dir.join(".gitignore"), "*\n")?; // ignore all files in the generated directory
 
     Ok(())
 }
