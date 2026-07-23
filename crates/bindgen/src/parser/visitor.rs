@@ -1,20 +1,22 @@
-//! Phase 1 parser: syn-based attribute harvesting and namespace/module-path resolution.
+//! Phase 1 parser: syn-based attribute harvesting and namespace/module-path
+//! resolution.
 //!
 //! This module performs two sub-passes over the source tree:
 //!
 //! **Sub-pass A** (`collect_type_declarations`) is a lightweight traversal that
-//! builds a map of every `#[koffi::opaque]` and `#[koffi::data]` type name in the
-//! crate. This is needed before any function signatures can be resolved, because a
-//! function may reference a type declared in a different file.
+//! builds a map of every `#[koffi::opaque]` and `#[koffi::data]` type name in
+//! the crate. This is needed before any function signatures can be resolved,
+//! because a function may reference a type declared in a different file.
 //!
-//! **Sub-pass B** (`visit_items`) is the full parse that records structs, enums, and
-//! functions into `ParseContext`, resolving both Kotlin namespaces and Rust module
-//! paths as it descends the module tree.
+//! **Sub-pass B** (`visit_items`) is the full parse that records structs,
+//! enums, and functions into `ParseContext`, resolving both Kotlin namespaces
+//! and Rust module paths as it descends the module tree.
 //!
-//! The resulting `PartialInterface` carries `TypeRef`s whose `crate_id` field is
-//! empty (`""`). Phase 2 (`rustdoc.rs`) fills in the real crate identity and
+//! The resulting `PartialInterface` carries `TypeRef`s whose `crate_id` field
+//! is empty (`""`). Phase 2 (`rustdoc.rs`) fills in the real crate identity and
 //! module path for every type reference. The `rust_module_path` fields on
-//! `FnInfo` / `StructInfo` / `EnumInfo` are set here and preserved by Phase 2 unchanged.
+//! `FnInfo` / `StructInfo` / `EnumInfo` are set here and preserved by Phase 2
+//! unchanged.
 
 use std::{
     collections::{HashMap, HashSet},
@@ -38,8 +40,7 @@ use crate::{
 /// The result of Phase 1: IR with placeholder `TypeRef`s and accumulated
 /// diagnostics.
 ///
-/// Every `TypeRef` in this struct has an empty `crate_id.name` and a zero
-/// `schema_hash`; both are filled in by Phase 2.
+/// Every `TypeRef` in this struct has an empty `crate_id.name`.
 ///
 /// Diagnostics in `sink` should be emitted and checked by the Phase 2 caller.
 /// Errors in the sink indicate items that were skipped; the caller should
@@ -587,7 +588,8 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
     };
 
     // Module path where this impl block lives; used as both the function's module
-    // path and the parent struct's module path (they should match in idiomatic Rust).
+    // path and the parent struct's module path (they should match in idiomatic
+    // Rust).
     let impl_module_path = ctx.current_module_path();
 
     for member in &impl_item.items {
@@ -598,7 +600,8 @@ fn visit_impl(impl_item: &syn::ItemImpl, ctx: &mut ParseContext) -> Result<(), B
 
         if !matches!(method.vis, syn::Visibility::Public(_)) {
             let rust_name = method.sig.ident.to_string();
-            // Only warn if the method itself carries the attribute (not just the impl block).
+            // Only warn if the method itself carries the attribute (not just the impl
+            // block).
             if get_koffi_attr(&method.attrs, "export").is_some() {
                 let file = ctx.current_file().cloned();
                 let mut d = Diagnostic::warning(format!(
@@ -741,8 +744,8 @@ fn validate_data_derives(
     }
 }
 
-/// Check whether any `#[derive(...)]` attribute on `attrs` includes `trait_name`
-/// as a direct or path-qualified derive target.
+/// Check whether any `#[derive(...)]` attribute on `attrs` includes
+/// `trait_name` as a direct or path-qualified derive target.
 #[must_use]
 fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {
     attrs.iter().any(|attr| {
@@ -1223,6 +1226,5 @@ pub const fn placeholder_type_ref(name: String) -> TypeRef {
         },
         module_path: Vec::new(),
         name,
-        schema_hash: 0,
     }
 }

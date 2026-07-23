@@ -3,8 +3,8 @@
 //! # Why rustdoc JSON
 //!
 //! Every `TypeRef` produced by Phase 1 (`visitor.rs`) carries only a local type
-//! name and an empty `crate_id`. To fill in a complete identity we need a source
-//! that understands Rust's full name-resolution semantics.
+//! name and an empty `crate_id`. To fill in a complete identity we need a
+//! source that understands Rust's full name-resolution semantics.
 //!
 //! # What this module does
 //!
@@ -25,7 +25,7 @@ use std::{
 
 use koffi_ir::{
     CrateId, CrateInterface, EnumInfo, EnumVariantInfo, FFIType, FieldInfo, FnInfo, ParamInfo,
-    StructInfo, TypeRef, hash_type,
+    StructInfo, TypeRef,
 };
 use rustdoc_types::{
     Attribute, Crate, GenericArg, GenericArgs, Id, Item, ItemEnum, StructKind, Type, VariantKind,
@@ -111,7 +111,7 @@ pub fn resolve_types(
 
     let imports = resolver.collect_imports(&structs, &enums, &functions);
 
-    let mut ir = CrateInterface {
+    Ok(CrateInterface {
         namespace: partial.namespace,
         crate_name: partial.crate_name,
         version: partial.version,
@@ -119,10 +119,7 @@ pub fn resolve_types(
         enums,
         functions,
         imports,
-    };
-
-    compute_schema_hashes(&mut ir);
-    Ok(ir)
+    })
 }
 
 /// Walk up from `crate_path` looking for `target/doc/{crate_ident}.json`.
@@ -674,7 +671,6 @@ impl<'a> TypeResolver<'a> {
                 },
                 module_path,
                 name: type_name,
-                schema_hash: 0,
             };
 
             return Ok(if is_opaque {
@@ -701,7 +697,6 @@ impl<'a> TypeResolver<'a> {
                 },
                 module_path: Vec::new(),
                 name: name.to_string(),
-                schema_hash: 0,
             };
             return Ok(if is_opaque {
                 FFIType::Opaque(type_ref)
@@ -811,7 +806,6 @@ impl<'a> TypeResolver<'a> {
                 },
                 module_path: Vec::new(),
                 name: name.clone(),
-                schema_hash: 0,
             };
         }
 
@@ -852,7 +846,6 @@ impl<'a> TypeResolver<'a> {
             },
             module_path,
             name: type_name,
-            schema_hash: 0,
         })
     }
 
@@ -1056,94 +1049,7 @@ fn find_type_ref_in_dep(dep: &CrateInterface, name: &str) -> Option<TypeRef> {
         },
         module_path: Vec::new(),
         name: name.to_string(),
-        schema_hash: 0,
     })
-}
-
-fn compute_schema_hashes(ir: &mut CrateInterface) {
-    // Pass 1: compute hashes while ir is borrowed immutably.
-    let mut hash_map: HashMap<String, u64> = HashMap::new();
-
-    for s in &ir.structs {
-        let ty = if s.is_opaque {
-            FFIType::Opaque(TypeRef {
-                crate_id: CrateId {
-                    name: ir.crate_name.clone(),
-                    version: ir.version.clone(),
-                },
-                module_path: Vec::new(),
-                name: s.name.clone(),
-                schema_hash: 0,
-            })
-        } else {
-            FFIType::Data(TypeRef {
-                crate_id: CrateId {
-                    name: ir.crate_name.clone(),
-                    version: ir.version.clone(),
-                },
-                module_path: Vec::new(),
-                name: s.name.clone(),
-                schema_hash: 0,
-            })
-        };
-        hash_map.insert(s.name.clone(), hash_type(&ty, ir));
-    }
-
-    for e in &ir.enums {
-        let ty = FFIType::Data(TypeRef {
-            crate_id: CrateId {
-                name: ir.crate_name.clone(),
-                version: ir.version.clone(),
-            },
-            module_path: Vec::new(),
-            name: e.name.clone(),
-            schema_hash: 0,
-        });
-        hash_map.insert(e.name.clone(), hash_type(&ty, ir));
-    }
-
-    for s in &mut ir.structs {
-        for f in &mut s.fields {
-            stamp(&mut f.ty, &hash_map);
-        }
-    }
-    for e in &mut ir.enums {
-        for v in &mut e.variants {
-            for f in &mut v.fields {
-                stamp(&mut f.ty, &hash_map);
-            }
-        }
-    }
-    for f in &mut ir.functions {
-        for p in &mut f.params {
-            stamp(&mut p.ty, &hash_map);
-        }
-        stamp(&mut f.ret_ty, &hash_map);
-    }
-    for imp in &mut ir.imports {
-        if let Some(&h) = hash_map.get(&imp.name) {
-            imp.schema_hash = h;
-        }
-    }
-}
-
-// Pass 2: stamp hashes into every TypeRef throughout the IR.
-fn stamp(ty: &mut FFIType, map: &HashMap<String, u64>) {
-    match ty {
-        FFIType::Data(tr) | FFIType::Opaque(tr) => {
-            if let Some(&h) = map.get(&tr.name) {
-                tr.schema_hash = h;
-            }
-        }
-        FFIType::Option(inner) | FFIType::Vec(inner) | FFIType::Set(inner) => {
-            stamp(inner, map);
-        }
-        FFIType::Result(ok, err) | FFIType::Map(ok, err) => {
-            stamp(ok, map);
-            stamp(err, map);
-        }
-        _ => {}
-    }
 }
 
 fn primitive_to_ffi(name: &str) -> Result<FFIType, BindgenError> {

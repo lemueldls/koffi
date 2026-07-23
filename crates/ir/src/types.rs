@@ -12,16 +12,11 @@ pub struct CrateId {
 /// This is the unit of identity used for cross-crate deduplication.
 ///
 /// Two [`TypeRef`]s are the same type if and only if all fields match.
-/// `schema_hash` is a content hash of the type's *structure* (field names,
-/// field types, declaration order), NOT of its name. It is used at runtime
-/// to detect version mismatches across independently-updated Rust and Kotlin
-/// binaries.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Facet)]
 pub struct TypeRef {
     pub crate_id: CrateId,
     pub module_path: Vec<String>, // e.g. ["camera", "frame"] for camera::frame::RgbFrame
     pub name: String,
-    pub schema_hash: u64,
 }
 
 impl TypeRef {
