@@ -16,7 +16,7 @@ import kotlin.js.JsString
 import kotlin.js.toJsNumber
 import kotlin.js.toJsString
 
-{%- if emit_handle_release %}
+{%- if is_root %}
 private external fun koffi_handle_release(handleId: Double)
 {%- endif %}
 
@@ -50,7 +50,7 @@ private fun JsAny.toByteArray(): ByteArray {
     }
 }
 
-{%- if emit_handle_release %}
+{%- if is_root %}
 @Suppress("unused")
 private val _koffiWasmInit: Unit = run {
     KoffiRuntime.releaseHandle = { handleId ->

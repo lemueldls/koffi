@@ -240,7 +240,13 @@ impl Builder {
             .iter()
             .map(|(pkg, ir)| {
                 let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
-                BindingPackage { ir, crate_path }
+                let is_root = pkg.is_root;
+
+                BindingPackage {
+                    ir,
+                    crate_path,
+                    is_root,
+                }
             })
             .collect::<Vec<_>>();
 
@@ -264,7 +270,7 @@ impl Builder {
             crate_ident: crate_ident.clone(),
             lib_name: format!("{crate_ident}_koffi_glue"),
         };
-        steps.run_targets(&target_platforms, self.release)?;
+        steps.build_targets(&target_platforms, self.release)?;
 
         Ok(())
     }

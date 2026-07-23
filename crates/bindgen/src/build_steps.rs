@@ -235,27 +235,27 @@ pub struct BuildSteps {
 }
 
 impl BuildSteps {
-    pub fn run_targets(
+    pub fn build_targets(
         &self,
         targets: &TargetPlatforms,
         release: bool,
     ) -> Result<(), BindgenError> {
         if targets.contains(TargetPlatform::Android) {
-            self.run_android(release)?;
+            self.build_android(release)?;
         }
         if targets.contains(TargetPlatform::Jvm) {
-            self.run_jvm(release)?;
+            self.build_jvm(release)?;
         }
         if targets.contains(TargetPlatform::WasmJs) {
-            self.run_wasm_js(release)?;
+            self.build_wasm_js(release)?;
         }
-        self.run_ios_targets(&targets.ios_targets(), release)?;
-        self.run_native_targets(&targets.native_targets(), release)?;
+        self.build_ios_targets(&targets.ios_targets(), release)?;
+        self.build_native_targets(&targets.native_targets(), release)?;
 
         Ok(())
     }
 
-    pub fn run_android(&self, release: bool) -> Result<(), BindgenError> {
+    pub fn build_android(&self, release: bool) -> Result<(), BindgenError> {
         let targets = [
             ("aarch64-linux-android", "arm64-v8a"),
             ("armv7-linux-androideabi", "armeabi-v7a"),
@@ -278,7 +278,7 @@ impl BuildSteps {
         Ok(())
     }
 
-    pub fn run_jvm(&self, release: bool) -> Result<(), BindgenError> {
+    pub fn build_jvm(&self, release: bool) -> Result<(), BindgenError> {
         let (target, classifier, prefix, ext) = host_triple();
         let lib = self.cargo_build_cdylib(target, "jvm", release, prefix, ext)?;
         let dest = self
@@ -292,7 +292,7 @@ impl BuildSteps {
         Ok(())
     }
 
-    fn run_native_targets(
+    fn build_native_targets(
         &self,
         targets: &[(&str, &str)],
         release: bool,
@@ -312,7 +312,11 @@ impl BuildSteps {
         Ok(())
     }
 
-    fn run_ios_targets(&self, targets: &[(&str, &str)], release: bool) -> Result<(), BindgenError> {
+    fn build_ios_targets(
+        &self,
+        targets: &[(&str, &str)],
+        release: bool,
+    ) -> Result<(), BindgenError> {
         for (target, slice) in targets {
             info!("Building iOS target {target} for {slice}");
             let lib = self.cargo_build_staticlib(target, "native", release)?;
@@ -331,7 +335,7 @@ impl BuildSteps {
     /// Compile the glue crate for `wasm32-unknown-unknown`, then run `wasm-bindgen`
     /// CLI (or `wasm-pack`) to generate the JS wrapper and output both artifacts
     /// to `kotlin/resources@web/`.
-    pub fn run_wasm_js(&self, release: bool) -> Result<(), BindgenError> {
+    pub fn build_wasm_js(&self, release: bool) -> Result<(), BindgenError> {
         check_wasm_bindgen_installed()?;
 
         let target = "wasm32-unknown-unknown";

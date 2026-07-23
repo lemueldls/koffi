@@ -38,7 +38,7 @@ pub struct KotlinWasmTemplate<'a> {
     pub crate_ident: &'a str,
     pub namespace: &'a str,
     pub lib_name: &'a str,
-    pub emit_handle_release: bool,
+    pub is_root: bool,
     pub ir: &'a CrateInterface,
 }
 
@@ -62,7 +62,7 @@ pub struct RustJniTemplate<'a> {
     pub pkg_pascal: &'a str,
     pub crate_ident: &'a str, // crate name with hyphens -> underscores
     pub ir: &'a CrateInterface,
-    pub emit_handle_release: bool,
+    pub is_root: bool,
 }
 
 #[derive(Template)]
@@ -77,7 +77,7 @@ pub struct RustCabiTemplate<'a> {
 pub struct RustWasmTemplate<'a> {
     pub crate_ident: &'a str,
     pub ir: &'a CrateInterface,
-    pub emit_handle_release: bool,
+    pub is_root: bool,
 }
 
 #[derive(Template)]

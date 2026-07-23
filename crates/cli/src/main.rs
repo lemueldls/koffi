@@ -167,7 +167,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .iter()
                 .map(|(pkg, ir)| {
                     let crate_path = pkg.manifest_path.parent().unwrap_or_else(|| Path::new("."));
-                    BindingPackage { ir, crate_path }
+                    let is_root = pkg.is_root;
+
+                    BindingPackage {
+                        ir,
+                        crate_path,
+                        is_root,
+                    }
                 })
                 .collect::<Vec<_>>();
 
@@ -181,7 +187,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )?;
 
             let crate_ident = root_ir.crate_name.replace('-', "_");
-            let build = BuildSteps {
+            let steps = BuildSteps {
                 crate_path: root_pkg
                     .manifest_path
                     .parent()
@@ -194,7 +200,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             info!("Building artifacts for targets: {}", target_platforms);
-            build.run_targets(&target_platforms, args.release)?;
+            steps.build_targets(&target_platforms, args.release)?;
 
             info!("Generation complete!");
         }

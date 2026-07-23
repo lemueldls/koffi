@@ -32,6 +32,7 @@ pub struct GeneratedPaths {
 pub struct BindingPackage<'a> {
     pub ir: &'a CrateInterface,
     pub crate_path: &'a Path,
+    pub is_root: bool,
 }
 
 #[derive(Debug)]
@@ -82,8 +83,9 @@ pub fn generate_package_set(
     let mut wasm_modules = Vec::new();
     let mut dependencies = Vec::new();
 
-    for (index, package) in packages.iter().enumerate() {
+    for package in packages {
         let ir = package.ir;
+        let is_root = package.is_root;
         let crate_name = &ir.crate_name;
         let crate_ident = crate_name.replace('-', "_");
         let pkg_pascal = AsPascalCase(crate_name).to_string();
@@ -147,7 +149,7 @@ pub fn generate_package_set(
                 namespace,
                 ir,
                 lib_name: &lib_name,
-                emit_handle_release: index == 0,
+                is_root,
             },
             &kotlin_dir
                 .join("src@web")
@@ -163,7 +165,7 @@ pub fn generate_package_set(
                 pkg_pascal: &pkg_pascal,
                 crate_ident: &crate_ident,
                 ir,
-                emit_handle_release: index == 0,
+                is_root,
             },
             &rust_src.join(format!("{jni_module}.rs")),
         )?;
@@ -184,30 +186,32 @@ pub fn generate_package_set(
             &templates::RustWasmTemplate {
                 crate_ident: &crate_ident,
                 ir,
-                emit_handle_release: index == 0,
+                is_root,
             },
             &rust_src.join(format!("{wasm_module}.rs")),
         )?;
         wasm_modules.push(wasm_module);
 
-        write_template(
-            &templates::CHeaderTemplate {
-                crate_ident: &crate_ident,
-                guard: &guard,
-                ir,
-            },
-            &include_dir.join(format!("{crate_ident}.h")),
-        )?;
+        if package.is_root {
+            write_template(
+                &templates::CHeaderTemplate {
+                    crate_ident: &crate_ident,
+                    guard: &guard,
+                    ir,
+                },
+                &include_dir.join(format!("{crate_ident}.h")),
+            )?;
 
-        write_template(
-            &templates::CinteropDefTemplate {
-                crate_ident: &crate_ident,
-                namespace,
-                lib_name: &lib_name,
-                include_dir: &include_dir.display().to_string().replace('\\', "/"),
-            },
-            &cinterop_dir.join(format!("{crate_ident}.def")),
-        )?;
+            write_template(
+                &templates::CinteropDefTemplate {
+                    crate_ident: &crate_ident,
+                    namespace,
+                    lib_name: &lib_name,
+                    include_dir: &include_dir.display().to_string().replace('\\', "/"),
+                },
+                &cinterop_dir.join(format!("{crate_ident}.def")),
+            )?;
+        }
 
         let rel_crate_path = diff_paths(package.crate_path, &rust_dir)
             .expect("should be able to relativize crate path")

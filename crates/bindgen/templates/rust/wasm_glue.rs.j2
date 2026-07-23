@@ -134,7 +134,7 @@ pub fn {{ f | wasm_rust_fn_ident(crate_ident) }}(
 }
 {%- endfor %}
 
-{% if emit_handle_release %}
+{% if is_root %}
 // /// Called by Kotlin's `KoffiHandleBase.close()` and the JS `FinalizationRegistry`.
 // #[wasm_bindgen(js_name = "koffi_handle_release")]
 // pub fn koffi_handle_release_wasm(handle_id: f64) {
