@@ -28,14 +28,7 @@ pub enum LayoutEntry {
 
 #[derive(Debug, Clone)]
 pub struct StructLayoutInfo {
-    /// In order: what MemoryLayout.structLayout(...) needs, values and
-    /// explicit padding gaps alike. FFM does not insert padding for you;
-    /// this is the one place that matters and the one place it's computed.
     pub entries: Vec<LayoutEntry>,
-    /// Field name -> byte offset, the same offsets `entries` implies, kept
-    /// alongside it so marshaling code (.`set()/.get()` calls) reads from
-    /// exactly the same computation rather than a second, separately
-    /// maintained one.
     pub placements: Vec<FieldPlacement>,
     pub total: Layout,
 }

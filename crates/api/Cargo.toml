@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+facet.workspace = true
+
 koffi-core.workspace = true
 koffi-macros.workspace = true
 koffi-runtime.workspace = true

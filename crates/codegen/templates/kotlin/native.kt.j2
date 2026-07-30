@@ -5,8 +5,8 @@ package {{ schema.kotlin_package() }}
 // import cnames.structs.TODO
 // import kotlinx.cinterop.*
 
-actual object {{ schema.ffi_object_name() }} {
-    {%~ for f in schema.functions %}
-    // actual fun {{ f.kotlin_name }}(...): {{ f.return_type.kotlin_type() }} = TODO()
-    {%- endfor %}
-}
+{%~ for f in schema.functions %}
+// actual fun {{ f.kotlin_name }}(...): {{ f.return_type.kotlin_type() }} = TODO()
+{%- endfor %}
+
+actual object {{ schema.ffi_object_name() }} {}

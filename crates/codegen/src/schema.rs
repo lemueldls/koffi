@@ -53,11 +53,6 @@ pub enum SchemaTypeRef {
 }
 
 impl SchemaTypeRef {
-    /// The shared building block every "turn this type into an identifier"
-    /// concern (a struct's Cabi shadow name in rust.rs, a method's ABI
-    /// symbol in c.rs) formats further, so there is exactly one place that
-    /// decides how a (`module_path`, name) pair becomes identifier-safe, not
-    /// one copy per consumer.
     #[must_use]
     pub fn abi_ident_infix(&self) -> String {
         match self {

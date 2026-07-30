@@ -5,7 +5,6 @@
 use crate::types::*;
 
 {%~ for f in schema.functions %}
-/// `{{ f.rust_absolute_path() }}`
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn {{ f.c_abi_symbol() }}(
     {%- for p in f.params %}

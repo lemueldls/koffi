@@ -4,20 +4,18 @@ package {{ schema.kotlin_package() }}
 
 {%~ for s in schema.structs %}
 data class {{ s.name }}(
-    {%- for field in s.fields %}
+    {%- for field in s.fields -%}
     val {{ field.name }}: {{ field.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
-    {%- endfor %}
+    {%- endfor -%}
 )
 {%- endfor %}
 
-expect object {{ schema.ffi_object_name() }} {
-    {%- for f in schema.functions %}
-    fun {{ f.kotlin_name }}(
-        {%- for p in f.params %}
-        {%- if !p.is_receiver %}
-        {{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
-        {%- endif %}
-        {%- endfor %}
-    ): {{ f.return_type.kotlin_type() }}
-    {%- endfor %}
-}
+{%- for f in schema.functions %}
+expect fun {{ f.kotlin_name }}(
+    {%- for p in f.params -%}
+    {%- if !p.is_receiver %}
+    {{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
+    {%- endif %}
+    {%- endfor -%}
+): {{ f.return_type.kotlin_type() }}
+{%- endfor %}

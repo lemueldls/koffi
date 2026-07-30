@@ -7,13 +7,54 @@ import java.lang.invoke.MethodHandle
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-actual object {{ schema.ffi_object_name() }} {
+{%~ for f in schema.functions %}
+actual fun {{ f.kotlin_name }}(
+    {%- for p in f.params %}
+    {%- if !p.is_receiver %}
+    {{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
+    {%- endif %}
+    {%- endfor %}
+): {{ f.return_type.kotlin_type() }} {
+    Arena.ofConfined().use { callArena ->
+        {%- for p in f.params %}
+        {%- if let Some(placements) = p.struct_field_placements(schema.structs) %}
+        val {{ p.name }}Segment = callArena.allocate({{ p.ty.kotlin_ffm_value_layout() }})
+        {%- for placement in placements %}
+        {{ p.name }}Segment.set({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L, {{ p.name }}.{{ placement.name }}{{ placement.ty.to_ffm_suffix() }})
+        {%- endfor %}
+        {%- endif %}
+        {%- endfor %}
+        {%- if let Some(retPlacements) = f.return_type.struct_field_placements(schema.structs) %}
+        val __r = {{ schema.ffi_object_name() }}.{{ f.unique_ident() }}.invokeWithArguments(callArena
+            {%- for p in f.params -%}, {% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
+        ) as MemorySegment
+        return {{ f.return_type.kotlin_type() }}(
+            {%- for placement in retPlacements -%}
+            {{ placement.name }} = __r.get({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L){{ placement.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
+            {%- endfor -%}
+        )
+        {%- else %}
+        val __r = {{ schema.ffi_object_name() }}.{{ f.unique_ident() }}.invokeWithArguments(
+            {%- for p in f.params -%}{% if !loop.first %}, {% endif %}{% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
+        )
+        {%- match f.return_type %}
+        {%- when SchemaTypeRef::Scalar with (kind) %}
+        return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
+        {%- when SchemaTypeRef::Struct with { .. } %}
+        {# unreachable: the retPlacements branch above handles every struct return #}
+        {%- endmatch %}
+        {%- endif %}
+    }
+}
+{%- endfor %}
+
+object {{ schema.ffi_object_name() }} {
     private val arena: Arena = Arena.ofShared()
     val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)
     val linker: Linker = Linker.nativeLinker()
 
     {%~ for s in schema.structs %}
-    private val {{ s.unique_ident() }}Layout: MemoryLayout = MemoryLayout.structLayout(
+    private val {{ s.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
         {%- for entry in s.layout.entries %}
         {%- match entry %}
         {%- when LayoutEntry::Value { kotlin_layout, name } %}
@@ -33,46 +74,6 @@ actual object {{ schema.ffi_object_name() }} {
             {%- for p in f.params %}, {{ p.ty.kotlin_ffm_value_layout() }}{% endfor -%}
         ),
     )
-
-    actual fun {{ f.kotlin_name }}(
-        {%- for p in f.params %}
-        {%- if !p.is_receiver %}
-        {{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
-        {%- endif %}
-        {%- endfor %}
-    ): {{ f.return_type.kotlin_type() }} {
-        Arena.ofConfined().use { callArena ->
-            {%- for p in f.params %}
-            {%- if let Some(placements) = p.struct_field_placements(schema.structs) %}
-            val {{ p.name }}Segment = callArena.allocate({{ p.ty.kotlin_ffm_value_layout() }})
-            {%- for placement in placements %}
-            {{ p.name }}Segment.set({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L, {{ p.name }}.{{ placement.name }}{{ placement.ty.to_ffm_suffix() }})
-            {%- endfor %}
-            {%- endif %}
-            {%- endfor %}
-            {%- if let Some(retPlacements) = f.return_type.struct_field_placements(schema.structs) %}
-            val __r = {{ f.unique_ident() }}.invokeWithArguments(
-                callArena
-                {%- for p in f.params %}, {% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor -%}
-            ) as MemorySegment
-            return {{ f.return_type.kotlin_type() }}(
-                {%- for placement in retPlacements %}
-                {{ placement.name }} = __r.get({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L){{ placement.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
-                {%- endfor %}
-            )
-            {%- else %}
-            val __r = {{ f.unique_ident() }}.invokeWithArguments(
-                {%- for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor -%}
-            )
-            {%- match f.return_type %}
-            {%- when SchemaTypeRef::Scalar with (kind) %}
-            return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
-            {%- when SchemaTypeRef::Struct with { .. } %}
-            {# unreachable: the retPlacements branch above handles every struct return #}
-            {%- endmatch %}
-            {%- endif %}
-        }
-    }
     {%- endfor %}
 }
 
@@ -86,9 +87,7 @@ object {{ schema.loader_object_name() }} {
         val resourcePath = "/native/$fileName"
         val resourceStream = {{ schema.loader_object_name() }}::class.java.getResourceAsStream(resourcePath)
             ?: error(
-                "koffi: native library resource not found at $resourcePath. " +
-                    "Was `koffi gen` run, and did its build step succeed? " +
-                    "(see koffi-codegen's build::build_and_stage_cabi)"
+                "koffi: native library resource not found at $resourcePath. "
             )
 
         val tempFile = Files.createTempFile("koffi-$crateName-", platformLibrarySuffix())

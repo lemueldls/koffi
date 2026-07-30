@@ -44,7 +44,7 @@ fn render_rust(schema: &Schema, crate_path: &Path, rust_out_dir: &Path) -> anyho
                 },
                 CargoDep {
                     name: "koffi".to_string(),
-                    path: "../../../../crates/api".to_string(),
+                    path: "../../crates/api".to_string(),
                 },
             ],
             optional_dependencies: &[

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{FnArg, Item, ItemFn, Pat, PatType, ReturnType, parse_macro_input};
+use syn::{FnArg, Item, ItemFn, Pat, PatType, ReturnType, Visibility, parse_macro_input};
 
 #[proc_macro_attribute]
 pub fn export(_args: TokenStream, input: TokenStream) -> TokenStream {
@@ -20,6 +20,14 @@ pub fn export(_args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 fn parse_function(input_fn: ItemFn) -> TokenStream {
+    if !matches!(input_fn.vis, Visibility::Public(..)) {
+        let span = input_fn.sig.ident.span();
+
+        return syn::Error::new(span, "koffi: function must be public")
+            .to_compile_error()
+            .into();
+    }
+
     let fn_name_raw = &input_fn.sig.ident.to_string();
     let fn_name = fn_name_raw.trim_start_matches("r#");
 
@@ -49,6 +57,7 @@ fn parse_function(input_fn: ItemFn) -> TokenStream {
     };
 
     let expanded = quote! {
+        #[deny(private_interfaces)]
         #input_fn
 
         #[used]

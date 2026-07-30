@@ -162,3 +162,10 @@ impl ScalarKind {
         }
     }
 }
+
+impl SchemaStruct {
+    #[must_use]
+    pub fn kotlin_ffm_value_layout(&self) -> String {
+        format!("{}Layout", self.unique_ident())
+    }
+}

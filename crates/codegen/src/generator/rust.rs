@@ -8,16 +8,6 @@ impl Schema {
 }
 
 impl SchemaFn {
-    /// Absolute path to the real item this entry describes,
-    /// `::crate::Type::method` for a method, `::crate::function` for a free
-    /// function. The leading `::` is Rust's "start from the crate root"
-    /// syntax, deliberate: it keeps generated code correct even if some
-    /// local name in the generated crate happens to shadow part of the
-    /// path.
-    ///
-    /// For a method, this is built from `receiver.rust_absolute_path()`, the
-    /// receiver *type's own* module path, not `self.module_path` (where the
-    /// impl block happens to be written); those can differ.
     #[must_use]
     pub fn rust_absolute_path(&self) -> String {
         if let Some(recv) = &self.receiver {
@@ -33,10 +23,6 @@ impl SchemaFn {
         }
     }
 
-    /// Delegates to `c_abi_symbol` (generator/c.rs). See the comment there:
-    /// this used to be a second, independent formula that didn't know about
-    /// the receiver, and silently disagreed with `c_abi_symbol` for every
-    /// method.
     #[must_use]
     pub fn unique_ident(&self) -> String {
         self.c_abi_symbol()
@@ -60,13 +46,6 @@ impl SchemaStruct {
 }
 
 impl SchemaTypeRef {
-    /// The Rust type name to use on the *Cabi* side: a struct's generated
-    /// shadow type, or the primitive itself for a scalar (Rust's own scalar
-    /// names are already valid identifiers and already what facet reports
-    /// via `effective_name`, no separate table needed). Built on the same
-    /// `abi_ident_infix` (schema.rs) that `c_abi_symbol` uses, so a struct's
-    /// shadow type name and the ABI-symbol infix for a method of that struct
-    /// can never drift apart the way `unique_ident`/`c_abi_symbol` once did.
     #[must_use]
     pub fn unique_ident(&self) -> String {
         match self {
@@ -75,8 +54,6 @@ impl SchemaTypeRef {
         }
     }
 
-    /// The real, non-generated Rust path: `::crate::module::Name` for a
-    /// struct, or the bare primitive name for a scalar.
     #[must_use]
     pub fn rust_absolute_path(&self) -> String {
         match self {

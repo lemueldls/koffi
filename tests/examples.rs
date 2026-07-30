@@ -1,4 +1,4 @@
-use std::{fmt::Write, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use koffi_build::build_crate;
 use koffi_codegen::extract::extract_schema;
