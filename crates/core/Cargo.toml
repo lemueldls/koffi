@@ -1,11 +1,11 @@
 [package]
-name = "koffi"
+name = "koffi-core"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-koffi-macros.workspace = true
-koffi-runtime.workspace = true
+facet.workspace = true
+heck.workspace = true
 
 [lints]
 workspace = true

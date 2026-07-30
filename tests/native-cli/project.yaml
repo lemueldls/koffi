@@ -1,8 +1,0 @@
-modules:
-  - jvm
-  - linux
-  - macos
-  - shared
-  - windows
-
-  - generated/kotlin

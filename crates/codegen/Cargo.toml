@@ -1,0 +1,19 @@
+[package]
+name = "koffi-codegen"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+askama.workspace = true
+facet.workspace = true
+object.workspace = true
+libloading.workspace = true
+heck.workspace = true
+pathdiff.workspace = true
+
+koffi-build.workspace = true
+koffi-core.workspace = true
+
+[lints]
+workspace = true

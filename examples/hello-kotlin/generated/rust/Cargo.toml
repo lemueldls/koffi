@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "hello_kotlin_glue"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+hello-kotlin = { path = "../../examples/hello-kotlin" }
+koffi = { path = "../../crates/api" }
