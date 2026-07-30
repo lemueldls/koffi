@@ -1,0 +1,61 @@
+---
+source: tests/examples.rs
+expression: schema
+---
+Schema {
+    crate_name: "hello-kotlin",
+    functions: [
+        SchemaFn {
+            rust_name: "hello",
+            kotlin_name: "hello",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            receiver: None,
+            params: [],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+    ],
+    structs: [
+        SchemaStruct {
+            name: "Payload",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "data",
+                    ty: Scalar(
+                        U16,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_SHORT",
+                        name: "data",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "data",
+                        ty: Scalar(
+                            U16,
+                        ),
+                        offset: 0,
+                    },
+                ],
+                total: Layout {
+                    size: 2,
+                    align: 2,
+                },
+            },
+        },
+    ],
+}

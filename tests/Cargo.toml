@@ -1,0 +1,16 @@
+[package]
+name = "koffi-tests"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dev-dependencies]
+anyhow.workspace = true
+insta.workspace = true
+
+koffi-build.workspace = true
+koffi-codegen.workspace = true
+
+[[test]]
+name = "examples"
+path = "examples.rs"
