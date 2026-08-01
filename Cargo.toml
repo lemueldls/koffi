@@ -49,7 +49,6 @@ koffi-build = { path = "crates/build" }
 koffi-codegen = { path = "crates/codegen" }
 koffi-core = { path = "crates/core" }
 koffi-macros = { path = "crates/macros" }
-koffi-runtime = { path = "crates/runtime" }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

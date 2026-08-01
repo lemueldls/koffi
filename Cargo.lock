@@ -624,7 +624,6 @@ dependencies = [
  "facet",
  "koffi-core",
  "koffi-macros",
- "koffi-runtime",
 ]
 
 [[package]]
@@ -682,10 +681,6 @@ dependencies = [
  "quote",
  "syn 3.0.3",
 ]
-
-[[package]]
-name = "koffi-runtime"
-version = "0.1.0"
 
 [[package]]
 name = "koffi-tests"

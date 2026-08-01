@@ -84,7 +84,7 @@ fn render_kotlin(schema: &Schema, kotlin_out_dir: &Path) -> anyhow::Result<()> {
     write_template(
         KotlinModuleYaml {
             platforms: &["jvm"],
-            dependencies: &["../../kotlin/runtime"],
+            dependencies: &[],
         },
         &kotlin_out_dir.join("module.yaml"),
     )?;

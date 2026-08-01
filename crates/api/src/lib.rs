@@ -1,6 +1,5 @@
 pub use koffi_core::*;
 pub use koffi_macros::*;
-pub use koffi_runtime::*;
 
 facet::define_attr_grammar! {
     ns "koffi";

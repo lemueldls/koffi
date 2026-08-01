@@ -11,7 +11,7 @@ pub unsafe extern "C" fn {{ f.c_abi_symbol() }}(
     _p_{{ p.c_abi_symbol() }}: {{ p.ty.unique_ident() }},
     {%- endfor %}
 ) -> {{ f.return_type.unique_ident() }} {
-    koffi::guarded(|| {
+    guarded(|| {
         {{ f.rust_absolute_path() }}(
             {%- for p in f.params %}
             {% if p.is_receiver %}&{% endif %}_p_{{ p.c_abi_symbol() }}.into(),
@@ -20,3 +20,10 @@ pub unsafe extern "C" fn {{ f.c_abi_symbol() }}(
     })
 }
 {%- endfor %}
+
+pub fn guarded<R>(f: impl FnOnce() -> R + std::panic::UnwindSafe) -> R {
+    match std::panic::catch_unwind(f) {
+        Ok(v) => v,
+        Err(_) => std::process::abort(),
+    }
+}
