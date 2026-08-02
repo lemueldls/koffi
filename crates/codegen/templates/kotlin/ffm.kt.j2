@@ -7,12 +7,9 @@ import java.lang.invoke.MethodHandle
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-{# `actual object` matching the `expect object` in common.kt.j2: the
-   expect/actual pair makes the FFI surface platform-independent, and the
-   per-fn `actual fun`s below are members of it, exactly like the `expect`
-   declarations they implement. Both the MethodHandle/layout plumbing and
-   the nice `actual fun`s live in this one object, the handles are private
-   but the functions need them, so they have to share a scope. #}
+{# `actual object` matching the `expect object` in common.kt.j2. The
+   MethodHandle/layout plumbing and the `actual fun`s share this one scope:
+   the handles are private and the functions need them. #}
 actual object {{ schema.ffi_object_name() }} {
     private val arena: Arena = Arena.ofShared()
     val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)

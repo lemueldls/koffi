@@ -2,11 +2,8 @@ use heck::ToLowerCamelCase;
 
 use crate::{ScalarKind, StructWire, Wire, WireField};
 
-// Deliberately minimal for M0: only Type::Primitive and all-scalar Type::Struct
-// are handled. Everything else is a const-eval panic, which surfaces as a
-// compile error at the derive call site, not a silent wrong answer. This is
-// the same "exhaustive match or reject" shape the full architecture calls for
-// in section 5, just with a short match arm list because M0's scope is short.
+// M0: only scalars and all-scalar structs are handled; anything else is a
+// panic (a compile error at the derive site, never a silent wrong answer).
 pub fn project_shape(shape: &'static facet::Shape) -> Wire {
     match shape.def {
         facet::Def::Scalar => Wire::Scalar(scalar_kind_of(shape)),

@@ -73,7 +73,5 @@ pub fn extract_schema(crate_name: String, library_path: &Path) -> anyhow::Result
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
 
-    // std::mem::forget(lib);
-
     build_schema(crate_name, &fn_entries)
 }

@@ -36,12 +36,10 @@ impl Schema {
     }
 
     /// Every fn whose `parent` is `s`, in Rust declaration order. Drives
-    /// every per-struct Kotlin member (instance methods, constructors,
-    /// companion functions alike) in common.kt.j2. The flat `functions`
-    /// list itself stays flat and untouched elsewhere, it's what the
-    /// low-level FFI object (`expect`/`actual object`) is built from, and
-    /// that needs every fn addressable by one ABI symbol regardless of
-    /// which struct, if any, it belongs to.
+    /// every per-struct Kotlin member in common.kt.j2. The flat
+    /// `functions` list stays flat elsewhere: it's what the low-level FFI
+    /// object is built from, where every fn needs one ABI symbol regardless
+    /// of which struct, if any, it belongs to.
     #[must_use]
     pub fn functions_of<'a>(&'a self, s: &'a SchemaStruct) -> Vec<&'a SchemaFn> {
         self.functions
@@ -52,7 +50,7 @@ impl Schema {
 
     /// Does `s` have at least one associated fn that isn't an instance
     /// method (a constructor or an ordinary companion fn)? Drives whether
-    /// common.kt.j2 opens a `companion object { .. }` block at all, an
+    /// common.kt.j2 opens a `companion object { .. }` block at all; an
     /// empty one isn't valid Kotlin to emit unconditionally.
     #[must_use]
     pub fn has_companion_functions(&self, s: &SchemaStruct) -> bool {
@@ -189,15 +187,11 @@ impl ScalarKind {
 
 impl SchemaStruct {
     /// Does calling this struct's own primary (field) constructor take the
-    /// same argument list, in order and type, as `params`? Used to decide
-    /// whether a constructor-shaped fn (`SchemaFn::is_constructor`) can
-    /// safely also get a companion `operator fun invoke` in Kotlin.
-    /// `Type(..)` call syntax already means "call the primary constructor";
-    /// Kotlin lets a companion `invoke` overload that syntax, but only when
-    /// its signature doesn't collide with the primary constructor's. When
-    /// the shapes match, common.kt.j2 skips `invoke` and only emits the
-    /// always-safe named companion function (`Type.new(..)`), rather than
-    /// emit an overload the compiler would reject.
+    /// same argument list, in order and type, as `params`? `Type(..)` call
+    /// syntax already means the primary constructor; a companion `invoke`
+    /// can overload it only when the signatures differ. When they match,
+    /// common.kt.j2 skips `invoke` and emits only the always-safe named
+    /// companion function (`Type.new(..)`).
     #[must_use]
     pub fn matches_primary_constructor(&self, params: &[SchemaParam]) -> bool {
         self.fields.len() == params.len()

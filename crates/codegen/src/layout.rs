@@ -118,18 +118,12 @@ fn kotlin_value_layout_name(ty: &SchemaTypeRef) -> anyhow::Result<&'static str> 
         SchemaTypeRef::Scalar(ScalarKind::U64 | ScalarKind::I64) => Ok("ValueLayout.JAVA_LONG"),
         SchemaTypeRef::Scalar(ScalarKind::F32) => Ok("ValueLayout.JAVA_FLOAT"),
         SchemaTypeRef::Scalar(ScalarKind::F64) => Ok("ValueLayout.JAVA_DOUBLE"),
-        // A nested struct field needs a *dynamic* name (the other struct's
-        // own layout constant, declared earlier in the same generated file),
-        // not a &'static str, and building that name here would be a third
-        // place computing what generator/rust.rs's SchemaStruct::unique_ident
-        // already computes, the exact class of bug the c_abi_symbol fix was
-        // about. Left as an explicit, named gap rather than a silently wrong
-        // placeholder: M0's worked example doesn't have a struct-typed field,
-        // so it isn't blocking, but this needs a real answer (most likely:
-        // return an owned String here and have this function take the same
-        // naming closure/fn generator/rust.rs and generator/kotlin.rs both
-        // already call, rather than duplicating the formula) before a struct
-        // with a struct-typed field can work.
+        // A nested struct field needs the other struct's *dynamic* layout
+        // constant name, not a &'static str; building that name here would
+        // duplicate the formula in SchemaStruct::unique_ident. Explicit
+        // named gap over a silently wrong placeholder; needs a shared
+        // naming fn returning an owned String before struct-typed fields
+        // can work.
         SchemaTypeRef::Struct { name, .. } => {
             anyhow::bail!(
                 "koffi M0 doesn't yet support a struct-typed field (`{name}`); \

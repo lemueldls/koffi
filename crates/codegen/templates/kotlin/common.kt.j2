@@ -2,18 +2,16 @@
 
 package {{ schema.kotlin_package() }}
 
-{#~ Renders a Kotlin nice-API param list: name-and-type pairs, comma
-   separated, skipping any receiver entry (`this` supplies that implicitly
-   for instance methods; constructor/companion fns never have one to begin
-   with, so the filter is a no-op there). -#}
+{#~ Kotlin nice-API param list, skipping receiver entries (`this` supplies
+   that implicitly for instance methods; constructor/companion fns never
+   have one, so the filter is a no-op there). -#}
 {%- macro kt_params(params) -%}
 {%- for p in params %}{% if !p.is_receiver %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endif %}{% endfor -%}
 {%- endmacro -%}
 
-{#~ Renders a plain comma-separated argument list (names only, no types).
-   Callers must pass a receiver-free `params`, constructor and companion
-   fns always are; this doesn't filter, so a receiver slipped in here would
-   produce a stray leading argument. -#}
+{#~ Plain comma-separated argument list (names only). Callers must pass
+   receiver-free `params`; this doesn't filter, so a receiver slipped in
+   here would produce a stray leading argument. -#}
 {%- macro kt_args(params) -%}
 {%- for p in params %}{{ p.name }}{% if !loop.last %}, {% endif %}{% endfor -%}
 {%- endmacro -%}

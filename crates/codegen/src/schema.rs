@@ -23,26 +23,24 @@ pub struct SchemaFn {
 }
 
 impl SchemaFn {
-    /// Does this fn take a `self`/`&self`/`&mut self` receiver? Just asks
-    /// the params directly (`FnShapeParam::is_receiver`, set by the macro),
-    /// not `parent.is_some()`, a `parent`-having fn can easily have no
-    /// receiver at all (`Payload::new(data: u16) -> Self`).
+    /// Does this fn take a `self`/`&self`/`&mut self` receiver? Asks the
+    /// params directly; a `parent`-having fn can easily have no receiver
+    /// (`Payload::new(data: u16) -> Self`).
     #[must_use]
     pub fn has_receiver(&self) -> bool {
         self.params.iter().any(|p| p.is_receiver)
     }
 
     /// True for a `parent`-having, receiver-less fn whose return type is
-    /// exactly its own `parent`: `Payload::new(..) -> Self`-shaped. This is
-    /// what the Kotlin generator treats as a constructor (see
-    /// common.kt.j2), rather than an ordinary companion function.
+    /// its own `parent`: `Payload::new(..) -> Self`-shaped. The Kotlin
+    /// generator treats this as a constructor, not an ordinary companion fn.
     #[must_use]
     pub fn is_constructor(&self) -> bool {
         !self.has_receiver() && self.parent.as_ref().is_some_and(|p| *p == self.return_type)
     }
 
     /// True for a `parent`-having fn that's neither an instance method nor
-    /// a constructor, `Payload::describe_format() -> u32`-shaped. Lands in
+    /// a constructor (`Payload::describe_format() -> u32`-shaped). Lands in
     /// the Kotlin `companion object` as an ordinary function.
     #[must_use]
     pub fn is_companion_function(&self) -> bool {
@@ -128,11 +126,9 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
             .map(|ty| convert_shape(ty.shape(), &mut structs))
             .transpose()?;
 
-        // `is_receiver` comes straight from the macro, which knows for
-        // certain whether a given param is `self`; there's no reconstructing
-        // it from `parent` the way an earlier version of this tried to
-        // (`parent.is_some()` doesn't imply anything about params[0],
-        // `Payload::new` has a `parent` and zero receiver params).
+        // `is_receiver` comes straight from the macro; it can't be
+        // reconstructed from `parent` (`Payload::new` has a `parent` and
+        // zero receiver params).
         let params = entry
             .params
             .iter()
@@ -190,14 +186,11 @@ fn convert_shape(
                             })
                             .collect::<anyhow::Result<Vec<_>>>()?;
 
-                        // Safe to compute the layout right away: every field's
-                        // own SchemaTypeRef, including any nested struct's, is
-                        // already fully resolved (inserted into `structs`) by
-                        // the recursive convert_shape calls just above, before
-                        // this struct's own entry goes in below. A true cycle
-                        // (X containing Y containing X by value) can't reach
-                        // this code in the first place, Rust won't compile an
-                        // infinitely-sized value type.
+                        // Layout is safe to compute here: every field's
+                        // SchemaTypeRef is already in `structs` (inserted by
+                        // the recursive convert_shape calls above), and a
+                        // value cycle (X containing Y containing X) can't
+                        // compile in Rust in the first place.
                         let layout = compute_struct_layout(&fields, structs)?;
                         structs.insert(key.clone(), SchemaStruct {
                             name,
