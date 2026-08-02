@@ -25,6 +25,102 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "status_code",
+            kotlin_name: "statusCode",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "s",
+                    ty: Enum {
+                        name: "Status",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "idle",
+            kotlin_name: "idle",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "c_status",
+            kotlin_name: "cStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "CStatus",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: U32,
+                has_data: false,
+            },
+        },
+        SchemaFn {
+            rust_name: "holder_status",
+            kotlin_name: "holderStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "h",
+                    ty: Struct {
+                        name: "StatusHolder",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
             rust_name: "new",
             kotlin_name: "new",
             module_path: Some(
@@ -53,6 +149,31 @@ Schema {
                     "hello_kotlin",
                 ),
             },
+        },
+        SchemaFn {
+            rust_name: "c_status_is_err",
+            kotlin_name: "cStatusIsErr",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "s",
+                    ty: Enum {
+                        name: "CStatus",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: U32,
+                        has_data: false,
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
         },
         SchemaFn {
             rust_name: "with_data",
@@ -95,6 +216,74 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "new_busy",
+            kotlin_name: "newBusy",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "code",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Enum {
+                        name: "Status",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: true,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
             rust_name: "describe",
             kotlin_name: "describe",
             module_path: Some(
@@ -123,6 +312,38 @@ Schema {
             return_type: Scalar(
                 U32,
             ),
+        },
+        SchemaFn {
+            rust_name: "make_holder",
+            kotlin_name: "makeHolder",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "StatusHolder",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "make_status",
+            kotlin_name: "makeStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
         },
         SchemaFn {
             rust_name: "hello",
@@ -173,6 +394,190 @@ Schema {
                 total: Layout {
                     size: 2,
                     align: 2,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "StatusHolder",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "status",
+                    ty: Enum {
+                        name: "Status",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                },
+                SchemaField {
+                    name: "tag",
+                    ty: Scalar(
+                        U8,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "__koffi_enum_hello_kotlin_StatusLayout",
+                        name: "status",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "tag",
+                    },
+                    Padding {
+                        bytes: 3,
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "status",
+                        ty: Enum {
+                            name: "Status",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                            discriminant: I32,
+                            has_data: true,
+                        },
+                        offset: 0,
+                    },
+                    FieldPlacement {
+                        name: "tag",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 8,
+                    },
+                ],
+                total: Layout {
+                    size: 12,
+                    align: 4,
+                },
+            },
+        },
+    ],
+    enums: [
+        SchemaEnum {
+            name: "CStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            discriminant: U32,
+            has_data: false,
+            variants: [
+                SchemaEnumVariant {
+                    name: "Ok",
+                    discriminant: 0,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+                SchemaEnumVariant {
+                    name: "Err",
+                    discriminant: -1,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "discriminant",
+                    },
+                ],
+                placements: [],
+                total: Layout {
+                    size: 4,
+                    align: 4,
+                },
+            },
+        },
+        SchemaEnum {
+            name: "Status",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            discriminant: I32,
+            has_data: true,
+            variants: [
+                SchemaEnumVariant {
+                    name: "Idle",
+                    discriminant: 0,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+                SchemaEnumVariant {
+                    name: "Busy",
+                    discriminant: 1,
+                    placements: [
+                        FieldPlacement {
+                            name: "field0",
+                            ty: Scalar(
+                                U32,
+                            ),
+                            offset: 4,
+                        },
+                    ],
+                    is_struct_variant: false,
+                },
+                SchemaEnumVariant {
+                    name: "Error",
+                    discriminant: 2,
+                    placements: [
+                        FieldPlacement {
+                            name: "code",
+                            ty: Scalar(
+                                U32,
+                            ),
+                            offset: 4,
+                        },
+                    ],
+                    is_struct_variant: true,
+                },
+                SchemaEnumVariant {
+                    name: "Failed",
+                    discriminant: -1,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "discriminant",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "field0",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                    },
+                    FieldPlacement {
+                        name: "code",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 8,
+                    align: 4,
                 },
             },
         },

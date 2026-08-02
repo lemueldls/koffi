@@ -3,13 +3,16 @@ use std::collections::BTreeMap;
 use heck::ToLowerCamelCase;
 use koffi_core::FnShapeRef;
 
-use crate::layout::{StructLayoutInfo, compute_struct_layout};
+use crate::layout::{
+    FieldPlacement, StructLayoutInfo, compute_enum_layout, compute_struct_layout,
+};
 
 #[derive(Debug, Clone)]
 pub struct Schema {
     pub crate_name: String,
     pub functions: Vec<SchemaFn>,
     pub structs: Vec<SchemaStruct>,
+    pub enums: Vec<SchemaEnum>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +72,34 @@ pub struct SchemaField {
     pub ty: SchemaTypeRef,
 }
 
+/// A reflected enum with its discriminant scalar kind, whether any
+/// variant carries a payload, and the variant list. Data-carrying
+/// enums need a primitive repr: rustc rejects `#[repr(C)]` (E0732).
+#[derive(Debug, Clone)]
+pub struct SchemaEnum {
+    pub name: String,
+    pub module_path: Option<String>,
+    pub discriminant: ScalarKind,
+    pub has_data: bool,
+    pub variants: Vec<SchemaEnumVariant>,
+    pub layout: StructLayoutInfo,
+}
+
+#[derive(Debug, Clone)]
+pub struct SchemaEnumVariant {
+    pub name: String,
+    pub discriminant: i64,
+    /// Payload fields with absolute offsets into the enum's memory layout
+    /// (the discriminant occupies offset 0); empty for unit variants.
+    pub placements: Vec<FieldPlacement>,
+    /// True for struct variants (`Variant { f: T }`), false for tuple
+    /// variants (`Variant(T)`). Unit variants have empty placements; Rust
+    /// distinguishes tuple and struct variants even when both carry a
+    /// single field, and the generated glue must construct them the same
+    /// way.
+    pub is_struct_variant: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SchemaTypeRef {
     Scalar(ScalarKind),
@@ -76,13 +107,19 @@ pub enum SchemaTypeRef {
         name: String,
         module_path: Option<String>,
     },
+    Enum {
+        name: String,
+        module_path: Option<String>,
+        discriminant: ScalarKind,
+        has_data: bool,
+    },
 }
 
 impl SchemaTypeRef {
     #[must_use]
     pub fn abi_ident_infix(&self) -> String {
         match self {
-            SchemaTypeRef::Struct { name, module_path } => {
+            SchemaTypeRef::Struct { name, module_path } | SchemaTypeRef::Enum { name, module_path, .. } => {
                 let mod_infix = module_path.as_deref().unwrap_or("").replace("::", "_");
                 format!("{mod_infix}_{name}")
             }
@@ -94,6 +131,20 @@ impl SchemaTypeRef {
     pub fn same_struct(&self, s: &SchemaStruct) -> bool {
         matches!(self, SchemaTypeRef::Struct { name, module_path }
             if name == &s.name && module_path == &s.module_path)
+    }
+
+    #[must_use]
+    pub fn same_enum(&self, e: &SchemaEnum) -> bool {
+        matches!(self, SchemaTypeRef::Enum { name, module_path, .. }
+            if name == &e.name && module_path == &e.module_path)
+    }
+
+    /// True for a data-carrying enum: the FFI layer marshals it through a
+    /// memory segment (with a per-enum `toFfm`/`fromFfm` pair), while a
+    /// fieldless enum crosses the ABI as its plain discriminant scalar.
+    #[must_use]
+    pub const fn has_data(&self) -> bool {
+        matches!(self, SchemaTypeRef::Enum { has_data: true, .. })
     }
 }
 
@@ -114,6 +165,7 @@ pub enum ScalarKind {
 
 pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Result<Schema> {
     let mut structs: BTreeMap<(Option<String>, String), SchemaStruct> = BTreeMap::new();
+    let mut enums: BTreeMap<(Option<String>, String), SchemaEnum> = BTreeMap::new();
     let mut functions = Vec::new();
 
     for entry in fn_entries {
@@ -123,7 +175,7 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
 
         let parent = entry
             .parent
-            .map(|ty| convert_shape(ty.shape(), &mut structs))
+            .map(|ty| convert_shape(ty.shape(), &mut structs, &mut enums))
             .transpose()?;
 
         // `is_receiver` comes straight from the macro; it can't be
@@ -135,13 +187,13 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
             .map(|p| {
                 Ok(SchemaParam {
                     name: p.name.to_string(),
-                    ty: convert_shape(p.param_type.shape(), &mut structs)?,
+                    ty: convert_shape(p.param_type.shape(), &mut structs, &mut enums)?,
                     is_receiver: p.is_receiver,
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        let return_type = convert_shape(entry.return_type.shape(), &mut structs)?;
+        let return_type = convert_shape(entry.return_type.shape(), &mut structs, &mut enums)?;
 
         functions.push(SchemaFn {
             rust_name,
@@ -157,12 +209,14 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
         crate_name,
         functions,
         structs: structs.into_values().collect(),
+        enums: enums.into_values().collect(),
     })
 }
 
 fn convert_shape(
     shape: &'static facet::Shape,
     structs: &mut BTreeMap<(Option<String>, String), SchemaStruct>,
+    enums: &mut BTreeMap<(Option<String>, String), SchemaEnum>,
 ) -> anyhow::Result<SchemaTypeRef> {
     match shape.def {
         facet::Def::Scalar => Ok(SchemaTypeRef::Scalar(scalar_kind_of(shape)?)),
@@ -181,7 +235,7 @@ fn convert_shape(
                                 let field_shape = f.shape();
                                 Ok(SchemaField {
                                     name: f.effective_name().to_string(),
-                                    ty: convert_shape(field_shape, structs)?,
+                                    ty: convert_shape(field_shape, structs, enums)?,
                                 })
                             })
                             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -191,7 +245,7 @@ fn convert_shape(
                         // the recursive convert_shape calls above), and a
                         // value cycle (X containing Y containing X) can't
                         // compile in Rust in the first place.
-                        let layout = compute_struct_layout(&fields, structs)?;
+                        let layout = compute_struct_layout(&fields, structs, enums)?;
                         structs.insert(key.clone(), SchemaStruct {
                             name,
                             module_path,
@@ -205,14 +259,121 @@ fn convert_shape(
                         module_path: key.0,
                     })
                 }
+                facet::Type::User(facet::UserType::Enum(e)) => {
+                    let module_path = shape.module_path.map(|p| p.to_owned());
+                    let name = shape.effective_name().to_string();
+                    let key = (module_path.clone(), name.clone());
+
+                    if !enums.contains_key(&key) {
+                        let discriminant = scalar_kind_of_enum_repr(e.enum_repr)?;
+                        let has_data = e.variants.iter().any(|v| v.data.kind != facet::StructKind::Unit);
+
+                        // FFI-safety rides on the discriminant layout alone:
+                        // `#[repr(C)]` (implicit-discriminant data enums) and
+                        // `#[repr(i32)]`-style data enums (rustc forces
+                        // explicit discriminants there) both get a fixed-size
+                        // EnumRepr, while a default-repr enum reports
+                        // `EnumRepr::Rust` and is rejected above as having no
+                        // stable ABI.
+                        let variants = e
+                            .variants
+                            .iter()
+                            .map(|v| {
+                                let variant = SchemaEnumVariant {
+                                    name: v.name.to_string(),
+                                    discriminant: v.discriminant.ok_or_else(|| {
+                                        anyhow::anyhow!(
+                                            "koffi M0 can't reflect the discriminant of `{name}`: {shape:?}"
+                                        )
+                                    })?,
+                                    is_struct_variant: v.data.kind == facet::StructKind::Struct,
+                                    placements: project_variant_fields(v, structs, enums)?,
+                                };
+                                Ok(variant)
+                            })
+                            .collect::<anyhow::Result<Vec<_>>>()?;
+
+                        let layout = compute_enum_layout(discriminant, &variants, structs, enums)?;
+                        enums.insert(key.clone(), SchemaEnum {
+                            name: name.clone(),
+                            module_path,
+                            discriminant,
+                            has_data,
+                            variants,
+                            layout,
+                        });
+                    }
+
+                    let e = enums
+                        .get(&key)
+                        .ok_or_else(|| anyhow::anyhow!("koffi: enum `{name}` not registered"))?;
+                    Ok(SchemaTypeRef::Enum {
+                        name: e.name.clone(),
+                        module_path: e.module_path.clone(),
+                        discriminant: e.discriminant,
+                        has_data: e.has_data,
+                    })
+                }
                 _ => {
                     anyhow::bail!(
-                        "koffi M0 only supports plain structs and scalars, got: {shape:?}"
+                        "koffi M0 only supports plain structs, fieldless #[repr(C)]/primitive-repr \
+                         enums, and scalars, got: {shape:?}"
                     )
                 }
             }
         }
-        _ => anyhow::bail!("koffi M0 only supports plain structs and scalars: {shape:?}"),
+        _ => anyhow::bail!(
+            "koffi M0 only supports plain structs, fieldless #[repr(C)]/primitive-repr enums, \
+             and scalars: {shape:?}"
+        ),
+    }
+}
+
+/// Projects one enum variant's payload fields. Unit variants yield an empty
+/// list; tuple-variant fields get `field{n}` names (facet names them `"0"`,
+/// which isn't a valid Kotlin/Rust identifier).
+fn project_variant_fields(
+    variant: &'static facet::Variant,
+    structs: &mut BTreeMap<(Option<String>, String), SchemaStruct>,
+    enums: &mut BTreeMap<(Option<String>, String), SchemaEnum>,
+) -> anyhow::Result<Vec<FieldPlacement>> {
+    variant
+        .data
+        .fields
+        .iter()
+        .map(|f| {
+            let name = if variant.data.kind == facet::StructKind::TupleStruct {
+                format!("field{}", f.effective_name())
+            } else {
+                f.effective_name().to_string()
+            };
+            Ok(FieldPlacement {
+                name,
+                offset: f.offset as u64,
+                ty: convert_shape(f.shape(), structs, enums)?,
+            })
+        })
+        .collect()
+}
+
+fn scalar_kind_of_enum_repr(repr: facet::EnumRepr) -> anyhow::Result<ScalarKind> {
+    match repr {
+        facet::EnumRepr::U8 => Ok(ScalarKind::U8),
+        facet::EnumRepr::U16 => Ok(ScalarKind::U16),
+        facet::EnumRepr::U32 => Ok(ScalarKind::U32),
+        facet::EnumRepr::U64 => Ok(ScalarKind::U64),
+        facet::EnumRepr::I8 => Ok(ScalarKind::I8),
+        facet::EnumRepr::I16 => Ok(ScalarKind::I16),
+        facet::EnumRepr::I32 => Ok(ScalarKind::I32),
+        facet::EnumRepr::I64 => Ok(ScalarKind::I64),
+        facet::EnumRepr::Rust | facet::EnumRepr::RustNPO => anyhow::bail!(
+            "koffi M0 requires #[repr(C)] or an explicit primitive repr on enums (default Rust \
+             repr has no stable FFI layout)"
+        ),
+        facet::EnumRepr::USize | facet::EnumRepr::ISize => anyhow::bail!(
+            "koffi M0 doesn't support enum discriminants with a platform-dependent layout \
+             (#[repr(usize)]/#[repr(isize)])"
+        ),
     }
 }
 

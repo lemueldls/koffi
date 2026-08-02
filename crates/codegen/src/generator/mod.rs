@@ -37,16 +37,10 @@ fn render_rust(schema: &Schema, crate_path: &Path, rust_out_dir: &Path) -> anyho
     write_template(
         RustCargoToml {
             crate_name: &schema.glue_crate_ident(),
-            required_dependencies: &[
-                CargoDep {
-                    name: schema.crate_name.clone(),
-                    path: rel_crate_path,
-                },
-                CargoDep {
-                    name: "koffi".to_string(),
-                    path: "../../crates/api".to_string(),
-                },
-            ],
+            required_dependencies: &[CargoDep {
+                name: schema.crate_name.clone(),
+                path: rel_crate_path,
+            }],
             optional_dependencies: &[
                 CargoOptionalDep {
                     name: "jni".to_string(),

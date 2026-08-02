@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::schema::{ScalarKind, SchemaField, SchemaStruct, SchemaTypeRef};
+use crate::schema::{ScalarKind, SchemaEnum, SchemaEnumVariant, SchemaField, SchemaStruct, SchemaTypeRef};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Layout {
@@ -18,7 +18,7 @@ pub struct FieldPlacement {
 #[derive(Debug, Clone)]
 pub enum LayoutEntry {
     Value {
-        kotlin_layout: &'static str,
+        kotlin_layout: String,
         name: String,
     },
     Padding {
@@ -50,6 +50,7 @@ pub const fn scalar_layout(kind: ScalarKind) -> Layout {
 pub fn layout_of(
     ty: &SchemaTypeRef,
     structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
+    enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
 ) -> anyhow::Result<Layout> {
     match ty {
         SchemaTypeRef::Scalar(k) => Ok(scalar_layout(*k)),
@@ -59,12 +60,19 @@ pub fn layout_of(
                 .ok_or_else(|| anyhow::anyhow!("layout_of: `{name}` not yet in the struct map"))?;
             Ok(s.layout.total)
         }
+        SchemaTypeRef::Enum { name, module_path, .. } => {
+            let e = enums
+                .get(&(module_path.clone(), name.clone()))
+                .ok_or_else(|| anyhow::anyhow!("layout_of: `{name}` not yet in the enum map"))?;
+            Ok(e.layout.total)
+        }
     }
 }
 
 pub fn compute_struct_layout(
     fields: &[SchemaField],
     structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
+    enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
 ) -> anyhow::Result<StructLayoutInfo> {
     let mut entries = Vec::new();
     let mut placements = Vec::new();
@@ -72,7 +80,7 @@ pub fn compute_struct_layout(
     let mut max_align: u64 = 1;
 
     for field in fields {
-        let fl = layout_of(&field.ty, structs)?;
+        let fl = layout_of(&field.ty, structs, enums)?;
         let aligned = round_up(offset, fl.align);
         if aligned > offset {
             entries.push(LayoutEntry::Padding {
@@ -80,7 +88,7 @@ pub fn compute_struct_layout(
             });
         }
         entries.push(LayoutEntry::Value {
-            kotlin_layout: kotlin_value_layout_name(&field.ty)?,
+            kotlin_layout: kotlin_value_layout_name(&field.ty, structs, enums)?,
             name: field.name.clone(),
         });
         placements.push(FieldPlacement {
@@ -109,26 +117,121 @@ pub fn compute_struct_layout(
     })
 }
 
-fn kotlin_value_layout_name(ty: &SchemaTypeRef) -> anyhow::Result<&'static str> {
-    match ty {
-        SchemaTypeRef::Scalar(ScalarKind::Bool) => Ok("ValueLayout.JAVA_BOOLEAN"),
-        SchemaTypeRef::Scalar(ScalarKind::U8 | ScalarKind::I8) => Ok("ValueLayout.JAVA_BYTE"),
-        SchemaTypeRef::Scalar(ScalarKind::U16 | ScalarKind::I16) => Ok("ValueLayout.JAVA_SHORT"),
-        SchemaTypeRef::Scalar(ScalarKind::U32 | ScalarKind::I32) => Ok("ValueLayout.JAVA_INT"),
-        SchemaTypeRef::Scalar(ScalarKind::U64 | ScalarKind::I64) => Ok("ValueLayout.JAVA_LONG"),
-        SchemaTypeRef::Scalar(ScalarKind::F32) => Ok("ValueLayout.JAVA_FLOAT"),
-        SchemaTypeRef::Scalar(ScalarKind::F64) => Ok("ValueLayout.JAVA_DOUBLE"),
-        // A nested struct field needs the other struct's *dynamic* layout
-        // constant name, not a &'static str; building that name here would
-        // duplicate the formula in SchemaStruct::unique_ident. Explicit
-        // named gap over a silently wrong placeholder; needs a shared
-        // naming fn returning an owned String before struct-typed fields
-        // can work.
-        SchemaTypeRef::Struct { name, .. } => {
-            anyhow::bail!(
-                "koffi M0 doesn't yet support a struct-typed field (`{name}`); \
-             needs a shared naming function, not a third copy of the formula"
-            )
+/// Lays out a data-carrying enum as C would: the discriminant at
+/// offset 0, then the union of every variant's payload (facet's
+/// offsets already include the discriminant).
+///
+/// The per-variant `placements` keep their own absolute offsets and field
+/// types — those drive the actual reads/writes. The `entries` region only
+/// needs to cover the union faithfully, so at each offset shared by several
+/// variants' fields (they overlap by construction) the widest one wins.
+pub fn compute_enum_layout(
+    discriminant: ScalarKind,
+    variants: &[SchemaEnumVariant],
+    structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
+    enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
+) -> anyhow::Result<StructLayoutInfo> {
+    if !matches!(
+        discriminant,
+        ScalarKind::U8 | ScalarKind::U16 | ScalarKind::U32 | ScalarKind::U64
+            | ScalarKind::I8 | ScalarKind::I16 | ScalarKind::I32 | ScalarKind::I64
+    ) {
+        anyhow::bail!("koffi M0: enum discriminant must be an integer scalar");
+    }
+
+    let d_layout = scalar_layout(discriminant);
+    let mut max_align = d_layout.align;
+    let mut max_end = d_layout.size;
+
+    // Per unique offset: the widest field layout (and its Kotlin layout
+    // name), for the union region. Overlapping payload fields of different
+    // variants only need the region sized; actual reads/writes always use
+    // per-variant placement types.
+    let mut by_offset: BTreeMap<u64, (Layout, String)> = BTreeMap::new();
+
+    for variant in variants {
+        for placement in &variant.placements {
+            let fl = layout_of(&placement.ty, structs, enums)?;
+            let layout_name = kotlin_value_layout_name(&placement.ty, structs, enums)?;
+            let end = placement.offset + fl.size;
+            max_end = max_end.max(end);
+            max_align = max_align.max(fl.align);
+
+            by_offset
+                .entry(placement.offset)
+                .and_modify(|(l, n)| {
+                    if fl.size > l.size {
+                        *l = fl;
+                        n.clone_from(&layout_name);
+                    }
+                })
+                .or_insert((fl, layout_name));
         }
+    }
+
+    let total_size = round_up(max_end, max_align);
+    let mut entries = Vec::new();
+    let mut offset: u64 = d_layout.size;
+
+    entries.push(LayoutEntry::Value {
+        kotlin_layout: kotlin_value_layout_name(&SchemaTypeRef::Scalar(discriminant), structs, enums)?,
+        name: "discriminant".to_string(),
+    });
+
+    for (off, (l, name)) in by_offset {
+        if off > offset {
+            entries.push(LayoutEntry::Padding {
+                bytes: off - offset,
+            });
+        }
+        entries.push(LayoutEntry::Value {
+            kotlin_layout: name,
+            name: String::new(),
+        });
+        offset = off + l.size;
+    }
+    if total_size > offset {
+        entries.push(LayoutEntry::Padding {
+            bytes: total_size - offset,
+        });
+    }
+
+    Ok(StructLayoutInfo {
+        entries,
+        placements: variants
+            .iter()
+            .flat_map(|v| v.placements.clone())
+            .collect(),
+        total: Layout {
+            size: total_size,
+            align: max_align,
+        },
+    })
+}
+
+fn kotlin_value_layout_name(
+    ty: &SchemaTypeRef,
+    _structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
+    enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
+) -> anyhow::Result<String> {
+    match ty {
+        SchemaTypeRef::Scalar(k) => Ok(k.kotlin_ffm_value_layout().to_string()),
+        SchemaTypeRef::Enum { name, module_path, discriminant, has_data } => {
+            if *has_data {
+                let e = enums
+                    .get(&(module_path.clone(), name.clone()))
+                    .ok_or_else(|| anyhow::anyhow!("`{name}` not yet in the enum map"))?;
+                Ok(e.kotlin_ffm_value_layout())
+            } else {
+                Ok(discriminant.kotlin_ffm_value_layout().to_string())
+            }
+        }
+        // A nested struct field can't be marshalled yet: FFM `set`/`get`
+        // only accept value layouts, and the read/write loops here would
+        // need a segment-copy branch like data enums have. Explicit named
+        // gap over silently broken output.
+        SchemaTypeRef::Struct { name, .. } => anyhow::bail!(
+            "koffi M0 doesn't yet support a struct-typed field (`{name}`)"
+        ),
     }
 }

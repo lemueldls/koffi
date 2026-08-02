@@ -15,6 +15,58 @@ actual object {{ schema.ffi_object_name() }} {
     val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)
     val linker: Linker = Linker.nativeLinker()
 
+    {#~ Enum layouts first: struct layouts may embed them, and Kotlin
+       initializes properties in declaration order (a forward reference is
+       a compile error). Fieldless enums have no layout constant. -#}
+    {%~ for e in schema.enums %}{% if e.has_data %}
+    private val {{ e.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
+        {%- for entry in e.layout.entries %}
+        {%- match entry %}
+        {%- when LayoutEntry::Value { kotlin_layout, name } %}
+        {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
+        {%- when LayoutEntry::Padding { bytes } %}
+        MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
+        {%- endmatch %}
+        {%- endfor %}
+    )
+
+    {#~ Per-enum marshallers. `statusToFfm` materializes the enum's memory
+       image (discriminant + active variant's payload at absolute offsets);
+       `statusFromFfm` reads it back. Only data-carrying enums need these —
+       fieldless ones cross the ABI as their plain discriminant scalar.
+       They are plain members (not member extensions, which can't be
+       called via the class name) of the actual object. -#}
+    private fun {{ e.to_ffm_ident() }}(value: {{ e.name }}, arena: Arena): MemorySegment {
+        val segment = arena.allocate({{ e.kotlin_ffm_value_layout() }})
+        segment.set({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L, value.discriminant{{ e.discriminant.to_ffm_suffix() }})
+        when (value) {
+            {%- for v in e.variants %}
+            {%- if v.placements.is_empty() %}
+            {{ e.name }}.{{ v.name }} -> {
+            }
+            {%- else %}
+            is {{ e.name }}.{{ v.name }} -> {
+                {%- for f in v.placements %}
+                segment.set({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L, value.{{ f.name }}{{ f.ty.to_ffm_suffix() }})
+                {%- endfor %}
+            }
+            {%- endif %}
+            {%- endfor %}
+        }
+        return segment
+    }
+
+    private fun {{ e.from_ffm_ident() }}(segment: MemorySegment): {{ e.name }} {
+        val d = segment.get({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L){{ e.discriminant.from_ffm_suffix() }}
+        return when (d) {
+            {%- for v in e.variants %}
+            {{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }} -> {% if v.placements.is_empty() %}{{ e.name }}.{{ v.name }}{% else %}{{ e.name }}.{{ v.name }}({% for f in v.placements %}{{ f.name }} = segment.get({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L){{ f.ty.from_ffm_suffix() }}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
+            {%- endfor %}
+            else -> error("koffi: invalid {{ e.name }} discriminant $d")
+        }
+    }
+    {% endif %}{%- endfor %}
+
     {%~ for s in schema.structs %}
     private val {{ s.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
         {%- for entry in s.layout.entries %}
@@ -39,32 +91,49 @@ actual object {{ schema.ffi_object_name() }} {
     {%- endfor %}
 
     {%~ for f in schema.functions %}
-    actual fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
+    actual fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
         Arena.ofConfined().use { callArena ->
             {%- for p in f.params %}
-            {%- if let Some(placements) = p.struct_field_placements(schema.structs) %}
+            {%- if p.ty.has_data() %}
+            val {{ p.name }}Segment = {{ p.ty.to_ffm_ident() }}({{ p.name }}, callArena)
+            {%- elif let Some(placements) = p.struct_field_placements(schema.structs) %}
             val {{ p.name }}Segment = callArena.allocate({{ p.ty.kotlin_ffm_value_layout() }})
             {%- for placement in placements %}
+            {%- if placement.ty.has_data() %}
+            {{ p.name }}Segment.asSlice({{ placement.offset }}L, {{ placement.ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ placement.ty.to_ffm_ident() }}({{ p.name }}.{{ placement.name }}, callArena))
+            {%- else %}
             {{ p.name }}Segment.set({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L, {{ p.name }}.{{ placement.name }}{{ placement.ty.to_ffm_suffix() }})
+            {%- endif %}
             {%- endfor %}
             {%- endif %}
             {%- endfor %}
             {%- if let Some(retPlacements) = f.return_type.struct_field_placements(schema.structs) %}
             val __r = {{ f.unique_ident() }}.invokeWithArguments(callArena
-                {%- for p in f.params -%}, {% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
+                {%- for p in f.params -%}, {% if p.ty.has_data() || p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
             ) as MemorySegment
             return {{ f.return_type.kotlin_type() }}(
                 {%- for placement in retPlacements -%}
+                {%- if placement.ty.has_data() %}
+                {{ placement.name }} = {{ placement.ty.from_ffm_ident() }}(__r.asSlice({{ placement.offset }}L, {{ placement.ty.kotlin_ffm_value_layout() }}.byteSize())){% if !loop.last %},{% endif %}
+                {%- else %}
                 {{ placement.name }} = __r.get({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L){{ placement.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
+                {%- endif %}
                 {%- endfor -%}
             )
             {%- else %}
-            val __r = {{ f.unique_ident() }}.invokeWithArguments(
-                {%- for p in f.params -%}{% if !loop.first %}, {% endif %}{% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
+            {#~ Memory-backed returns (structs and data-carrying enums) need
+               the segment allocator as the first downcall argument. -#}
+            val __r = {{ f.unique_ident() }}.invokeWithArguments({% if f.return_type.has_data() %}callArena{% if !f.params.is_empty() %}, {% endif %}{% endif %}{%- for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.has_data() || p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor -%}
             )
             {%- match f.return_type %}
             {%- when SchemaTypeRef::Scalar with (kind) %}
             return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
+            {%- when SchemaTypeRef::Enum with { name, discriminant, has_data, .. } %}
+            {%- if has_data %}
+            return {{ f.return_type.from_ffm_ident() }}(__r as MemorySegment)
+            {%- else %}
+            return {{ name }}.fromDiscriminant((__r as {{ discriminant.jvm_boxed_type() }}){{ discriminant.from_ffm_suffix() }})
+            {%- endif %}
             {%- when SchemaTypeRef::Struct with { .. } %}
             {# unreachable: the retPlacements branch above handles every struct return #}
             {%- endmatch %}

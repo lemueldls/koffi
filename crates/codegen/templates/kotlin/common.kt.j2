@@ -25,7 +25,7 @@ data class {{ s.name }}(
 {%- for f in schema.functions_of(s) %}
 {%- if f.has_receiver() %}
     fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
-        {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}(this{% for p in f.params %}{% if !p.is_receiver %}, {{ p.name }}{% endif %}{% endfor %})
+        {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}(this{% for p in f.params %}{% if !p.is_receiver %}, {{ p.name }}{% endif %}{% endfor %})
 {%- endif %}
 {%- endfor %}
 {%- if schema.has_companion_functions(s) %}
@@ -35,10 +35,10 @@ data class {{ s.name }}(
 {%- if f.is_constructor() || f.is_companion_function() %}
 {%- if f.is_constructor() && !s.matches_primary_constructor(&f.params) %}
         operator fun invoke({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
-            {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}({{ kt_args(&f.params) }})
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
 {%- endif %}
         fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
-            {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}({{ kt_args(&f.params) }})
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
 {%- endif %}
 {%- endfor %}
     }
@@ -47,8 +47,74 @@ data class {{ s.name }}(
 {%- endif %}
 {%- endfor %}
 
+{%~ for e in schema.enums %}
+{% if e.has_data %}
+{#~ Data-carrying Rust enums map to sealed classes: unit variants become
+   `object`s, payload variants `data class`es carrying their fields. The
+   discriminant stays a constructor property so ffm can roundtrip it. -#}
+sealed class {{ e.name }}(val discriminant: {{ e.discriminant.kotlin_type() }}) {
+{%- for v in e.variants %}
+{%- if v.placements.is_empty() %}
+    object {{ v.name }} : {{ e.name }}({{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }})
+{%- else %}
+    data class {{ v.name }}(
+{%- for f in v.placements %}
+        val {{ f.name }}: {{ f.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
+{%- endfor %}
+    ) : {{ e.name }}({{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }})
+{%- endif %}
+{%- endfor %}
+
+{%- for f in schema.functions_of_enum(e) %}
+{%- if f.has_receiver() %}
+    fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+        {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}(this{% for p in f.params %}{% if !p.is_receiver %}, {{ p.name }}{% endif %}{% endfor %})
+{%- endif %}
+{%- endfor %}
+
+    companion object {
+{%- for f in schema.functions_of_enum(e) %}
+{%- if f.is_constructor() || f.is_companion_function() %}
+        operator fun invoke({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
+        fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
+{%- endif %}
+{%- endfor %}
+    }
+}
+{% else %}
+enum class {{ e.name }}(val discriminant: {{ e.discriminant.kotlin_type() }}) {
+{%- for v in e.variants %}
+    {{ v.name }}({{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }}){% if !loop.last %},{% endif %}
+{%- endfor %};
+{% if !schema.functions_of_enum(e).is_empty() %}
+{%- for f in schema.functions_of_enum(e) %}
+{%- if f.has_receiver() %}
+    fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+        {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}(this{% for p in f.params %}{% if !p.is_receiver %}, {{ p.name }}{% endif %}{% endfor %})
+{%- endif %}
+{%- endfor %}
+
+{%- endif %}
+    companion object {
+        fun fromDiscriminant(value: {{ e.discriminant.kotlin_type() }}): {{ e.name }} =
+            entries.first { it.discriminant == value }
+{%- for f in schema.functions_of_enum(e) %}
+{%- if f.is_constructor() || f.is_companion_function() %}
+        operator fun invoke({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
+        fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
+{%- endif %}
+{%- endfor %}
+    }
+}
+{% endif %}
+{%- endfor %}
+
 expect object {{ schema.ffi_object_name() }} {
 {%- for f in schema.functions %}
-    fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }}
+    fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }}
 {%- endfor %}
 }
