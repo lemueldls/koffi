@@ -2,20 +2,55 @@
 
 package {{ schema.kotlin_package() }}
 
+{#~ Renders a Kotlin nice-API param list: name-and-type pairs, comma
+   separated, skipping any receiver entry (`this` supplies that implicitly
+   for instance methods; constructor/companion fns never have one to begin
+   with, so the filter is a no-op there). -#}
+{%- macro kt_params(params) -%}
+{%- for p in params %}{% if !p.is_receiver %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endif %}{% endfor -%}
+{%- endmacro -%}
+
+{#~ Renders a plain comma-separated argument list (names only, no types).
+   Callers must pass a receiver-free `params`, constructor and companion
+   fns always are; this doesn't filter, so a receiver slipped in here would
+   produce a stray leading argument. -#}
+{%- macro kt_args(params) -%}
+{%- for p in params %}{{ p.name }}{% if !loop.last %}, {% endif %}{% endfor -%}
+{%- endmacro -%}
+
 {%~ for s in schema.structs %}
 data class {{ s.name }}(
-    {%- for field in s.fields -%}
+{%- for field in s.fields %}
     val {{ field.name }}: {{ field.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
-    {%- endfor -%}
-)
+{%- endfor %}
+){% if !schema.functions_of(s).is_empty() %} {
+{%- for f in schema.functions_of(s) %}
+{%- if f.has_receiver() %}
+    fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+        {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}(this{% for p in f.params %}{% if !p.is_receiver %}, {{ p.name }}{% endif %}{% endfor %})
+{%- endif %}
+{%- endfor %}
+{%- if schema.has_companion_functions(s) %}
+
+    companion object {
+{%- for f in schema.functions_of(s) %}
+{%- if f.is_constructor() || f.is_companion_function() %}
+{%- if f.is_constructor() && !s.matches_primary_constructor(&f.params) %}
+        operator fun invoke({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}({{ kt_args(&f.params) }})
+{%- endif %}
+        fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}({{ kt_args(&f.params) }})
+{%- endif %}
+{%- endfor %}
+    }
+{%- endif %}
+}
+{%- endif %}
 {%- endfor %}
 
+expect object {{ schema.ffi_object_name() }} {
 {%- for f in schema.functions %}
-expect fun {{ f.kotlin_name }}(
-    {%- for p in f.params -%}
-    {%- if !p.is_receiver %}
-    {{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
-    {%- endif %}
-    {%- endfor -%}
-): {{ f.return_type.kotlin_type() }}
+    fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }}
 {%- endfor %}
+}

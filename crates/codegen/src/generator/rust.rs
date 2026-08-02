@@ -8,10 +8,23 @@ impl Schema {
 }
 
 impl SchemaFn {
+    /// Absolute path to the real item this entry describes,
+    /// `::crate::Type::method` for anything inside an `impl` block, method
+    /// or receiver-less associated fn alike, keyed off `parent`, not off
+    /// whether it takes a receiver; `::crate::function` for a free
+    /// function. The leading `::` is Rust's "start from the crate root"
+    /// syntax, deliberate: it keeps generated code correct even if some
+    /// local name in the generated crate happens to shadow part of the
+    /// path.
+    ///
+    /// For anything with a `parent`, this is built from
+    /// `parent.rust_absolute_path()`, the parent type's own module path,
+    /// not `self.module_path` (where the impl block happens to be
+    /// written); those can differ.
     #[must_use]
     pub fn rust_absolute_path(&self) -> String {
-        if let Some(recv) = &self.receiver {
-            format!("{}::{}", recv.rust_absolute_path(), self.rust_name)
+        if let Some(parent) = &self.parent {
+            format!("{}::{}", parent.rust_absolute_path(), self.rust_name)
         } else {
             let base = self
                 .module_path
@@ -23,6 +36,10 @@ impl SchemaFn {
         }
     }
 
+    /// Delegates to `c_abi_symbol` (generator/c.rs). See the comment there:
+    /// this used to be a second, independent formula that didn't know about
+    /// `parent`, and silently disagreed with `c_abi_symbol` for every
+    /// method.
     #[must_use]
     pub fn unique_ident(&self) -> String {
         self.c_abi_symbol()

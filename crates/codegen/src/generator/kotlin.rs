@@ -2,7 +2,7 @@ use heck::ToUpperCamelCase;
 
 use crate::{
     layout::FieldPlacement,
-    schema::{ScalarKind, Schema, SchemaParam, SchemaStruct, SchemaTypeRef},
+    schema::{ScalarKind, Schema, SchemaFn, SchemaParam, SchemaStruct, SchemaTypeRef},
 };
 
 impl Schema {
@@ -33,6 +33,30 @@ impl Schema {
     #[must_use]
     pub fn glue_crate_ident(&self) -> String {
         format!("{}_glue", self.crate_ident())
+    }
+
+    /// Every fn whose `parent` is `s`, in Rust declaration order. Drives
+    /// every per-struct Kotlin member (instance methods, constructors,
+    /// companion functions alike) in common.kt.j2. The flat `functions`
+    /// list itself stays flat and untouched elsewhere, it's what the
+    /// low-level FFI object (`expect`/`actual object`) is built from, and
+    /// that needs every fn addressable by one ABI symbol regardless of
+    /// which struct, if any, it belongs to.
+    #[must_use]
+    pub fn functions_of<'a>(&'a self, s: &'a SchemaStruct) -> Vec<&'a SchemaFn> {
+        self.functions
+            .iter()
+            .filter(|f| f.parent.as_ref().is_some_and(|p| p.same_struct(s)))
+            .collect()
+    }
+
+    /// Does `s` have at least one associated fn that isn't an instance
+    /// method (a constructor or an ordinary companion fn)? Drives whether
+    /// common.kt.j2 opens a `companion object { .. }` block at all, an
+    /// empty one isn't valid Kotlin to emit unconditionally.
+    #[must_use]
+    pub fn has_companion_functions(&self, s: &SchemaStruct) -> bool {
+        self.functions_of(s).iter().any(|f| !f.has_receiver())
     }
 }
 
@@ -164,6 +188,26 @@ impl ScalarKind {
 }
 
 impl SchemaStruct {
+    /// Does calling this struct's own primary (field) constructor take the
+    /// same argument list, in order and type, as `params`? Used to decide
+    /// whether a constructor-shaped fn (`SchemaFn::is_constructor`) can
+    /// safely also get a companion `operator fun invoke` in Kotlin.
+    /// `Type(..)` call syntax already means "call the primary constructor";
+    /// Kotlin lets a companion `invoke` overload that syntax, but only when
+    /// its signature doesn't collide with the primary constructor's. When
+    /// the shapes match, common.kt.j2 skips `invoke` and only emits the
+    /// always-safe named companion function (`Type.new(..)`), rather than
+    /// emit an overload the compiler would reject.
+    #[must_use]
+    pub fn matches_primary_constructor(&self, params: &[SchemaParam]) -> bool {
+        self.fields.len() == params.len()
+            && self
+                .fields
+                .iter()
+                .zip(params)
+                .all(|(field, param)| field.ty == param.ty)
+    }
+
     #[must_use]
     pub fn kotlin_ffm_value_layout(&self) -> String {
         format!("{}Layout", self.unique_ident())

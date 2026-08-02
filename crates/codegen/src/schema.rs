@@ -17,9 +17,37 @@ pub struct SchemaFn {
     pub rust_name: String,
     pub kotlin_name: String,
     pub module_path: Option<String>,
-    pub receiver: Option<SchemaTypeRef>,
+    pub parent: Option<SchemaTypeRef>,
     pub params: Vec<SchemaParam>,
     pub return_type: SchemaTypeRef,
+}
+
+impl SchemaFn {
+    /// Does this fn take a `self`/`&self`/`&mut self` receiver? Just asks
+    /// the params directly (`FnShapeParam::is_receiver`, set by the macro),
+    /// not `parent.is_some()`, a `parent`-having fn can easily have no
+    /// receiver at all (`Payload::new(data: u16) -> Self`).
+    #[must_use]
+    pub fn has_receiver(&self) -> bool {
+        self.params.iter().any(|p| p.is_receiver)
+    }
+
+    /// True for a `parent`-having, receiver-less fn whose return type is
+    /// exactly its own `parent`: `Payload::new(..) -> Self`-shaped. This is
+    /// what the Kotlin generator treats as a constructor (see
+    /// common.kt.j2), rather than an ordinary companion function.
+    #[must_use]
+    pub fn is_constructor(&self) -> bool {
+        !self.has_receiver() && self.parent.as_ref().is_some_and(|p| *p == self.return_type)
+    }
+
+    /// True for a `parent`-having fn that's neither an instance method nor
+    /// a constructor, `Payload::describe_format() -> u32`-shaped. Lands in
+    /// the Kotlin `companion object` as an ordinary function.
+    #[must_use]
+    pub fn is_companion_function(&self) -> bool {
+        self.parent.is_some() && !self.has_receiver() && !self.is_constructor()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -63,6 +91,12 @@ impl SchemaTypeRef {
             SchemaTypeRef::Scalar(k) => k.rust_type_name().to_string(),
         }
     }
+
+    #[must_use]
+    pub fn same_struct(&self, s: &SchemaStruct) -> bool {
+        matches!(self, SchemaTypeRef::Struct { name, module_path }
+            if name == &s.name && module_path == &s.module_path)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,33 +123,27 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
         let kotlin_name = entry.name.trim_start_matches("r#").to_lower_camel_case();
         let module_path = entry.module_path.map(|p| p.to_owned());
 
-        let receiver = entry
-            .receiver
+        let parent = entry
+            .parent
             .map(|ty| convert_shape(ty.shape(), &mut structs))
             .transpose()?;
 
-        let mut params = entry
+        // `is_receiver` comes straight from the macro, which knows for
+        // certain whether a given param is `self`; there's no reconstructing
+        // it from `parent` the way an earlier version of this tried to
+        // (`parent.is_some()` doesn't imply anything about params[0],
+        // `Payload::new` has a `parent` and zero receiver params).
+        let params = entry
             .params
             .iter()
             .map(|p| {
                 Ok(SchemaParam {
                     name: p.name.to_string(),
                     ty: convert_shape(p.param_type.shape(), &mut structs)?,
-                    is_receiver: false,
+                    is_receiver: p.is_receiver,
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
-
-        // See the doc comment on `SchemaFn::receiver`: it isn't its own
-        // field on FnShapeRef, it's positional, always params[0] when
-        // receiver is Some. Marking it here, once, is what lets every
-        // consumer (both templates) branch on `p.is_receiver` instead of
-        // each having to know and re-derive that convention itself.
-        if receiver.is_some()
-            && let Some(first) = params.first_mut()
-        {
-            first.is_receiver = true;
-        }
 
         let return_type = convert_shape(entry.return_type.shape(), &mut structs)?;
 
@@ -123,7 +151,7 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
             rust_name,
             kotlin_name,
             module_path,
-            receiver,
+            parent,
             params,
             return_type,
         });

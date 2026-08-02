@@ -7,48 +7,13 @@ import java.lang.invoke.MethodHandle
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-{%~ for f in schema.functions %}
-actual fun {{ f.kotlin_name }}(
-    {%- for p in f.params %}
-    {%- if !p.is_receiver %}
-    {{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
-    {%- endif %}
-    {%- endfor %}
-): {{ f.return_type.kotlin_type() }} {
-    Arena.ofConfined().use { callArena ->
-        {%- for p in f.params %}
-        {%- if let Some(placements) = p.struct_field_placements(schema.structs) %}
-        val {{ p.name }}Segment = callArena.allocate({{ p.ty.kotlin_ffm_value_layout() }})
-        {%- for placement in placements %}
-        {{ p.name }}Segment.set({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L, {{ p.name }}.{{ placement.name }}{{ placement.ty.to_ffm_suffix() }})
-        {%- endfor %}
-        {%- endif %}
-        {%- endfor %}
-        {%- if let Some(retPlacements) = f.return_type.struct_field_placements(schema.structs) %}
-        val __r = {{ schema.ffi_object_name() }}.{{ f.unique_ident() }}.invokeWithArguments(callArena
-            {%- for p in f.params -%}, {% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
-        ) as MemorySegment
-        return {{ f.return_type.kotlin_type() }}(
-            {%- for placement in retPlacements -%}
-            {{ placement.name }} = __r.get({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L){{ placement.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
-            {%- endfor -%}
-        )
-        {%- else %}
-        val __r = {{ schema.ffi_object_name() }}.{{ f.unique_ident() }}.invokeWithArguments(
-            {%- for p in f.params -%}{% if !loop.first %}, {% endif %}{% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
-        )
-        {%- match f.return_type %}
-        {%- when SchemaTypeRef::Scalar with (kind) %}
-        return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
-        {%- when SchemaTypeRef::Struct with { .. } %}
-        {# unreachable: the retPlacements branch above handles every struct return #}
-        {%- endmatch %}
-        {%- endif %}
-    }
-}
-{%- endfor %}
-
-object {{ schema.ffi_object_name() }} {
+{# `actual object` matching the `expect object` in common.kt.j2: the
+   expect/actual pair makes the FFI surface platform-independent, and the
+   per-fn `actual fun`s below are members of it, exactly like the `expect`
+   declarations they implement. Both the MethodHandle/layout plumbing and
+   the nice `actual fun`s live in this one object, the handles are private
+   but the functions need them, so they have to share a scope. #}
+actual object {{ schema.ffi_object_name() }} {
     private val arena: Arena = Arena.ofShared()
     val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)
     val linker: Linker = Linker.nativeLinker()
@@ -74,6 +39,41 @@ object {{ schema.ffi_object_name() }} {
             {%- for p in f.params %}, {{ p.ty.kotlin_ffm_value_layout() }}{% endfor -%}
         ),
     )
+    {%- endfor %}
+
+    {%~ for f in schema.functions %}
+    actual fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
+        Arena.ofConfined().use { callArena ->
+            {%- for p in f.params %}
+            {%- if let Some(placements) = p.struct_field_placements(schema.structs) %}
+            val {{ p.name }}Segment = callArena.allocate({{ p.ty.kotlin_ffm_value_layout() }})
+            {%- for placement in placements %}
+            {{ p.name }}Segment.set({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L, {{ p.name }}.{{ placement.name }}{{ placement.ty.to_ffm_suffix() }})
+            {%- endfor %}
+            {%- endif %}
+            {%- endfor %}
+            {%- if let Some(retPlacements) = f.return_type.struct_field_placements(schema.structs) %}
+            val __r = {{ f.unique_ident() }}.invokeWithArguments(callArena
+                {%- for p in f.params -%}, {% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
+            ) as MemorySegment
+            return {{ f.return_type.kotlin_type() }}(
+                {%- for placement in retPlacements -%}
+                {{ placement.name }} = __r.get({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L){{ placement.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
+                {%- endfor -%}
+            )
+            {%- else %}
+            val __r = {{ f.unique_ident() }}.invokeWithArguments(
+                {%- for p in f.params -%}{% if !loop.first %}, {% endif %}{% if p.struct_field_placements(schema.structs).is_some() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{%- endfor -%}
+            )
+            {%- match f.return_type %}
+            {%- when SchemaTypeRef::Scalar with (kind) %}
+            return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
+            {%- when SchemaTypeRef::Struct with { .. } %}
+            {# unreachable: the retPlacements branch above handles every struct return #}
+            {%- endmatch %}
+            {%- endif %}
+        }
+    }
     {%- endfor %}
 }
 

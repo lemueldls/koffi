@@ -6,12 +6,131 @@ Schema {
     crate_name: "hello-kotlin",
     functions: [
         SchemaFn {
+            rust_name: "describe_format",
+            kotlin_name: "describeFormat",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "data",
+                    ty: Scalar(
+                        U16,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "with_data",
+            kotlin_name: "withData",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                },
+                SchemaParam {
+                    name: "data",
+                    ty: Scalar(
+                        U16,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
             rust_name: "hello",
             kotlin_name: "hello",
             module_path: Some(
                 "hello_kotlin",
             ),
-            receiver: None,
+            parent: None,
             params: [],
             return_type: Struct {
                 name: "Payload",
