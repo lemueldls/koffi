@@ -49,9 +49,9 @@ pub fn discover_fn_symbols(library_path: &Path) -> anyhow::Result<Vec<String>> {
 
     let symbols = file
         .exports()?
-        .into_iter()
         .filter_map(|sym| {
-            let name = std::str::from_utf8(sym.name()).ok()?;
+            let name_or_ordinal = sym.expect("failed to get symbol name").into_name();
+            let name = std::str::from_utf8(name_or_ordinal.name()?).ok()?;
             let is_koffi_fn = name.starts_with("__KOFFI_FN_") && name.ends_with("_ENTRY");
 
             is_koffi_fn.then(|| name.to_string())

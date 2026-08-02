@@ -20,7 +20,7 @@ facet-json = { version = "0.50.0-rc.5" }
 facet-pretty = { version = "0.50.0-rc.5" }
 figue = { version = "5.0.0-rc.5" }
 heck = { version = "0.5.0" }
-object = { version = "0.39.1" }
+object = { version = "0.40.0" }
 camino = { version = "1.2.4" }
 libloading = { version = "0.9.0" }
 indicatif = { version = "0.18.4" }
