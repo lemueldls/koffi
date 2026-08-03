@@ -87,12 +87,12 @@ fn parse_impl(item_impl: ItemImpl) -> TokenStream {
 /// function. It drives two independent things:
 ///
 /// - `FnShapeRef::parent`, always `self_ty` verbatim. Purely a
-///   path/symbol-naming concern: `Payload::new(data: u16) -> Self` has a
-///   parent despite taking no receiver at all.
-/// - Whether `sig` takes a `self` receiver (checked from `sig` itself). If
-///   so, a synthetic `self` `FnShapeParam` with `is_receiver: true` and
-///   `param_type: self_ty` is prepended to `params`, since the generated
-///   Cabi function takes the receiver as an ordinary by-value argument.
+///   path/symbol-naming concern: `Payload::new(data: u16) -> Self` has a parent
+///   despite taking no receiver at all.
+/// - Whether `sig` takes a `self` receiver (checked from `sig` itself). If so,
+///   a synthetic `self` `FnShapeParam` with `is_receiver: true` and
+///   `param_type: self_ty` is prepended to `params`, since the generated Cabi
+///   function takes the receiver as an ordinary by-value argument.
 ///
 /// Any bare `Self` in the rest of the signature is substituted with
 /// `self_ty`: the static is spliced in as a sibling of the `impl` block,

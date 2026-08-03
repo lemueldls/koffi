@@ -3,9 +3,7 @@ use std::collections::BTreeMap;
 use heck::ToLowerCamelCase;
 use koffi_core::FnShapeRef;
 
-use crate::layout::{
-    FieldPlacement, StructLayoutInfo, compute_enum_layout, compute_struct_layout,
-};
+use crate::layout::{FieldPlacement, StructLayoutInfo, compute_enum_layout, compute_struct_layout};
 
 #[derive(Debug, Clone)]
 pub struct Schema {
@@ -119,7 +117,10 @@ impl SchemaTypeRef {
     #[must_use]
     pub fn abi_ident_infix(&self) -> String {
         match self {
-            SchemaTypeRef::Struct { name, module_path } | SchemaTypeRef::Enum { name, module_path, .. } => {
+            SchemaTypeRef::Struct { name, module_path }
+            | SchemaTypeRef::Enum {
+                name, module_path, ..
+            } => {
                 let mod_infix = module_path.as_deref().unwrap_or("").replace("::", "_");
                 format!("{mod_infix}_{name}")
             }
@@ -266,7 +267,10 @@ fn convert_shape(
 
                     if !enums.contains_key(&key) {
                         let discriminant = scalar_kind_of_enum_repr(e.enum_repr)?;
-                        let has_data = e.variants.iter().any(|v| v.data.kind != facet::StructKind::Unit);
+                        let has_data = e
+                            .variants
+                            .iter()
+                            .any(|v| v.data.kind != facet::StructKind::Unit);
 
                         // FFI-safety rides on the discriminant layout alone:
                         // `#[repr(C)]` (implicit-discriminant data enums) and
@@ -322,10 +326,12 @@ fn convert_shape(
                 }
             }
         }
-        _ => anyhow::bail!(
-            "koffi M0 only supports plain structs, fieldless #[repr(C)]/primitive-repr enums, \
+        _ => {
+            anyhow::bail!(
+                "koffi M0 only supports plain structs, fieldless #[repr(C)]/primitive-repr enums, \
              and scalars: {shape:?}"
-        ),
+            )
+        }
     }
 }
 
@@ -366,14 +372,18 @@ fn scalar_kind_of_enum_repr(repr: facet::EnumRepr) -> anyhow::Result<ScalarKind>
         facet::EnumRepr::I16 => Ok(ScalarKind::I16),
         facet::EnumRepr::I32 => Ok(ScalarKind::I32),
         facet::EnumRepr::I64 => Ok(ScalarKind::I64),
-        facet::EnumRepr::Rust | facet::EnumRepr::RustNPO => anyhow::bail!(
-            "koffi M0 requires #[repr(C)] or an explicit primitive repr on enums (default Rust \
+        facet::EnumRepr::Rust | facet::EnumRepr::RustNPO => {
+            anyhow::bail!(
+                "koffi M0 requires #[repr(C)] or an explicit primitive repr on enums (default Rust \
              repr has no stable FFI layout)"
-        ),
-        facet::EnumRepr::USize | facet::EnumRepr::ISize => anyhow::bail!(
-            "koffi M0 doesn't support enum discriminants with a platform-dependent layout \
+            )
+        }
+        facet::EnumRepr::USize | facet::EnumRepr::ISize => {
+            anyhow::bail!(
+                "koffi M0 doesn't support enum discriminants with a platform-dependent layout \
              (#[repr(usize)]/#[repr(isize)])"
-        ),
+            )
+        }
     }
 }
 

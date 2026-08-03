@@ -108,3 +108,33 @@ pub fn make_holder() -> StatusHolder {
 pub fn holder_status(h: StatusHolder) -> Status {
     h.status
 }
+
+#[derive(Facet)]
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Facet)]
+pub struct Rect {
+    pub top_left: Point,
+    pub bottom_right: Point,
+}
+
+#[koffi::export]
+pub fn make_rect() -> Rect {
+    Rect {
+        top_left: Point { x: 1, y: 2 },
+        bottom_right: Point { x: 5, y: 8 },
+    }
+}
+
+#[koffi::export]
+pub fn rect_area(r: Rect) -> i32 {
+    (r.bottom_right.x - r.top_left.x) * (r.bottom_right.y - r.top_left.y)
+}
+
+#[koffi::export]
+pub fn rect_top_left(r: Rect) -> Point {
+    r.top_left
+}

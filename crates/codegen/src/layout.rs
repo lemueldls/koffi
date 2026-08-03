@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::schema::{ScalarKind, SchemaEnum, SchemaEnumVariant, SchemaField, SchemaStruct, SchemaTypeRef};
+use crate::schema::{
+    ScalarKind, SchemaEnum, SchemaEnumVariant, SchemaField, SchemaStruct, SchemaTypeRef,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Layout {
@@ -17,13 +19,8 @@ pub struct FieldPlacement {
 
 #[derive(Debug, Clone)]
 pub enum LayoutEntry {
-    Value {
-        kotlin_layout: String,
-        name: String,
-    },
-    Padding {
-        bytes: u64,
-    },
+    Value { kotlin_layout: String, name: String },
+    Padding { bytes: u64 },
 }
 
 #[derive(Debug, Clone)]
@@ -60,7 +57,9 @@ pub fn layout_of(
                 .ok_or_else(|| anyhow::anyhow!("layout_of: `{name}` not yet in the struct map"))?;
             Ok(s.layout.total)
         }
-        SchemaTypeRef::Enum { name, module_path, .. } => {
+        SchemaTypeRef::Enum {
+            name, module_path, ..
+        } => {
             let e = enums
                 .get(&(module_path.clone(), name.clone()))
                 .ok_or_else(|| anyhow::anyhow!("layout_of: `{name}` not yet in the enum map"))?;
@@ -88,7 +87,7 @@ pub fn compute_struct_layout(
             });
         }
         entries.push(LayoutEntry::Value {
-            kotlin_layout: kotlin_value_layout_name(&field.ty, structs, enums)?,
+            kotlin_layout: kotlin_value_layout_name(&field.ty, true, structs, enums)?,
             name: field.name.clone(),
         });
         placements.push(FieldPlacement {
@@ -122,9 +121,9 @@ pub fn compute_struct_layout(
 /// offsets already include the discriminant).
 ///
 /// The per-variant `placements` keep their own absolute offsets and field
-/// types — those drive the actual reads/writes. The `entries` region only
-/// needs to cover the union faithfully, so at each offset shared by several
-/// variants' fields (they overlap by construction) the widest one wins.
+/// types. The `entries` region only needs to cover the union faithfully, so at
+/// each offset shared by several variants' fields (they overlap by
+/// construction) the widest one wins.
 pub fn compute_enum_layout(
     discriminant: ScalarKind,
     variants: &[SchemaEnumVariant],
@@ -133,8 +132,14 @@ pub fn compute_enum_layout(
 ) -> anyhow::Result<StructLayoutInfo> {
     if !matches!(
         discriminant,
-        ScalarKind::U8 | ScalarKind::U16 | ScalarKind::U32 | ScalarKind::U64
-            | ScalarKind::I8 | ScalarKind::I16 | ScalarKind::I32 | ScalarKind::I64
+        ScalarKind::U8
+            | ScalarKind::U16
+            | ScalarKind::U32
+            | ScalarKind::U64
+            | ScalarKind::I8
+            | ScalarKind::I16
+            | ScalarKind::I32
+            | ScalarKind::I64
     ) {
         anyhow::bail!("koffi M0: enum discriminant must be an integer scalar");
     }
@@ -152,7 +157,7 @@ pub fn compute_enum_layout(
     for variant in variants {
         for placement in &variant.placements {
             let fl = layout_of(&placement.ty, structs, enums)?;
-            let layout_name = kotlin_value_layout_name(&placement.ty, structs, enums)?;
+            let layout_name = kotlin_value_layout_name(&placement.ty, false, structs, enums)?;
             let end = placement.offset + fl.size;
             max_end = max_end.max(end);
             max_align = max_align.max(fl.align);
@@ -174,7 +179,12 @@ pub fn compute_enum_layout(
     let mut offset: u64 = d_layout.size;
 
     entries.push(LayoutEntry::Value {
-        kotlin_layout: kotlin_value_layout_name(&SchemaTypeRef::Scalar(discriminant), structs, enums)?,
+        kotlin_layout: kotlin_value_layout_name(
+            &SchemaTypeRef::Scalar(discriminant),
+            false,
+            structs,
+            enums,
+        )?,
         name: "discriminant".to_string(),
     });
 
@@ -198,10 +208,7 @@ pub fn compute_enum_layout(
 
     Ok(StructLayoutInfo {
         entries,
-        placements: variants
-            .iter()
-            .flat_map(|v| v.placements.clone())
-            .collect(),
+        placements: variants.iter().flat_map(|v| v.placements.clone()).collect(),
         total: Layout {
             size: total_size,
             align: max_align,
@@ -211,12 +218,18 @@ pub fn compute_enum_layout(
 
 fn kotlin_value_layout_name(
     ty: &SchemaTypeRef,
+    allow_structs: bool,
     _structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
 ) -> anyhow::Result<String> {
     match ty {
         SchemaTypeRef::Scalar(k) => Ok(k.kotlin_ffm_value_layout().to_string()),
-        SchemaTypeRef::Enum { name, module_path, discriminant, has_data } => {
+        SchemaTypeRef::Enum {
+            name,
+            module_path,
+            discriminant,
+            has_data,
+        } => {
             if *has_data {
                 let e = enums
                     .get(&(module_path.clone(), name.clone()))
@@ -226,12 +239,19 @@ fn kotlin_value_layout_name(
                 Ok(discriminant.kotlin_ffm_value_layout().to_string())
             }
         }
-        // A nested struct field can't be marshalled yet: FFM `set`/`get`
-        // only accept value layouts, and the read/write loops here would
-        // need a segment-copy branch like data enums have. Explicit named
-        // gap over silently broken output.
-        SchemaTypeRef::Struct { name, .. } => anyhow::bail!(
-            "koffi M0 doesn't yet support a struct-typed field (`{name}`)"
-        ),
+        // A nested struct field is marshalled via per-struct `toFfm`/
+        // `fromFfm` helpers (generated in ffm.kt.j2). The layout name is
+        // the struct's own FFM layout constant, which must be declared
+        // before the containing struct's layout, enforced by the
+        // topological sort in `Schema::structs_in_layout_order`.
+        SchemaTypeRef::Struct { name, .. } => {
+            if allow_structs {
+                Ok(ty.kotlin_ffm_value_layout())
+            } else {
+                anyhow::bail!(
+                    "koffi M0 doesn't yet support a struct-typed field in an enum variant (`{name}`)"
+                )
+            }
+        }
     }
 }

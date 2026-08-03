@@ -6,76 +6,6 @@ Schema {
     crate_name: "hello-kotlin",
     functions: [
         SchemaFn {
-            rust_name: "describe_format",
-            kotlin_name: "describeFormat",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "status_code",
-            kotlin_name: "statusCode",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "s",
-                    ty: Enum {
-                        name: "Status",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: I32,
-                        has_data: true,
-                    },
-                    is_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "idle",
-            kotlin_name: "idle",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Enum {
-                    name: "Status",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: true,
-                },
-            ),
-            params: [],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
             rust_name: "c_status",
             kotlin_name: "cStatus",
             module_path: Some(
@@ -176,6 +106,215 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "rect_area",
+            kotlin_name: "rectArea",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "r",
+                    ty: Struct {
+                        name: "Rect",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                I32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "describe_format",
+            kotlin_name: "describeFormat",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Enum {
+                        name: "Status",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: true,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "rect_top_left",
+            kotlin_name: "rectTopLeft",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "r",
+                    ty: Struct {
+                        name: "Rect",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Point",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "make_status",
+            kotlin_name: "makeStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "idle",
+            kotlin_name: "idle",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "new_busy",
+            kotlin_name: "newBusy",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "code",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "make_rect",
+            kotlin_name: "makeRect",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "Rect",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "hello",
+            kotlin_name: "hello",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
             rust_name: "with_data",
             kotlin_name: "withData",
             module_path: Some(
@@ -216,58 +355,30 @@ Schema {
             },
         },
         SchemaFn {
-            rust_name: "new_busy",
-            kotlin_name: "newBusy",
+            rust_name: "make_holder",
+            kotlin_name: "makeHolder",
             module_path: Some(
                 "hello_kotlin",
             ),
-            parent: Some(
-                Enum {
-                    name: "Status",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: true,
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "code",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                },
-            ],
-            return_type: Enum {
-                name: "Status",
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "StatusHolder",
                 module_path: Some(
                     "hello_kotlin",
                 ),
-                discriminant: I32,
-                has_data: true,
             },
         },
         SchemaFn {
-            rust_name: "describe",
-            kotlin_name: "describe",
+            rust_name: "status_code",
+            kotlin_name: "statusCode",
             module_path: Some(
                 "hello_kotlin",
             ),
-            parent: Some(
-                Enum {
-                    name: "Status",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: true,
-                },
-            ),
+            parent: None,
             params: [
                 SchemaParam {
-                    name: "self",
+                    name: "s",
                     ty: Enum {
                         name: "Status",
                         module_path: Some(
@@ -276,7 +387,7 @@ Schema {
                         discriminant: I32,
                         has_data: true,
                     },
-                    is_receiver: true,
+                    is_receiver: false,
                 },
             ],
             return_type: Scalar(
@@ -313,53 +424,6 @@ Schema {
                 U32,
             ),
         },
-        SchemaFn {
-            rust_name: "make_holder",
-            kotlin_name: "makeHolder",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Struct {
-                name: "StatusHolder",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "make_status",
-            kotlin_name: "makeStatus",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
-            rust_name: "hello",
-            kotlin_name: "hello",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Struct {
-                name: "Payload",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
     ],
     structs: [
         SchemaStruct {
@@ -394,6 +458,122 @@ Schema {
                 total: Layout {
                     size: 2,
                     align: 2,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "Point",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "x",
+                    ty: Scalar(
+                        I32,
+                    ),
+                },
+                SchemaField {
+                    name: "y",
+                    ty: Scalar(
+                        I32,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "x",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "y",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "x",
+                        ty: Scalar(
+                            I32,
+                        ),
+                        offset: 0,
+                    },
+                    FieldPlacement {
+                        name: "y",
+                        ty: Scalar(
+                            I32,
+                        ),
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 8,
+                    align: 4,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "Rect",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "top_left",
+                    ty: Struct {
+                        name: "Point",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                },
+                SchemaField {
+                    name: "bottom_right",
+                    ty: Struct {
+                        name: "Point",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_PointLayout",
+                        name: "top_left",
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_PointLayout",
+                        name: "bottom_right",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "top_left",
+                        ty: Struct {
+                            name: "Point",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 0,
+                    },
+                    FieldPlacement {
+                        name: "bottom_right",
+                        ty: Struct {
+                            name: "Point",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 8,
+                    },
+                ],
+                total: Layout {
+                    size: 16,
+                    align: 4,
                 },
             },
         },

@@ -3,7 +3,8 @@ use heck::{ToLowerCamelCase, ToSnakeCase, ToUpperCamelCase};
 use crate::{
     layout::FieldPlacement,
     schema::{
-        ScalarKind, Schema, SchemaEnum, SchemaFn, SchemaParam, SchemaStruct, SchemaTypeRef,
+        ScalarKind, Schema, SchemaEnum, SchemaField, SchemaFn, SchemaParam, SchemaStruct,
+        SchemaTypeRef,
     },
 };
 
@@ -81,12 +82,61 @@ impl Schema {
     #[must_use]
     pub fn enum_of<'a>(&'a self, ty: &SchemaTypeRef) -> Option<&'a SchemaEnum> {
         match ty {
-            SchemaTypeRef::Enum { name, module_path, .. } => self
-                .enums
-                .iter()
-                .find(|e| &e.name == name && &e.module_path == module_path),
+            SchemaTypeRef::Enum {
+                name, module_path, ..
+            } => {
+                self.enums
+                    .iter()
+                    .find(|e| &e.name == name && &e.module_path == module_path)
+            }
             _ => None,
         }
+    }
+
+    /// Structs ordered so that any struct used as a field type of another
+    /// struct appears before it. Kotlin `val` layout properties are
+    /// initialized in declaration order, so a forward reference to a
+    /// not-yet-initialized `val` is a compile error. Function declarations
+    /// (`toFfm`/`fromFfm`) don't have this constraint, but the layout
+    /// `val`s do. This sort feeds the layout declaration order in
+    /// `ffm.kt.j2`.
+    ///
+    /// Cycles are impossible (Rust rejects value-recursive types), so a
+    /// simple DFS suffices.
+    #[must_use]
+    pub fn structs_in_layout_order(&self) -> Vec<&SchemaStruct> {
+        fn key(s: &SchemaStruct) -> (Option<String>, String) {
+            (s.module_path.clone(), s.name.clone())
+        }
+
+        fn visit<'a>(
+            s: &'a SchemaStruct,
+            all: &'a [SchemaStruct],
+            visited: &mut std::collections::HashSet<(Option<String>, String)>,
+            result: &mut Vec<&'a SchemaStruct>,
+        ) {
+            let k = key(s);
+            if !visited.insert(k) {
+                return;
+            }
+            for field in &s.fields {
+                if let SchemaTypeRef::Struct { name, module_path } = &field.ty
+                    && let Some(dep) = all
+                        .iter()
+                        .find(|s2| &s2.name == name && &s2.module_path == module_path)
+                {
+                    visit(dep, all, visited, result);
+                }
+            }
+            result.push(s);
+        }
+
+        let mut visited = std::collections::HashSet::new();
+        let mut result = Vec::with_capacity(self.structs.len());
+        for s in &self.structs {
+            visit(s, &self.structs, &mut visited, &mut result);
+        }
+        result
     }
 }
 
@@ -99,12 +149,35 @@ impl SchemaTypeRef {
         }
     }
 
+    /// True for plain structs (always marshalled through a memory segment).
+    /// Fieldless enums and scalars cross the ABI as a single value.
+    #[must_use]
+    pub const fn is_struct(&self) -> bool {
+        matches!(self, SchemaTypeRef::Struct { .. })
+    }
+
+    /// True for types that cross the FFI boundary as a `MemorySegment` and
+    /// need a `SegmentAllocator` argument: structs (always) and
+    /// data-carrying enums. Scalars and fieldless enums pass as plain
+    /// values.
+    #[must_use]
+    pub const fn is_memory_backed(&self) -> bool {
+        matches!(
+            self,
+            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. }
+        )
+    }
+
     #[must_use]
     pub fn kotlin_ffm_value_layout(&self) -> String {
         match self {
             SchemaTypeRef::Scalar(k) => k.kotlin_ffm_value_layout().to_string(),
             SchemaTypeRef::Struct { .. } => format!("{}Layout", self.unique_ident()),
-            SchemaTypeRef::Enum { discriminant, has_data, .. } => {
+            SchemaTypeRef::Enum {
+                discriminant,
+                has_data,
+                ..
+            } => {
                 if *has_data {
                     format!("{}Layout", self.unique_ident())
                 } else {
@@ -115,13 +188,20 @@ impl SchemaTypeRef {
     }
 
     /// Identifier of the top-level marshalling helper for a data-carrying
-    /// enum (`statusToFfm`), or empty for everything else. Data enums
-    /// cross the FFI boundary as segments, so the parameter-prep and
-    /// return spots call these helpers instead of using suffixes.
+    /// enum (`statusToFfm`) or a struct (`payloadToFfm`). Scalars and
+    /// fieldless enums never use this, they cross the FFI boundary as
+    /// plain values.
     #[must_use]
     pub fn to_ffm_ident(&self) -> String {
         match self {
-            SchemaTypeRef::Enum { name, has_data: true, .. } => {
+            SchemaTypeRef::Enum {
+                name,
+                has_data: true,
+                ..
+            } => {
+                format!("{}ToFfm", name.to_snake_case())
+            }
+            SchemaTypeRef::Struct { name, .. } => {
                 format!("{}ToFfm", name.to_snake_case())
             }
             _ => String::new(),
@@ -131,7 +211,14 @@ impl SchemaTypeRef {
     #[must_use]
     pub fn from_ffm_ident(&self) -> String {
         match self {
-            SchemaTypeRef::Enum { name, has_data: true, .. } => {
+            SchemaTypeRef::Enum {
+                name,
+                has_data: true,
+                ..
+            } => {
+                format!("{}FromFfm", name.to_snake_case())
+            }
+            SchemaTypeRef::Struct { name, .. } => {
                 format!("{}FromFfm", name.to_snake_case())
             }
             _ => String::new(),
@@ -147,7 +234,11 @@ impl SchemaTypeRef {
     pub fn to_ffm_suffix(&self) -> String {
         match self {
             SchemaTypeRef::Scalar(k) => k.to_ffm_suffix().to_string(),
-            SchemaTypeRef::Enum { discriminant, has_data: false, .. } => {
+            SchemaTypeRef::Enum {
+                discriminant,
+                has_data: false,
+                ..
+            } => {
                 format!(".discriminant{}", discriminant.to_ffm_suffix())
             }
             SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
@@ -164,7 +255,12 @@ impl SchemaTypeRef {
     pub fn from_ffm_suffix(&self) -> String {
         match self {
             SchemaTypeRef::Scalar(k) => k.from_ffm_suffix().to_string(),
-            SchemaTypeRef::Enum { name, discriminant, has_data: false, .. } => {
+            SchemaTypeRef::Enum {
+                name,
+                discriminant,
+                has_data: false,
+                ..
+            } => {
                 let suffix = discriminant.from_ffm_suffix();
                 if suffix.is_empty() {
                     format!(".let {{ {name}.fromDiscriminant(it) }}")
@@ -177,40 +273,14 @@ impl SchemaTypeRef {
             }
         }
     }
-
-    #[must_use]
-    pub fn struct_field_placements<'a>(
-        &self,
-        structs: &'a [SchemaStruct],
-    ) -> Option<&'a Vec<FieldPlacement>> {
-        match self {
-            SchemaTypeRef::Scalar(_) | SchemaTypeRef::Enum { .. } => None,
-            SchemaTypeRef::Struct { name, module_path } => {
-                structs
-                    .iter()
-                    .find(|s| &s.name == name && &s.module_path == module_path)
-                    .map(|s| &s.layout.placements)
-            }
-        }
-    }
-}
-
-impl SchemaParam {
-    #[must_use]
-    pub fn struct_field_placements<'a>(
-        &self,
-        structs: &'a [SchemaStruct],
-    ) -> Option<&'a Vec<FieldPlacement>> {
-        self.ty.struct_field_placements(structs)
-    }
 }
 
 impl SchemaFn {
     /// FFI-object member name: the `expect`/`actual fun`s generated on the
     /// shared object. Free fns keep their plain lowerCamelCase name, but
     /// parent-having fns are prefixed with the parent type (module-aware)
-    /// so `Payload::new` and `Status::new` — or the same type name in
-    /// another module — can't collide on the one object. The public API
+    /// so `Payload::new` and `Status::new` (or the same type name in
+    /// another module) can't collide on the one object. The public API
     /// (companion fns, instance methods) keeps using `kotlin_name`.
     #[must_use]
     pub fn ffi_member_name(&self) -> String {
@@ -219,7 +289,9 @@ impl SchemaFn {
         };
         let (name, module_path) = match parent {
             SchemaTypeRef::Struct { name, module_path }
-            | SchemaTypeRef::Enum { name, module_path, .. } => (name, module_path),
+            | SchemaTypeRef::Enum {
+                name, module_path, ..
+            } => (name, module_path),
             SchemaTypeRef::Scalar(_) => {
                 unreachable!("impl-block parents are always structs or enums")
             }
@@ -315,6 +387,26 @@ impl ScalarKind {
     }
 }
 
+impl SchemaField {
+    /// Kotlin property name for a Rust struct field: lowerCamelCase. The
+    /// raw `name` stays the Rust field name for the glue crate's Rust
+    /// templates.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        self.name.to_lower_camel_case()
+    }
+}
+
+impl FieldPlacement {
+    /// Kotlin property name for a reflected field (struct layout or enum
+    /// variant payload): lowerCamelCase. The raw `name` stays the Rust
+    /// field name for the glue crate's Rust templates.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        self.name.to_lower_camel_case()
+    }
+}
+
 impl SchemaStruct {
     /// Does calling this struct's own primary (field) constructor take the
     /// same argument list, in order and type, as `params`? `Type(..)` call
@@ -335,6 +427,19 @@ impl SchemaStruct {
     #[must_use]
     pub fn kotlin_ffm_value_layout(&self) -> String {
         format!("{}Layout", self.unique_ident())
+    }
+
+    /// Top-level marshalling helpers written to ffm.kt.j2
+    /// (`payloadToFfm`, `payloadFromFfm`). Structs are marshalled through
+    /// memory segments just like data-carrying enums.
+    #[must_use]
+    pub fn to_ffm_ident(&self) -> String {
+        format!("{}ToFfm", self.name.to_snake_case())
+    }
+
+    #[must_use]
+    pub fn from_ffm_ident(&self) -> String {
+        format!("{}FromFfm", self.name.to_snake_case())
     }
 }
 

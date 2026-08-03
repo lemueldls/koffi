@@ -19,7 +19,7 @@ package {{ schema.kotlin_package() }}
 {%~ for s in schema.structs %}
 data class {{ s.name }}(
 {%- for field in s.fields %}
-    val {{ field.name }}: {{ field.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
+    val {{ field.kotlin_name() }}: {{ field.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
 {%- endfor %}
 ){% if !schema.functions_of(s).is_empty() %} {
 {%- for f in schema.functions_of(s) %}
@@ -59,7 +59,7 @@ sealed class {{ e.name }}(val discriminant: {{ e.discriminant.kotlin_type() }}) 
 {%- else %}
     data class {{ v.name }}(
 {%- for f in v.placements %}
-        val {{ f.name }}: {{ f.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
+        val {{ f.kotlin_name() }}: {{ f.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
 {%- endfor %}
     ) : {{ e.name }}({{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }})
 {%- endif %}

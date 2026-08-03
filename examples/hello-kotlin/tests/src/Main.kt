@@ -60,6 +60,14 @@ fun main() {
     check("HelloKotlinFfi.holderStatus(HelloKotlinFfi.makeHolder()) == Error(42)", HelloKotlinFfi.holderStatus(holder) == Status.Error(code = 42u))
     check("HelloKotlinFfi.holderStatus(StatusHolder(Busy(5), 1u)) == Busy(5)", HelloKotlinFfi.holderStatus(StatusHolder(Status.Busy(5u), 1u.toUByte())) == Status.Busy(5u))
 
+    // Struct-typed struct fields: Rect contains two Points.
+    val rect = HelloKotlinFfi.makeRect()
+    check("HelloKotlinFfi.makeRect().topLeft == Point(1,2)", rect.topLeft == Point(1, 2))
+    check("HelloKotlinFfi.makeRect().bottomRight == Point(5,8)", rect.bottomRight == Point(5, 8))
+    check("HelloKotlinFfi.rectArea(makeRect()) == 24", HelloKotlinFfi.rectArea(rect) == 24)
+    check("HelloKotlinFfi.rectTopLeft(makeRect()) == Point(1,2)", HelloKotlinFfi.rectTopLeft(rect) == Point(1, 2))
+    check("HelloKotlinFfi.rectArea(Rect(Point(0,0), Point(3,4))) == 12", HelloKotlinFfi.rectArea(Rect(Point(0, 0), Point(3, 4))) == 12)
+
     if (failures > 0) {
         println("\n$failures test(s) FAILED")
         exitProcess(1)

@@ -110,7 +110,10 @@ impl SchemaTypeRef {
     #[must_use]
     pub fn rust_absolute_path(&self) -> String {
         match self {
-            SchemaTypeRef::Struct { name, module_path } | SchemaTypeRef::Enum { name, module_path, .. } => {
+            SchemaTypeRef::Struct { name, module_path }
+            | SchemaTypeRef::Enum {
+                name, module_path, ..
+            } => {
                 match module_path {
                     Some(mp) => format!("::{mp}::{name}"),
                     None => name.clone(),
@@ -145,7 +148,11 @@ impl ScalarKind {
     // The narrowing casts are the point: wrapping to the wire width is
     // exactly the bit-pattern semantics of the enum's repr.
     #[must_use]
-    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_lossless)]
+    #[allow(
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_lossless
+    )]
     pub fn wire_discriminant_literal(&self, value: &i64) -> String {
         let value = *value;
         match self {
