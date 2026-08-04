@@ -4,12 +4,41 @@
 
 use crate::types::*;
 
-use jni::JNIEnv;
-use jni::objects::JClass;
+use jni::objects::{JByteBuffer, JObject};
+use jni::sys::{jboolean, jbyte, jdouble, jfloat, jint, jlong, jshort};
 
 {%~ for f in schema.functions %}
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_TODO_{{ f.rust_name }}(env: JNIEnv, _class: JClass, /* TODO: JNI-typed params */) -> ! {
-    todo!("JNI marshaling: see the scope note above")
+pub unsafe extern "system" fn {{ f.jni_symbol(schema) }}<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    {%- for p in f.params %}
+    {%- if p.ty.is_memory_backed() %}
+    p_{{ p.c_abi_symbol() }}: JByteBuffer<'c>,
+    {%- else %}
+    p_{{ p.c_abi_symbol() }}: {{ p.ty.jni_type() }},
+    {%- endif %}
+    {%- endfor %}
+    {%- if f.return_type.is_memory_backed() %}
+    out: JByteBuffer<'c>,
+    {%- endif %}
+) -> {% if f.return_type.is_memory_backed() %}jint{% else %}{{ f.return_type.jni_type() }}{% endif %} {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: {{ f.return_type.unique_ident() }} = {{ f.rust_absolute_path() }}(
+            {%- for p in f.params %}
+            {% if p.is_receiver %}&({% endif %}{% if p.ty.is_memory_backed() %}unsafe { (env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *const {{ p.ty.unique_ident() }}).read() }.into(){% else %}{% match p.ty %}{% when SchemaTypeRef::Scalar(kind) %}(p_{{ p.c_abi_symbol() }} as {{ kind.rust_type_name() }}).into(){% when SchemaTypeRef::Enum { discriminant, .. } %}unsafe { std::mem::transmute::<{{ discriminant.jni_type() }}, {{ p.ty.unique_ident() }}>(p_{{ p.c_abi_symbol() }}) }.into(){% else %}unreachable!(){% endmatch %}{% endif %}{% if p.is_receiver %}){% endif %}{% if !loop.last %},{% endif %}
+            {%- endfor %}
+        ).into();
+
+        {% if f.return_type.is_memory_backed() %}
+        let ptr = env.get_direct_buffer_address(&out)? as *mut {{ f.return_type.unique_ident() }};
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+        {% else %}
+        Ok(v as {{ f.return_type.jni_type() }})
+        {% endif %}
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 {%- endfor %}

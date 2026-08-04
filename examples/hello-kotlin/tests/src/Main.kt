@@ -14,7 +14,7 @@ fun check(name: String, cond: Boolean) {
 
 fun main() {
     // Free fns: struct return, enum return, scalars.
-    check("hello() -> Payload(data=42)", HelloKotlinFfi.hello().data == 42u.toUShort())
+    check("hello() -> Payload(data=42)", hello().data == 42u.toUShort())
 
     // Constructors and companion fns on Payload.
     check("Payload.new(7) -> data=7", Payload.new(7u.toUShort()).data == 7u.toUShort())
@@ -28,11 +28,11 @@ fun main() {
     check("Payload.describeFormat() == 1", Payload.describeFormat() == 1u)
 
     // Free fns: data-carrying enum as arg and return.
-    check("HelloKotlinFfi.makeStatus() -> Busy(7)", HelloKotlinFfi.makeStatus() == Status.Busy(7u))
-    check("HelloKotlinFfi.statusCode(Busy(7)) == 7", HelloKotlinFfi.statusCode(Status.Busy(7u)) == 7u)
-    check("HelloKotlinFfi.statusCode(Error(code=42)) == 42", HelloKotlinFfi.statusCode(Status.Error(code = 42u)) == 42u)
-    check("HelloKotlinFfi.statusCode(Idle) == 0", HelloKotlinFfi.statusCode(Status.Idle) == 0u)
-    check("HelloKotlinFfi.statusCode(Failed) == 3", HelloKotlinFfi.statusCode(Status.Failed) == 3u)
+    check("makeStatus() -> Busy(7)", makeStatus() == Status.Busy(7u))
+    check("statusCode(Busy(7)) == 7", statusCode(Status.Busy(7u)) == 7u)
+    check("statusCode(Error(code=42)) == 42", statusCode(Status.Error(code = 42u)) == 42u)
+    check("statusCode(Idle) == 0", statusCode(Status.Idle) == 0u)
+    check("statusCode(Failed) == 3", statusCode(Status.Failed) == 3u)
 
     // Constructors and companion fns on Status.
     check("Status.idle() -> Idle", Status.idle() == Status.Idle)
@@ -46,27 +46,27 @@ fun main() {
     check("Status.Failed.describe() == 2", Status.Failed.describe() == 2u)
 
     // Fieldless enum with negative discriminant wrapping to UInt.
-    check("HelloKotlinFfi.cStatus() -> Err", HelloKotlinFfi.cStatus() == CStatus.Err)
-    check("HelloKotlinFfi.cStatusIsErr(Err) == true", HelloKotlinFfi.cStatusIsErr(CStatus.Err))
-    check("HelloKotlinFfi.cStatusIsErr(Ok) == false", !HelloKotlinFfi.cStatusIsErr(CStatus.Ok))
+    check("cStatus() -> Err", cStatus() == CStatus.Err)
+    check("cStatusIsErr(Err) == true", cStatusIsErr(CStatus.Err))
+    check("cStatusIsErr(Ok) == false", !cStatusIsErr(CStatus.Ok))
     check("CStatus.fromDiscriminant(0u) -> Ok", CStatus.fromDiscriminant(0u) == CStatus.Ok)
     check("CStatus.fromDiscriminant(4294967295u) -> Err", CStatus.fromDiscriminant(4294967295u) == CStatus.Err)
     check("CStatus.Err.discriminant == 4294967295u", CStatus.Err.discriminant == 4294967295u)
 
     // Struct with an enum field: make + roundtrip through holder.
-    val holder = HelloKotlinFfi.makeHolder()
-    check("HelloKotlinFfi.makeHolder().status == Error(42)", holder.status == Status.Error(code = 42u))
-    check("HelloKotlinFfi.makeHolder().tag == 9", holder.tag == 9u.toUByte())
-    check("HelloKotlinFfi.holderStatus(HelloKotlinFfi.makeHolder()) == Error(42)", HelloKotlinFfi.holderStatus(holder) == Status.Error(code = 42u))
-    check("HelloKotlinFfi.holderStatus(StatusHolder(Busy(5), 1u)) == Busy(5)", HelloKotlinFfi.holderStatus(StatusHolder(Status.Busy(5u), 1u.toUByte())) == Status.Busy(5u))
+    val holder = makeHolder()
+    check("makeHolder().status == Error(42)", holder.status == Status.Error(code = 42u))
+    check("makeHolder().tag == 9", holder.tag == 9u.toUByte())
+    check("holderStatus(makeHolder()) == Error(42)", holderStatus(holder) == Status.Error(code = 42u))
+    check("holderStatus(StatusHolder(Busy(5), 1u)) == Busy(5)", holderStatus(StatusHolder(Status.Busy(5u), 1u.toUByte())) == Status.Busy(5u))
 
     // Struct-typed struct fields: Rect contains two Points.
-    val rect = HelloKotlinFfi.makeRect()
-    check("HelloKotlinFfi.makeRect().topLeft == Point(1,2)", rect.topLeft == Point(1, 2))
-    check("HelloKotlinFfi.makeRect().bottomRight == Point(5,8)", rect.bottomRight == Point(5, 8))
-    check("HelloKotlinFfi.rectArea(makeRect()) == 24", HelloKotlinFfi.rectArea(rect) == 24)
-    check("HelloKotlinFfi.rectTopLeft(makeRect()) == Point(1,2)", HelloKotlinFfi.rectTopLeft(rect) == Point(1, 2))
-    check("HelloKotlinFfi.rectArea(Rect(Point(0,0), Point(3,4))) == 12", HelloKotlinFfi.rectArea(Rect(Point(0, 0), Point(3, 4))) == 12)
+    val rect = makeRect()
+    check("makeRect().topLeft == Point(1,2)", rect.topLeft == Point(1, 2))
+    check("makeRect().bottomRight == Point(5,8)", rect.bottomRight == Point(5, 8))
+    check("rectArea(makeRect()) == 24", rectArea(rect) == 24)
+    check("rectTopLeft(makeRect()) == Point(1,2)", rectTopLeft(rect) == Point(1, 2))
+    check("rectArea(Rect(Point(0,0), Point(3,4))) == 12", rectArea(Rect(Point(0, 0), Point(3, 4))) == 12)
 
     if (failures > 0) {
         println("\n$failures test(s) FAILED")

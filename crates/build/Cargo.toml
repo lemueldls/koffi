@@ -7,4 +7,5 @@ edition.workspace = true
 anyhow.workspace = true
 camino.workspace = true
 cargo_metadata.workspace = true
+facet.workspace = true
 tracing.workspace = true

@@ -2,16 +2,220 @@
 
 package {{ schema.kotlin_package() }}
 
-actual object {{ schema.ffi_object_name() }} {
-    init {
-        System.loadLibrary("{{ schema.crate_ident() }}_glue")
-    }
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+{% if !android %}import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+{% endif %}
+{#~ The buffer helpers and wire marshallers are top-level `private`, not
+   object members: the top-level `actual fun`s for free fns need them, and
+   object members can't see other classes' privates even in the same file.
+   Top-level `private` is file-visible, which covers both call sites. The
+   `external fun`s stay object members below: JNI resolves the native
+   `Java_<pkg>_<Ffi>_<member>Impl` symbol against the object's class. -#}
+private fun allocateWire(size: Int): ByteBuffer =
+    ByteBuffer.allocateDirect(size).order(ByteOrder.LITTLE_ENDIAN)
 
-    {%~ for f in schema.functions %}
-    actual external fun {{ f.kotlin_name }}(
-        {%- for p in f.params %}
-        {{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %},{% endif %}
+{#~ View of this buffer starting at `offset`: nested structs and enums
+   recurse into their own marshallers on a section, so child-relative
+   offsets line up with the parent's field placement. `duplicate()` loses
+   the caller's byte order (it comes back big-endian), so re-assert it. -#}
+private fun ByteBuffer.section(offset: Int): ByteBuffer =
+    duplicate().position(offset).slice().order(ByteOrder.LITTLE_ENDIAN)
+
+{#~ Per-enum wire marshallers. `statusToWire` writes the wrapper's
+   memory image (discriminant at 0, active variant's payload at its
+   absolute offsets); `statusFromWire` reads it back; `statusToBuf`
+   allocates a fresh wire buffer for an argument. Only data-carrying
+   enums need these — fieldless ones cross as their discriminant
+   scalar, identical to the ffm layout. -#}
+{%~ for e in schema.enums %}{% if e.has_data %}
+private fun {{ e.to_wire_ident() }}(v: {{ e.name }}, buf: ByteBuffer) {
+    buf.{{ e.discriminant.wire_putter() }}(0, v.discriminant{{ e.discriminant.to_ffm_suffix() }})
+    when (v) {
+        {%- for v2 in e.variants %}{% if !v2.placements.is_empty() %}
+        is {{ e.name }}.{{ v2.name }} -> {
+            {%- for f in v2.placements %}
+            {%- if f.ty.is_memory_backed() %}
+            {{ f.ty.to_wire_ident() }}(v.{{ f.kotlin_name() }}, buf.section({{ f.offset }}))
+            {%- else %}
+            {%- match f.ty %}
+            {%- when SchemaTypeRef::Scalar(kind) %}
+            {%- match kind %}
+            {%- when ScalarKind::Bool %}
+            buf.put({{ f.offset }}, if (v.{{ f.kotlin_name() }}) 1.toByte() else 0.toByte())
+            {%- when _ %}
+            buf.{{ kind.wire_putter() }}({{ f.offset }}, v.{{ f.kotlin_name() }}{{ kind.to_ffm_suffix() }})
+            {%- endmatch %}
+            {%- when SchemaTypeRef::Enum { discriminant, .. } %}
+            buf.{{ discriminant.wire_putter() }}({{ f.offset }}, v.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
+            {%- else %}unreachable!()
+            {%- endmatch %}
+            {%- endif %}
+            {%- endfor %}
+        }
+        {%- endif %}{%- endfor %}
+        else -> {}
+    }
+}
+
+private fun {{ e.from_wire_ident() }}(buf: ByteBuffer): {{ e.name }} {
+    val d = buf.{{ e.discriminant.wire_getter() }}(0){{ e.discriminant.from_ffm_suffix() }}
+    return when (d) {
+        {%- for v2 in e.variants %}
+        {{ e.discriminant.kotlin_discriminant_literal(v2.discriminant) }} -> {% if v2.placements.is_empty() %}{{ e.name }}.{{ v2.name }}{% else %}{{ e.name }}.{{ v2.name }}({% for f in v2.placements %}{{ f.kotlin_name() }} = {% if f.ty.is_memory_backed() %}{{ f.ty.from_wire_ident() }}(buf.section({{ f.offset }})){% else %}{% match f.ty %}{% when SchemaTypeRef::Scalar(kind) %}{% match kind %}{% when ScalarKind::Bool %}buf.get({{ f.offset }}) != 0.toByte(){% when _ %}buf.{{ kind.wire_getter() }}({{ f.offset }}){{ kind.from_ffm_suffix() }}{% endmatch %}{% when SchemaTypeRef::Enum { discriminant, .. } %}buf.{{ discriminant.wire_getter() }}({{ f.offset }}){{ f.ty.from_ffm_suffix() }}{% else %}unreachable!(){% endmatch %}{% endif %}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
         {%- endfor %}
-    ): {{ f.return_type.kotlin_type() }}
+        else -> error("koffi: invalid {{ e.name }} discriminant $d")
+    }
+}
+
+private fun {{ e.to_buf_ident() }}(v: {{ e.name }}): ByteBuffer {
+    val buf = allocateWire({{ e.layout.total.size }})
+    {{ e.to_wire_ident() }}(v, buf)
+    return buf
+}{%- endif %}{%- endfor %}
+
+{#~ Per-struct wire marshallers, same three helpers as the enums.
+   Placements drive the offsets: the C wire type is `repr(C)`, so the
+   buffer layout must include the padding the Rust compiler inserts. -#}
+{%~ for s in schema.structs %}
+private fun {{ s.to_wire_ident() }}(v: {{ s.name }}, buf: ByteBuffer) {
+    {%- for f in s.layout.placements %}
+    {%- if f.ty.is_memory_backed() %}
+    {{ f.ty.to_wire_ident() }}(v.{{ f.kotlin_name() }}, buf.section({{ f.offset }}))
+    {%- else %}
+    {%- match f.ty %}
+    {%- when SchemaTypeRef::Scalar(kind) %}
+    {%- match kind %}
+    {%- when ScalarKind::Bool %}
+    buf.put({{ f.offset }}, if (v.{{ f.kotlin_name() }}) 1.toByte() else 0.toByte())
+    {%- when _ %}
+    buf.{{ kind.wire_putter() }}({{ f.offset }}, v.{{ f.kotlin_name() }}{{ kind.to_ffm_suffix() }})
+    {%- endmatch %}
+    {%- when SchemaTypeRef::Enum { discriminant, .. } %}
+    buf.{{ discriminant.wire_putter() }}({{ f.offset }}, v.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
+    {%- else %}unreachable!()
+    {%- endmatch %}
+    {%- endif %}
     {%- endfor %}
 }
+
+private fun {{ s.from_wire_ident() }}(buf: ByteBuffer): {{ s.name }} =
+    {{ s.name }}(
+        {%- for f in s.layout.placements %}
+        {%- if f.ty.is_memory_backed() %}
+        {{ f.kotlin_name() }} = {{ f.ty.from_wire_ident() }}(buf.section({{ f.offset }})){% if !loop.last %},{% endif %}
+        {%- else %}
+        {%- match f.ty %}
+        {%- when SchemaTypeRef::Scalar(kind) %}
+        {%- match kind %}
+        {%- when ScalarKind::Bool %}
+        {{ f.kotlin_name() }} = buf.get({{ f.offset }}) != 0.toByte(){% if !loop.last %},{% endif %}
+        {%- when _ %}
+        {{ f.kotlin_name() }} = buf.{{ kind.wire_getter() }}({{ f.offset }}){{ kind.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
+        {%- endmatch %}
+        {%- when SchemaTypeRef::Enum { discriminant, .. } %}
+        {{ f.kotlin_name() }} = buf.{{ discriminant.wire_getter() }}({{ f.offset }}){{ f.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
+        {%- else %}unreachable!()
+        {%- endmatch %}
+        {%- endif %}
+        {%- endfor -%}
+    )
+
+private fun {{ s.to_buf_ident() }}(v: {{ s.name }}): ByteBuffer {
+    val buf = allocateWire({{ s.layout.total.size }})
+    {{ s.to_wire_ident() }}(v, buf)
+    return buf
+}
+{%- endfor %}
+
+actual object {{ schema.ffi_object_name() }} {
+    init {
+        {% if android %}System.loadLibrary("{{ schema.glue_crate_ident() }}"){%- else %}System.load({{ schema.loader_object_name() }}.extractLibrary()){%- endif %}
+    }
+
+    {#~ The `actual fun` for parent-having fns and, for every fn, the
+       `external fun` it calls. The externals stay object members so JNI
+       resolves the `Java_<pkg>_<Ffi>_<member>Impl` symbol against the
+       object's class; they must be public (not `private`, which the
+       top-level actuals can't see, nor `internal`, which Kotlin mangles
+       into `name$module` bytecode and breaks JNI lookup). The top-level
+       free-fn actuals below call them via
+       `{{ schema.ffi_object_name() }}.<member>Impl`. -#}
+    {%~ for f in schema.functions %}
+    {%~ if f.parent.is_some() %}{%~ if f.return_type.is_memory_backed() %}
+    actual fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
+        val out = allocateWire({{ schema.layout_size(&f.return_type) }})
+        {{ f.ffi_member_name() }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}{% if !f.params.is_empty() %}, {% endif %}out)
+        return {{ f.return_type.from_wire_ident() }}(out)
+    }
+    {%- else %}
+    actual fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} =
+        {{ f.ffi_member_name() }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}){{ f.return_type.from_ffm_suffix() }}
+    {%- endif %}
+
+    {%- endif %}
+    {%~ if f.params.is_empty() && !f.return_type.is_memory_backed() %}
+    external fun {{ f.ffi_member_name() }}Impl(): {{ f.return_type.jni_kotlin_type() }}
+    {%- else %}
+    external fun {{ f.ffi_member_name() }}Impl(
+        {%- for p in f.params %}
+        {{ p.name }}: {% if p.ty.is_memory_backed() %}ByteBuffer{% else %}{{ p.ty.jni_kotlin_type() }}{% endif %},
+        {%- endfor %}
+        {%- if f.return_type.is_memory_backed() %}
+        out: ByteBuffer,{% endif %}
+    ){% if !f.return_type.is_memory_backed() %}: {{ f.return_type.jni_kotlin_type() }}{% endif %}
+    {%- endif %}
+    {%~ endfor %}
+}
+
+{%~ for f in schema.functions %}{%- if f.parent.is_none() %}{%~ if f.return_type.is_memory_backed() %}
+actual fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
+    val out = allocateWire({{ schema.layout_size(&f.return_type) }})
+    {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}{% if !f.params.is_empty() %}, {% endif %}out)
+    return {{ f.return_type.from_wire_ident() }}(out)
+}
+{%- else %}
+actual fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} =
+    {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}){{ f.return_type.from_ffm_suffix() }}
+{%- endif %}
+{%- endif %}{%~ endfor %}
+
+    {%~ if !android %}
+object {{ schema.loader_object_name() }} {
+    fun extractLibrary(): String {
+        val fileName = platformLibraryFileName("{{ schema.glue_crate_ident() }}")
+        val resourcePath = "/native/$fileName"
+        val resourceStream = {{ schema.loader_object_name() }}::class.java.getResourceAsStream(resourcePath)
+            ?: error(
+                "koffi: native library resource not found at $resourcePath. "
+            )
+
+        val tempFile = Files.createTempFile("koffi-{{ schema.glue_crate_ident() }}-", platformLibrarySuffix())
+        tempFile.toFile().deleteOnExit()
+        resourceStream.use { input ->
+            Files.copy(input, tempFile, StandardCopyOption.REPLACE_EXISTING)
+        }
+
+        return tempFile.toAbsolutePath().toString()
+    }
+
+    private fun platformLibraryFileName(crateName: String): String {
+        val os = System.getProperty("os.name").lowercase()
+        return when {
+            os.contains("mac") -> "lib$crateName.dylib"
+            os.contains("win") -> "$crateName.dll"
+            else -> "lib$crateName.so"
+        }
+    }
+
+    private fun platformLibrarySuffix(): String {
+        val os = System.getProperty("os.name").lowercase()
+        return when {
+            os.contains("mac") -> ".dylib"
+            os.contains("win") -> ".dll"
+            else -> ".so"
+        }
+    }
+}
+{% endif %}

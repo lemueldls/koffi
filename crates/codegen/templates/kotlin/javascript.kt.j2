@@ -2,8 +2,12 @@
 
 package {{ schema.kotlin_package() }}
 
-{%~ for f in schema.functions %}
+{%~ for f in schema.functions %}{%- if f.parent.is_none() %}
 // actual fun {{ f.kotlin_name }}(...): {{ f.return_type.kotlin_type() }} = TODO()
-{%- endfor %}
+{%- endif %}{%- endfor %}
 
-actual object {{ schema.ffi_object_name() }} {}
+actual object {{ schema.ffi_object_name() }} {
+{%- for f in schema.functions %}{%- if f.parent.is_some() %}
+    // actual fun {{ f.ffi_member_name() }}(...): {{ f.return_type.kotlin_type() }} = TODO()
+{%- endif %}{%- endfor %}
+}

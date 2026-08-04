@@ -7,159 +7,172 @@ import java.lang.invoke.MethodHandle
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-{# `actual object` matching the `expect object` in common.kt.j2. The
-   MethodHandle/layout plumbing and the `actual fun`s share this one scope:
-   the handles are private and the functions need them. #}
-actual object {{ schema.ffi_object_name() }} {
-    private val arena: Arena = Arena.ofShared()
-    val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)
-    val linker: Linker = Linker.nativeLinker()
-
-    {#~ Enum layouts first: struct layouts may embed them, and Kotlin
-       initializes properties in declaration order (a forward reference is
-       a compile error). Fieldless enums have no layout constant. -#}
-    {%~ for e in schema.enums %}{% if e.has_data %}
-    private val {{ e.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
-        {%- for entry in e.layout.entries %}
-        {%- match entry %}
-        {%- when LayoutEntry::Value { kotlin_layout, name } %}
-        {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
-        {%- when LayoutEntry::Padding { bytes } %}
-        MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
-        {%- endmatch %}
-        {%- endfor %}
-    )
-
-    {#~ Per-enum marshallers. `statusToFfm` materializes the enum's memory
-       image (discriminant + active variant's payload at absolute offsets);
-       `statusFromFfm` reads it back. Only data-carrying enums need these
-       fieldless ones cross the ABI as their plain discriminant scalar.
-       They are plain members (not member extensions, which can't be
-       called via the class name) of the actual object. -#}
-    private fun {{ e.to_ffm_ident() }}(value: {{ e.name }}, arena: Arena): MemorySegment {
-        val segment = arena.allocate({{ e.kotlin_ffm_value_layout() }})
-        segment.set({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L, value.discriminant{{ e.discriminant.to_ffm_suffix() }})
-        when (value) {
-            {%- for v in e.variants %}
-            {%- if v.placements.is_empty() %}
-            {{ e.name }}.{{ v.name }} -> {
-            }
-            {%- else %}
-            is {{ e.name }}.{{ v.name }} -> {
-                {%- for f in v.placements %}
-                segment.set({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L, value.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
-                {%- endfor %}
-            }
-            {%- endif %}
-            {%- endfor %}
-        }
-        return segment
-    }
-
-    private fun {{ e.from_ffm_ident() }}(segment: MemorySegment): {{ e.name }} {
-        val d = segment.get({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L){{ e.discriminant.from_ffm_suffix() }}
-        return when (d) {
-            {%- for v in e.variants %}
-            {{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }} -> {% if v.placements.is_empty() %}{{ e.name }}.{{ v.name }}{% else %}{{ e.name }}.{{ v.name }}({% for f in v.placements %}{{ f.kotlin_name() }} = segment.get({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L){{ f.ty.from_ffm_suffix() }}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
-            {%- endfor %}
-            else -> error("koffi: invalid {{ e.name }} discriminant $d")
-        }
-    }
-    {% endif %}{%- endfor %}
-
-    {#~ Struct layouts in topological order: a struct used as a field of
-        another must have its layout declared first (Kotlin initializes
-        `val` properties in declaration order). Enums are already emitted
-        above since struct layouts can embed data-enum layouts. -#}
-    {%~ for s in schema.structs_in_layout_order() %}
-    private val {{ s.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
-        {%- for entry in s.layout.entries %}
-        {%- match entry %}
-        {%- when LayoutEntry::Value { kotlin_layout, name } %}
-        {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
-        {%- when LayoutEntry::Padding { bytes } %}
-        MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
-        {%- endmatch %}
-        {%- endfor %}
-    )
-    {%- endfor %}
-
-    {#~ Per-struct marshallers. `payloadToFfm` materializes the struct's
-        memory image (each field at its absolute offset); `payloadFromFfm`
-        reads it back. Struct fields that are themselves structs or
-        data-carrying enums are recursively marshalled via their own
-        `toFfm`/`fromFfm` helpers and copied into the parent segment with
-        `asSlice().copyFrom()`. Function declarations don't have the
-        declaration-order constraint that `val` properties do, so the
-        iteration order here doesn't matter. -#}
-    {%~ for s in schema.structs %}
-    private fun {{ s.to_ffm_ident() }}(value: {{ s.name }}, arena: Arena): MemorySegment {
-        val segment = arena.allocate({{ s.kotlin_ffm_value_layout() }})
-        {%- for placement in s.layout.placements %}
-        {%- if placement.ty.is_memory_backed() %}
-        segment.asSlice({{ placement.offset }}L, {{ placement.ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ placement.ty.to_ffm_ident() }}(value.{{ placement.kotlin_name() }}, arena))
-        {%- else %}
-        segment.set({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L, value.{{ placement.kotlin_name() }}{{ placement.ty.to_ffm_suffix() }})
+{#~ The `actual fun` for one exported fn, rendered both inside the object
+   (parent-having fns) and at top level (free fns). The body is identical;
+   only the name differs, and `indent` carries the call site's indentation
+   so object members stay nested. -#}
+{%- macro ffm_fn(f, member_name, indent) -%}
+{{ indent }}actual fun {{ member_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
+{{ indent }}    Arena.ofConfined().use { callArena ->
+        {%- for p in f.params %}
+        {%- if p.ty.is_memory_backed() %}
+{{ indent }}        val {{ p.name }}Segment = {{ p.ty.to_ffm_ident() }}({{ p.name }}, callArena)
         {%- endif %}
         {%- endfor %}
-        return segment
-    }
-
-    private fun {{ s.from_ffm_ident() }}(segment: MemorySegment): {{ s.name }} {
-        return {{ s.name }}(
-            {%- for placement in s.layout.placements %}
+{{ indent }}        val __r = {{ f.unique_ident() }}.invokeWithArguments(
+            {%- if f.return_type.is_memory_backed() %}callArena{% if !f.params.is_empty() %}, {% endif %}{%- endif -%}
+            {%- for p in f.params -%}
             {%- if !loop.first %}, {% endif -%}
-            {%- if placement.ty.is_memory_backed() %}
-            {{ placement.kotlin_name() }} = {{ placement.ty.from_ffm_ident() }}(segment.asSlice({{ placement.offset }}L, {{ placement.ty.kotlin_ffm_value_layout() }}.byteSize()))
-            {%- else %}
-            {{ placement.kotlin_name() }} = segment.get({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L){{ placement.ty.from_ffm_suffix() }}
-            {%- endif %}
+            {%- if p.ty.is_memory_backed() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif -%}
             {%- endfor -%}
         )
-    }
-    {%- endfor %}
+        {%- if f.return_type.is_memory_backed() %}
+{{ indent }}        return {{ f.return_type.from_ffm_ident() }}(__r as MemorySegment)
+        {%- else %}
+        {%- match f.return_type %}
+        {%- when SchemaTypeRef::Scalar(kind) %}
+{{ indent }}        return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
+        {%- when SchemaTypeRef::Enum { name, discriminant, .. } %}
+{{ indent }}        return {{ name }}.fromDiscriminant((__r as {{ discriminant.jvm_boxed_type() }}){{ discriminant.from_ffm_suffix() }})
+        {%- when SchemaTypeRef::Struct { .. } %}
+        {# unreachable: is_memory_backed covers structs #}
+        {%- endmatch %}
+        {%- endif %}
+{{ indent }}    }
+{{ indent }}}
+{%- endmacro -%}
 
-    {%~ for f in schema.functions %}
-    private val {{ f.unique_ident() }}: MethodHandle = linker.downcallHandle(
-        lookup.find("{{ f.unique_ident() }}").orElseThrow(),
-        FunctionDescriptor.of(
-            {{- f.return_type.kotlin_ffm_value_layout() }}
-            {%- for p in f.params %}, {{ p.ty.kotlin_ffm_value_layout() }}{% endfor -%}
-        ),
-    )
-    {%- endfor %}
+{#~ The MethodHandle/layout/marshaller plumbing is top-level `private`, not
+   object members: the top-level `actual fun`s for free fns need it, and
+   object members can't see other classes' privates even in the same file.
+   Top-level `private` is file-visible, which covers both call sites. -#}
+private val arena: Arena = Arena.ofShared()
+private val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)
+private val linker: Linker = Linker.nativeLinker()
 
-    {%~ for f in schema.functions %}
-    actual fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
-        Arena.ofConfined().use { callArena ->
-            {%- for p in f.params %}
-            {%- if p.ty.is_memory_backed() %}
-            val {{ p.name }}Segment = {{ p.ty.to_ffm_ident() }}({{ p.name }}, callArena)
-            {%- endif %}
-            {%- endfor %}
-            val __r = {{ f.unique_ident() }}.invokeWithArguments(
-                {%- if f.return_type.is_memory_backed() %}callArena{% if !f.params.is_empty() %}, {% endif %}{%- endif -%}
-                {%- for p in f.params -%}
-                {%- if !loop.first %}, {% endif -%}
-                {%- if p.ty.is_memory_backed() %}{{ p.name }}Segment{% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif -%}
-                {%- endfor -%}
-            )
-            {%- if f.return_type.is_memory_backed() %}
-            return {{ f.return_type.from_ffm_ident() }}(__r as MemorySegment)
-            {%- else %}
-            {%- match f.return_type %}
-            {%- when SchemaTypeRef::Scalar with (kind) %}
-            return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
-            {%- when SchemaTypeRef::Enum with { name, discriminant, .. } %}
-            return {{ name }}.fromDiscriminant((__r as {{ discriminant.jvm_boxed_type() }}){{ discriminant.from_ffm_suffix() }})
-            {%- when SchemaTypeRef::Struct with { .. } %}
-            {# unreachable: is_memory_backed covers structs #}
-            {%- endmatch %}
-            {%- endif %}
+{#~ Enum layouts first: struct layouts may embed them, and Kotlin
+   initializes properties in declaration order (a forward reference is
+   a compile error). Fieldless enums have no layout constant. -#}
+{%~ for e in schema.enums %}{% if e.has_data %}
+private val {{ e.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
+    {%- for entry in e.layout.entries %}
+    {%- match entry %}
+    {%- when LayoutEntry::Value { kotlin_layout, name } %}
+    {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
+    {%- when LayoutEntry::Padding { bytes } %}
+    MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
+    {%- endmatch %}
+    {%- endfor %}
+)
+
+{#~ Per-enum marshallers. `statusToFfm` materializes the enum's memory
+   image (discriminant + active variant's payload at absolute offsets);
+   `statusFromFfm` reads it back. Only data-carrying enums need these;
+   fieldless ones cross the ABI as their plain discriminant scalar. -#}
+private fun {{ e.to_ffm_ident() }}(value: {{ e.name }}, arena: Arena): MemorySegment {
+    val segment = arena.allocate({{ e.kotlin_ffm_value_layout() }})
+    segment.set({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L, value.discriminant{{ e.discriminant.to_ffm_suffix() }})
+    when (value) {
+        {%- for v in e.variants %}
+        {%- if v.placements.is_empty() %}
+        {{ e.name }}.{{ v.name }} -> {
         }
+        {%- else %}
+        is {{ e.name }}.{{ v.name }} -> {
+            {%- for f in v.placements %}
+            segment.set({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L, value.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
+            {%- endfor %}
+        }
+        {%- endif %}
+        {%- endfor %}
     }
-    {%- endfor %}
+    return segment
 }
+
+private fun {{ e.from_ffm_ident() }}(segment: MemorySegment): {{ e.name }} {
+    val d = segment.get({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L){{ e.discriminant.from_ffm_suffix() }}
+    return when (d) {
+        {%- for v in e.variants %}
+        {{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }} -> {% if v.placements.is_empty() %}{{ e.name }}.{{ v.name }}{% else %}{{ e.name }}.{{ v.name }}({% for f in v.placements %}{{ f.kotlin_name() }} = segment.get({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L){{ f.ty.from_ffm_suffix() }}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
+        {%- endfor %}
+        else -> error("koffi: invalid {{ e.name }} discriminant $d")
+    }
+}
+{%- endif %}{%- endfor %}
+
+{#~ Struct layouts in topological order: a struct used as a field of
+   another must have its layout declared first (Kotlin initializes
+   `val` properties in declaration order). Enums are already emitted
+   above since struct layouts can embed data-enum layouts. -#}
+{%~ for s in schema.structs_in_layout_order() %}
+private val {{ s.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
+    {%- for entry in s.layout.entries %}
+    {%- match entry %}
+    {%- when LayoutEntry::Value { kotlin_layout, name } %}
+    {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
+    {%- when LayoutEntry::Padding { bytes } %}
+    MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
+    {%- endmatch %}
+    {%- endfor %}
+)
+{%- endfor %}
+
+{#~ Per-struct marshallers. `payloadToFfm` materializes the struct's
+   memory image (each field at its absolute offset); `payloadFromFfm`
+   reads it back. Struct fields that are themselves structs or
+   data-carrying enums are recursively marshalled via their own
+   `toFfm`/`fromFfm` helpers and copied into the parent segment with
+   `asSlice().copyFrom()`. Function declarations don't have the
+   declaration-order constraint that `val` properties do, so the
+   iteration order here doesn't matter. -#}
+{%~ for s in schema.structs %}
+private fun {{ s.to_ffm_ident() }}(value: {{ s.name }}, arena: Arena): MemorySegment {
+    val segment = arena.allocate({{ s.kotlin_ffm_value_layout() }})
+    {%- for placement in s.layout.placements %}
+    {%- if placement.ty.is_memory_backed() %}
+    segment.asSlice({{ placement.offset }}L, {{ placement.ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ placement.ty.to_ffm_ident() }}(value.{{ placement.kotlin_name() }}, arena))
+    {%- else %}
+    segment.set({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L, value.{{ placement.kotlin_name() }}{{ placement.ty.to_ffm_suffix() }})
+    {%- endif %}
+    {%- endfor %}
+    return segment
+}
+
+private fun {{ s.from_ffm_ident() }}(segment: MemorySegment): {{ s.name }} {
+    return {{ s.name }}(
+        {%- for placement in s.layout.placements %}
+        {%- if placement.ty.is_memory_backed() %}
+        {{ placement.kotlin_name() }} = {{ placement.ty.from_ffm_ident() }}(segment.asSlice({{ placement.offset }}L, {{ placement.ty.kotlin_ffm_value_layout() }}.byteSize())){% if !loop.last %},{% endif %}
+        {%- else %}
+        {{ placement.kotlin_name() }} = segment.get({{ placement.ty.kotlin_ffm_value_layout() }}, {{ placement.offset }}L){{ placement.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
+        {%- endif %}
+        {%- endfor -%}
+    )
+}
+{%- endfor %}
+
+{%~ for f in schema.functions %}
+private val {{ f.unique_ident() }}: MethodHandle = linker.downcallHandle(
+    lookup.find("{{ f.unique_ident() }}").orElseThrow(),
+    FunctionDescriptor.of(
+        {{- f.return_type.kotlin_ffm_value_layout() }}
+        {%- for p in f.params %}, {{ p.ty.kotlin_ffm_value_layout() }}{% endfor -%}
+    ),
+)
+{%- endfor %}
+
+{#~ `actual object` matching the `expect object` in common.kt.j2, carrying
+   only the parent-having fns. Free fns have their top-level `actual fun`s
+   below. -#}
+actual object {{ schema.ffi_object_name() }} {
+    {%~ for f in schema.functions %}{%- if f.parent.is_some() %}
+{{ ffm_fn(&f, f.ffi_member_name(), "    ") }}
+    {%- endif %}{%- endfor %}
+}
+
+{%~ for f in schema.functions %}{%- if f.parent.is_none() %}
+{{ ffm_fn(&f, f.kotlin_name, "") }}
+{%- endif %}{%- endfor %}
 
 object {{ schema.loader_object_name() }} {
     fun load(arena: Arena): SymbolLookup {

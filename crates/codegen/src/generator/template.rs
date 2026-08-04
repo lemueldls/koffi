@@ -1,8 +1,9 @@
 use askama::Template;
+use koffi_build::config::TargetPlatform;
 
 use crate::{
     layout::LayoutEntry,
-    schema::{Schema, SchemaTypeRef},
+    schema::{ScalarKind, Schema, SchemaTypeRef},
 };
 
 #[derive(Template)]
@@ -41,6 +42,7 @@ pub struct RustCargoToml<'a> {
     pub crate_name: &'a str,
     pub required_dependencies: &'a [CargoDep],
     pub optional_dependencies: &'a [CargoOptionalDep],
+    pub crate_types: &'a [&'a str],
 }
 
 pub struct CargoDep {
@@ -67,8 +69,37 @@ pub struct KotlinFfm<'a> {
 }
 
 #[derive(Template)]
+#[template(path = "kotlin/jni.kt.j2")]
+pub struct KotlinJni<'a> {
+    pub schema: &'a Schema,
+    /// Android load mode (`System.loadLibrary` + jniLibs staging) vs. the
+    /// jvm classpath-resource extraction loader.
+    pub android: bool,
+}
+
+#[derive(Template)]
+#[template(path = "kotlin/native.kt.j2")]
+pub struct KotlinNative<'a> {
+    pub schema: &'a Schema,
+}
+
+#[derive(Template)]
 #[template(path = "kotlin/module.yaml.j2")]
 pub struct KotlinModuleYaml<'a> {
-    pub platforms: &'a [&'a str],
+    pub platforms: &'a [TargetPlatform],
     pub dependencies: &'a [&'a str],
+    pub android: bool,
+}
+
+#[derive(Template)]
+#[template(path = "native/header.c.j2")]
+pub struct CHeader<'a> {
+    pub schema: &'a Schema,
+}
+
+#[derive(Template)]
+#[template(path = "native/cinterop.def.j2")]
+pub struct CInteropDef<'a> {
+    pub schema: &'a Schema,
+    pub native_platforms: &'a [&'a TargetPlatform],
 }

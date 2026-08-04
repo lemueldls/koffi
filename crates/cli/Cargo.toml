@@ -12,6 +12,7 @@ path = "src/main.rs"
 anyhow.workspace = true
 facet.workspace = true
 facet-pretty.workspace = true
+facet-toml.workspace = true
 figue.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

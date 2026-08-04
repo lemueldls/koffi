@@ -306,6 +306,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "facet-default"
+version = "0.50.0-rc.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7aa9e2bfb168e7c767d8808435fcb358d0d2e244cd75f5da09e850afd1e4fff7"
+dependencies = [
+ "facet",
+]
+
+[[package]]
 name = "facet-dessert"
 version = "0.50.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -437,6 +446,18 @@ dependencies = [
  "facet-core",
  "facet-reflect",
  "strsim",
+]
+
+[[package]]
+name = "facet-toml"
+version = "0.50.0-rc.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ec563b4a7628e54a1d22b7e3750b2da21721e938f5caf12e63e8347ee33bf92"
+dependencies = [
+ "facet-core",
+ "facet-format",
+ "facet-reflect",
+ "toml_parser",
 ]
 
 [[package]]
@@ -633,6 +654,7 @@ dependencies = [
  "anyhow",
  "camino",
  "cargo_metadata",
+ "facet",
  "tracing",
 ]
 
@@ -643,6 +665,7 @@ dependencies = [
  "anyhow",
  "facet",
  "facet-pretty",
+ "facet-toml",
  "figue",
  "koffi-build",
  "koffi-codegen",
@@ -657,6 +680,7 @@ dependencies = [
  "anyhow",
  "askama",
  "facet",
+ "facet-default",
  "heck",
  "koffi-build",
  "koffi-core",
@@ -1222,6 +1246,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f60246a4944f24f6e018aa17cdeffb7818b76356965d03b07d6a9886e8962185"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "toml_parser"
+version = "1.1.3+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
+dependencies = [
+ "winnow",
 ]
 
 [[package]]

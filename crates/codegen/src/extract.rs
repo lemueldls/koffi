@@ -61,7 +61,7 @@ pub fn discover_fn_symbols(library_path: &Path) -> anyhow::Result<Vec<String>> {
     Ok(symbols)
 }
 
-pub fn extract_schema(crate_name: String, library_path: &Path) -> anyhow::Result<Schema> {
+pub fn extract_schema(crate_name: &str, library_path: &Path) -> anyhow::Result<Schema> {
     let lib = LoadedShapeLibrary::open(library_path)?;
     let symbol_names = discover_fn_symbols(library_path)?;
 
@@ -73,5 +73,5 @@ pub fn extract_schema(crate_name: String, library_path: &Path) -> anyhow::Result
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
 
-    build_schema(crate_name, &fn_entries)
+    build_schema(crate_name.to_string(), &fn_entries)
 }

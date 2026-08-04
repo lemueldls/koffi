@@ -7,6 +7,7 @@ edition.workspace = true
 anyhow.workspace = true
 askama.workspace = true
 facet.workspace = true
+facet-default.workspace = true
 object.workspace = true
 libloading.workspace = true
 heck.workspace = true

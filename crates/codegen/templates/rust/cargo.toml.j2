@@ -7,7 +7,7 @@ name = "{{ crate_name }}"
 edition = "2024"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = [{% for ct in crate_types %}"{{ ct }}"{% if !loop.last %}, {% endif %}{% endfor %}]
 
 [dependencies]
 {%- for dep in required_dependencies %}

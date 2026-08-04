@@ -14,6 +14,30 @@ impl Schema {
         format!("{}Ffi", self.crate_ident_pascal())
     }
 
+    /// Wire size in bytes of a memory-backed type: the total layout size
+    /// of the struct or data-carrying enum, padding included. Drives the
+    /// out-buffer allocation in jni.kt.j2.
+    #[must_use]
+    pub fn layout_size(&self, ty: &SchemaTypeRef) -> u64 {
+        match ty {
+            SchemaTypeRef::Struct { name, module_path } => {
+                self.structs
+                    .iter()
+                    .find(|s| s.name == *name && s.module_path == *module_path)
+                    .map_or(0, |s| s.layout.total.size)
+            }
+            SchemaTypeRef::Enum {
+                name, module_path, ..
+            } => {
+                self.enums
+                    .iter()
+                    .find(|e| e.name == *name && e.module_path == *module_path)
+                    .map_or(0, |e| e.layout.total.size)
+            }
+            SchemaTypeRef::Scalar(_) => 0,
+        }
+    }
+
     #[must_use]
     pub fn crate_ident_pascal(&self) -> String {
         self.crate_name.to_upper_camel_case()
@@ -39,10 +63,10 @@ impl Schema {
     }
 
     /// Every fn whose `parent` is `s`, in Rust declaration order. Drives
-    /// every per-struct Kotlin member in common.kt.j2. The flat
-    /// `functions` list stays flat elsewhere: it's what the low-level FFI
-    /// object is built from, where every fn needs one ABI symbol regardless
-    /// of which struct, if any, it belongs to.
+    /// every per-struct Kotlin member in common.kt.j2. Elsewhere the flat
+    /// `functions` list remains the single source for the low-level FFI
+    /// object: every fn needs one ABI symbol regardless of which struct,
+    /// if any, it belongs to.
     #[must_use]
     pub fn functions_of<'a>(&'a self, s: &'a SchemaStruct) -> Vec<&'a SchemaFn> {
         self.functions
@@ -64,8 +88,8 @@ impl Schema {
 
     /// Does `s` have at least one associated fn that isn't an instance
     /// method (a constructor or an ordinary companion fn)? Drives whether
-    /// common.kt.j2 opens a `companion object { .. }` block at all; an
-    /// empty one isn't valid Kotlin to emit unconditionally.
+    /// common.kt.j2 opens a `companion object { .. }` block at all;
+    /// emitting an empty block isn't valid Kotlin.
     #[must_use]
     pub fn has_companion_functions(&self, s: &SchemaStruct) -> bool {
         self.functions_of(s).iter().any(|f| !f.has_receiver())
@@ -149,6 +173,55 @@ impl SchemaTypeRef {
         }
     }
 
+    /// C type name in the generated header. Structs and enums cross by
+    /// their `__koffi_*` typedef, scalars by their fixed-width C type.
+    #[must_use]
+    pub fn c_type(&self) -> String {
+        match self {
+            SchemaTypeRef::Scalar(k) => k.c_type().to_string(),
+            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { .. } => self.unique_ident(),
+        }
+    }
+
+    /// JNI sys type for the native `external fun` signature. Structs and
+    /// data-carrying enums marshal through a direct `JByteBuffer`;
+    /// scalars and fieldless enums (which cross as their discriminant)
+    /// use the bit-identical signed primitive.
+    #[must_use]
+    pub fn jni_type(&self) -> String {
+        match self {
+            SchemaTypeRef::Scalar(k) => k.jni_type().to_string(),
+            SchemaTypeRef::Enum {
+                discriminant,
+                has_data: false,
+                ..
+            } => discriminant.jni_type().to_string(),
+            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
+                "JByteBuffer".to_string()
+            }
+        }
+    }
+
+    /// Kotlin type of the `private external fun` parameter or return.
+    /// JNI primitives are signed (`jshort` = `Short`, ...), so unsigned
+    /// kinds arrive as their signed counterpart; the byte width still
+    /// matches, and `to_ffm_suffix`/`from_ffm_suffix` do the value
+    /// conversions at the call sites.
+    #[must_use]
+    pub fn jni_kotlin_type(&self) -> String {
+        match self {
+            SchemaTypeRef::Scalar(k) => k.jni_kotlin_type().to_string(),
+            SchemaTypeRef::Enum {
+                discriminant,
+                has_data: false,
+                ..
+            } => discriminant.jni_kotlin_type().to_string(),
+            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
+                "ByteBuffer".to_string()
+            }
+        }
+    }
+
     /// True for plain structs (always marshalled through a memory segment).
     /// Fieldless enums and scalars cross the ABI as a single value.
     #[must_use]
@@ -225,6 +298,119 @@ impl SchemaTypeRef {
         }
     }
 
+    /// Suffix turning a Kotlin value into the C scalar, for the argument
+    /// spot in native.kt.j2. Scalars are identity (cinterop already maps
+    /// `uint8_t` to `UByte` and so on), `bool` widens explicitly, and a
+    /// fieldless enum contributes its discriminant value, which is the
+    /// exact C type of its typedef. Structs and data-carrying enums never
+    /// use this — they marshal through `toC` `CValue`s.
+    #[must_use]
+    pub fn to_c_suffix(&self) -> String {
+        match self {
+            SchemaTypeRef::Scalar(k) => k.to_c_suffix().to_string(),
+            SchemaTypeRef::Enum {
+                has_data: false, ..
+            } => ".discriminant".to_string(),
+            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
+                String::new()
+            }
+        }
+    }
+
+    /// Suffix turning a C scalar back into a Kotlin value, for the
+    /// field-read and return spots in native.kt.j2. Fieldless enums
+    /// roundtrip through `fromDiscriminant`; bool narrows back from the
+    /// `uint8_t` it crossed the ABI as.
+    #[must_use]
+    pub fn from_c_suffix(&self) -> String {
+        match self {
+            SchemaTypeRef::Scalar(k) => k.from_c_suffix().to_string(),
+            SchemaTypeRef::Enum {
+                name,
+                has_data: false,
+                ..
+            } => format!(".let {{ {name}.fromDiscriminant(it) }}"),
+            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
+                String::new()
+            }
+        }
+    }
+
+    /// Top-level marshalling helper written to native.kt.j2
+    /// (`payloadToC`, `statusToC`). Structs and data-carrying enums
+    /// marshal through `CValue`s; scalars and fieldless enums cross as
+    /// plain values and never use this.
+    #[must_use]
+    pub fn to_c_ident(&self) -> String {
+        match self {
+            SchemaTypeRef::Enum {
+                name,
+                has_data: true,
+                ..
+            } => format!("{}ToC", name.to_snake_case()),
+            SchemaTypeRef::Struct { name, .. } => format!("{}ToC", name.to_snake_case()),
+            _ => String::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn from_c_ident(&self) -> String {
+        match self {
+            SchemaTypeRef::Enum {
+                name,
+                has_data: true,
+                ..
+            } => format!("{}FromC", name.to_snake_case()),
+            SchemaTypeRef::Struct { name, .. } => format!("{}FromC", name.to_snake_case()),
+            _ => String::new(),
+        }
+    }
+
+    /// Top-level marshalling helpers written to jni.kt.j2 (`payloadToWire`,
+    /// `payloadFromWire`, `payloadToBuf`): the direct-ByteBuffer
+    /// counterparts of the ffm segment marshallers. `ToWire` writes into
+    /// an existing buffer (nested fields recurse via `section`), `FromWire`
+    /// reads one back, and `ToBuf` allocates a fresh wire buffer for a
+    /// function argument.
+    #[must_use]
+    pub fn to_wire_ident(&self) -> String {
+        match self {
+            SchemaTypeRef::Enum {
+                name,
+                has_data: true,
+                ..
+            } => format!("{}ToWire", name.to_snake_case()),
+            SchemaTypeRef::Struct { name, .. } => format!("{}ToWire", name.to_snake_case()),
+            _ => String::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn from_wire_ident(&self) -> String {
+        match self {
+            SchemaTypeRef::Enum {
+                name,
+                has_data: true,
+                ..
+            } => format!("{}FromWire", name.to_snake_case()),
+            SchemaTypeRef::Struct { name, .. } => format!("{}FromWire", name.to_snake_case()),
+            _ => String::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn to_buf_ident(&self) -> String {
+        match self {
+            SchemaTypeRef::Enum {
+                name,
+                has_data: true,
+                ..
+            } => format!("{}ToBuf", name.to_snake_case()),
+            SchemaTypeRef::Struct { name, .. } => format!("{}ToBuf", name.to_snake_case()),
+            _ => String::new(),
+        }
+    }
+
     /// Suffix turning a Kotlin value into the raw FFI scalar, for the
     /// parameter-arg spot in ffm.kt.j2. A fieldless enum contributes its
     /// discriminant value (`status.discriminant.toUInt()`-shaped); a
@@ -276,12 +462,13 @@ impl SchemaTypeRef {
 }
 
 impl SchemaFn {
-    /// FFI-object member name: the `expect`/`actual fun`s generated on the
-    /// shared object. Free fns keep their plain lowerCamelCase name, but
-    /// parent-having fns are prefixed with the parent type (module-aware)
-    /// so `Payload::new` and `Status::new` (or the same type name in
-    /// another module) can't collide on the one object. The public API
-    /// (companion fns, instance methods) keeps using `kotlin_name`.
+    /// FFI-object member name for a parent-having fn: the `expect`/`actual`
+    /// fun generated on the shared object. Parent-having fns are prefixed
+    /// with the parent type (module-aware) so `Payload::new` and
+    /// `Status::new` (or the same type name in another module) can't
+    /// collide on the one object. Free fns never use this: they have no
+    /// `parent`, so they land as top-level Kotlin functions under their
+    /// plain `kotlin_name`.
     #[must_use]
     pub fn ffi_member_name(&self) -> String {
         let Some(parent) = &self.parent else {
@@ -320,6 +507,88 @@ impl ScalarKind {
         }
     }
 
+    /// The C type for this scalar in the generated header. bool is
+    /// `uint8_t`; everything else is the matching fixed-width type, so a
+    /// `repr(C)` struct in Rust and the C struct in the header always agree
+    /// without padding bookkeeping.
+    #[must_use]
+    pub const fn c_type(&self) -> &'static str {
+        match self {
+            ScalarKind::Bool => "uint8_t",
+            ScalarKind::U8 => "uint8_t",
+            ScalarKind::U16 => "uint16_t",
+            ScalarKind::U32 => "uint32_t",
+            ScalarKind::U64 => "uint64_t",
+            ScalarKind::I8 => "int8_t",
+            ScalarKind::I16 => "int16_t",
+            ScalarKind::I32 => "int32_t",
+            ScalarKind::I64 => "int64_t",
+            ScalarKind::F32 => "float",
+            ScalarKind::F64 => "double",
+        }
+    }
+
+    /// JNI sys type for this scalar (`jboolean`, `jint`, ...). The jni
+    /// crate aliases these to the matching fixed-width primitive, so
+    /// scalar values cross the boundary with plain `as` casts, bit for bit.
+    #[must_use]
+    pub const fn jni_type(&self) -> &'static str {
+        match self {
+            ScalarKind::Bool => "jboolean",
+            ScalarKind::U8 | ScalarKind::I8 => "jbyte",
+            ScalarKind::U16 | ScalarKind::I16 => "jshort",
+            ScalarKind::U32 | ScalarKind::I32 => "jint",
+            ScalarKind::U64 | ScalarKind::I64 => "jlong",
+            ScalarKind::F32 => "jfloat",
+            ScalarKind::F64 => "jdouble",
+        }
+    }
+
+    /// Kotlin type of the JNI primitive: `jshort` surfaces as `Short`,
+    /// `jint` as `Int`, and so on. The JVM bridges the signed primitive
+    /// to this type directly.
+    #[must_use]
+    pub const fn jni_kotlin_type(&self) -> &'static str {
+        match self {
+            ScalarKind::Bool => "Boolean",
+            ScalarKind::U8 | ScalarKind::I8 => "Byte",
+            ScalarKind::U16 | ScalarKind::I16 => "Short",
+            ScalarKind::U32 | ScalarKind::I32 => "Int",
+            ScalarKind::U64 | ScalarKind::I64 => "Long",
+            ScalarKind::F32 => "Float",
+            ScalarKind::F64 => "Double",
+        }
+    }
+
+    /// `ByteBuffer` absolute putter for the wire image of this scalar
+    /// (`putShort`, `putInt`, ...). Bool uses `put` but never reaches the
+    /// generic branch (it needs the `if` conversion, not `.toByte()`).
+    #[must_use]
+    pub const fn wire_putter(&self) -> &'static str {
+        match self {
+            ScalarKind::Bool | ScalarKind::U8 | ScalarKind::I8 => "put",
+            ScalarKind::U16 | ScalarKind::I16 => "putShort",
+            ScalarKind::U32 | ScalarKind::I32 => "putInt",
+            ScalarKind::U64 | ScalarKind::I64 => "putLong",
+            ScalarKind::F32 => "putFloat",
+            ScalarKind::F64 => "putDouble",
+        }
+    }
+
+    /// `ByteBuffer` absolute getter for the wire image of this scalar
+    /// (`getShort`, `getInt`, ...), the read side of `wire_putter`.
+    #[must_use]
+    pub const fn wire_getter(&self) -> &'static str {
+        match self {
+            ScalarKind::Bool | ScalarKind::U8 | ScalarKind::I8 => "get",
+            ScalarKind::U16 | ScalarKind::I16 => "getShort",
+            ScalarKind::U32 | ScalarKind::I32 => "getInt",
+            ScalarKind::U64 | ScalarKind::I64 => "getLong",
+            ScalarKind::F32 => "getFloat",
+            ScalarKind::F64 => "getDouble",
+        }
+    }
+
     #[must_use]
     pub const fn kotlin_ffm_value_layout(&self) -> &'static str {
         match self {
@@ -353,6 +622,27 @@ impl ScalarKind {
             ScalarKind::U16 => ".toShort()",
             ScalarKind::U32 => ".toInt()",
             ScalarKind::U64 => ".toLong()",
+            _ => "",
+        }
+    }
+
+    /// C-interop equivalent of `to_ffm_suffix`: cinterop maps every
+    /// fixed-width C integer to the matching Kotlin type, so only bool
+    /// (which crossed as `uint8_t`) needs converting. The `.let` form
+    /// keeps the suffix usable in both argument and `cValue`-field
+    /// positions.
+    #[must_use]
+    pub const fn to_c_suffix(&self) -> &'static str {
+        match self {
+            ScalarKind::Bool => ".let { if (it) 1u.toUByte() else 0u.toUByte() }",
+            _ => "",
+        }
+    }
+
+    #[must_use]
+    pub const fn from_c_suffix(&self) -> &'static str {
+        match self {
+            ScalarKind::Bool => " != 0u.toUByte()",
             _ => "",
         }
     }
@@ -441,6 +731,37 @@ impl SchemaStruct {
     pub fn from_ffm_ident(&self) -> String {
         format!("{}FromFfm", self.name.to_snake_case())
     }
+
+    /// Top-level marshalling helpers written to native.kt.j2
+    /// (`payloadToC`, `payloadFromC`): the cinterop counterpart of the
+    /// ffm pair, marshalling through `CValue`s.
+    #[must_use]
+    pub fn to_c_ident(&self) -> String {
+        format!("{}ToC", self.name.to_snake_case())
+    }
+
+    #[must_use]
+    pub fn from_c_ident(&self) -> String {
+        format!("{}FromC", self.name.to_snake_case())
+    }
+
+    /// Top-level marshalling helpers written to jni.kt.j2
+    /// (`payloadToWire`, `payloadFromWire`, `payloadToBuf`), mirroring
+    /// `to_c_ident`/`from_c_ident` for direct `ByteBuffer`s.
+    #[must_use]
+    pub fn to_wire_ident(&self) -> String {
+        format!("{}ToWire", self.name.to_snake_case())
+    }
+
+    #[must_use]
+    pub fn from_wire_ident(&self) -> String {
+        format!("{}FromWire", self.name.to_snake_case())
+    }
+
+    #[must_use]
+    pub fn to_buf_ident(&self) -> String {
+        format!("{}ToBuf", self.name.to_snake_case())
+    }
 }
 
 impl SchemaEnum {
@@ -464,5 +785,36 @@ impl SchemaEnum {
     #[must_use]
     pub fn from_ffm_ident(&self) -> String {
         format!("{}FromFfm", self.name.to_snake_case())
+    }
+
+    /// Top-level marshalling helpers written to native.kt.j2
+    /// (`statusToC`, `statusFromC`): the cinterop counterpart of the ffm
+    /// pair, marshalling through `CValue`s.
+    #[must_use]
+    pub fn to_c_ident(&self) -> String {
+        format!("{}ToC", self.name.to_snake_case())
+    }
+
+    #[must_use]
+    pub fn from_c_ident(&self) -> String {
+        format!("{}FromC", self.name.to_snake_case())
+    }
+
+    /// Top-level marshalling helpers written to jni.kt.j2
+    /// (`statusToWire`, `statusFromWire`, `statusToBuf`), mirroring
+    /// `to_c_ident`/`from_c_ident` for direct `ByteBuffer`s.
+    #[must_use]
+    pub fn to_wire_ident(&self) -> String {
+        format!("{}ToWire", self.name.to_snake_case())
+    }
+
+    #[must_use]
+    pub fn from_wire_ident(&self) -> String {
+        format!("{}FromWire", self.name.to_snake_case())
+    }
+
+    #[must_use]
+    pub fn to_buf_ident(&self) -> String {
+        format!("{}ToBuf", self.name.to_snake_case())
     }
 }

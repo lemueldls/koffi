@@ -113,8 +113,15 @@ enum class {{ e.name }}(val discriminant: {{ e.discriminant.kotlin_type() }}) {
 {% endif %}
 {%- endfor %}
 
+{#~ Top-level functions mirror their Rust shape: a free fn (`#[koffi::export]`
+   outside any impl block) is a top-level `expect fun`, not an object member.
+   Parent-having fns stay on the object below. -#}
+{%~ for f in schema.functions %}{%- if f.parent.is_none() %}
+expect fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }}
+{%- endif %}{%- endfor %}
+
 expect object {{ schema.ffi_object_name() }} {
-{%- for f in schema.functions %}
+{%- for f in schema.functions %}{%- if f.parent.is_some() %}
     fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }}
-{%- endfor %}
+{%- endif %}{%- endfor %}
 }
