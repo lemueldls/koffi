@@ -1,0 +1,87 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust:
+    name: fmt + clippy + snapshots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: taiki-e/install-action@nextest
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets
+      - run: cargo nextest run
+
+  kotlin:
+    name: test (${{ matrix.variant.name }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: ffm
+            run_module: jvm
+          - name: jni
+            run_module: jvm
+            pack_args: --config.jvm_backend=jni
+          - name: native
+            run_module: linux
+            pack_args: "--config.platforms.0 jvm --config.platforms.1 linuxX64"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Cache Kotlin CLI
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/JetBrains/Kotlin
+          key: kotlin-cli-${{ runner.os }}
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}
+
+      - name: Install Kotlin Toolchain
+        run: curl -fsSL https://kotl.in/install.sh | sh
+
+      - name: Generate bindings and stage artifacts
+        run: cargo run pack examples/hello-kotlin -o examples/hello-kotlin/tests/generated ${{ matrix.variant.pack_args }}
+
+      - name: Run tests
+        working-directory: examples/hello-kotlin/tests
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          ./kotlin run -m ${{ matrix.variant.run_module }}
