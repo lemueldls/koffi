@@ -41,7 +41,6 @@ jobs:
             pack_args: --config.jvm_backend=jni
           - name: native
             run_module: linux
-            pack_args: "--config.platforms.0 jvm --config.platforms.1 linuxX64"
 
     steps:
       - uses: actions/checkout@v7
@@ -78,7 +77,7 @@ jobs:
         run: curl -fsSL https://kotl.in/install.sh | sh
 
       - name: Generate bindings and stage artifacts
-        run: cargo run pack examples/hello-kotlin -o examples/hello-kotlin/tests/generated ${{ matrix.variant.pack_args }}
+        run: cargo run pack examples/hello-kotlin -o examples/hello-kotlin/tests/generated --config.platforms.0 jvm --config.platforms.1 linuxX64 ${{ matrix.variant.pack_args }}
 
       - name: Run tests
         working-directory: examples/hello-kotlin/tests
