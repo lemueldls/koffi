@@ -14,10 +14,97 @@ private val arena: Arena = Arena.ofShared()
 private val lookup: SymbolLookup = HelloKotlinLoader.load(arena)
 private val linker: Linker = Linker.nativeLinker()
 
+private val __koffi_option_boolLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    ValueLayout.JAVA_BOOLEAN.withName("")
+)
+private val __koffi_enum_hello_kotlin_MoodLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_INT.withName("discriminant"),
+    __koffi_option_boolLayout.withName(""),
+    MemoryLayout.paddingLayout(2)
+)
 private val __koffi_enum_hello_kotlin_StatusLayout: MemoryLayout = MemoryLayout.structLayout(
     ValueLayout.JAVA_INT.withName("discriminant"),
     ValueLayout.JAVA_INT.withName("")
 )
+private val __koffi_struct_hello_kotlin_DancerLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_INT.withName("id"),
+    __koffi_option_boolLayout.withName("active"),
+    MemoryLayout.paddingLayout(2)
+)
+private val __koffi_struct_hello_kotlin_PayloadLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_SHORT.withName("data")
+)
+private val __koffi_struct_hello_kotlin_PointLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_INT.withName("x"),
+    ValueLayout.JAVA_INT.withName("y")
+)
+private val __koffi_struct_hello_kotlin_RectLayout: MemoryLayout = MemoryLayout.structLayout(
+    __koffi_struct_hello_kotlin_PointLayout.withName("top_left"),
+    __koffi_struct_hello_kotlin_PointLayout.withName("bottom_right")
+)
+private val __koffi_struct_hello_kotlin_StatusHolderLayout: MemoryLayout = MemoryLayout.structLayout(
+    __koffi_enum_hello_kotlin_StatusLayout.withName("status"),
+    ValueLayout.JAVA_BYTE.withName("tag"),
+    MemoryLayout.paddingLayout(3)
+)
+private val __koffi_option___koffi_struct_hello_kotlin_DancerLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    MemoryLayout.paddingLayout(3),
+    __koffi_struct_hello_kotlin_DancerLayout.withName("")
+)
+private val __koffi_option___koffi_struct_hello_kotlin_PayloadLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    MemoryLayout.paddingLayout(1),
+    __koffi_struct_hello_kotlin_PayloadLayout.withName("")
+)
+private val __koffi_option_f64Layout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    MemoryLayout.paddingLayout(7),
+    ValueLayout.JAVA_DOUBLE.withName("")
+)
+private val __koffi_option_u32Layout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    MemoryLayout.paddingLayout(3),
+    ValueLayout.JAVA_INT.withName("")
+)
+private val __koffi_result___koffi_option_u32_u8Layout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    MemoryLayout.paddingLayout(3),
+    __koffi_option_u32Layout.withName("")
+)
+private val __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    MemoryLayout.paddingLayout(3),
+    __koffi_enum_hello_kotlin_StatusLayout.withName("")
+)
+private val __koffi_result_u32_u8Layout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_BYTE.withName("discriminant"),
+    MemoryLayout.paddingLayout(3),
+    ValueLayout.JAVA_INT.withName("")
+)
+
+private fun moodToFfm(value: Mood, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_enum_hello_kotlin_MoodLayout)
+    segment.set(ValueLayout.JAVA_INT, 0L, value.discriminant)
+    when (value) {
+        Mood.Fine -> {
+        }
+        is Mood.Flying -> {
+            segment.asSlice(4L, __koffi_option_boolLayout.byteSize()).copyFrom(__koffi_option_boolToFfm(value.field0, arena))
+        }
+    }
+    return segment
+}
+
+private fun moodFromFfm(segment: MemorySegment): Mood {
+    val d = segment.get(ValueLayout.JAVA_INT, 0L)
+    return when (d) {
+        0 -> Mood.Fine
+        1 -> Mood.Flying(field0 = __koffi_option_boolFromFfm(segment.asSlice(4L, __koffi_option_boolLayout.byteSize())))
+        else -> error("koffi: invalid Mood discriminant $d")
+    }
+}
 private fun statusToFfm(value: Status, arena: Arena): MemorySegment {
     val segment = arena.allocate(__koffi_enum_hello_kotlin_StatusLayout)
     segment.set(ValueLayout.JAVA_INT, 0L, value.discriminant)
@@ -47,23 +134,18 @@ private fun statusFromFfm(segment: MemorySegment): Status {
     }
 }
 
-private val __koffi_struct_hello_kotlin_PayloadLayout: MemoryLayout = MemoryLayout.structLayout(
-    ValueLayout.JAVA_SHORT.withName("data")
-)
-private val __koffi_struct_hello_kotlin_PointLayout: MemoryLayout = MemoryLayout.structLayout(
-    ValueLayout.JAVA_INT.withName("x"),
-    ValueLayout.JAVA_INT.withName("y")
-)
-private val __koffi_struct_hello_kotlin_RectLayout: MemoryLayout = MemoryLayout.structLayout(
-    __koffi_struct_hello_kotlin_PointLayout.withName("top_left"),
-    __koffi_struct_hello_kotlin_PointLayout.withName("bottom_right")
-)
-private val __koffi_struct_hello_kotlin_StatusHolderLayout: MemoryLayout = MemoryLayout.structLayout(
-    __koffi_enum_hello_kotlin_StatusLayout.withName("status"),
-    ValueLayout.JAVA_BYTE.withName("tag"),
-    MemoryLayout.paddingLayout(3)
-)
+private fun dancerToFfm(value: Dancer, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_struct_hello_kotlin_DancerLayout)
+    segment.set(ValueLayout.JAVA_INT, 0L, value.id.toInt())
+    segment.asSlice(4L, __koffi_option_boolLayout.byteSize()).copyFrom(__koffi_option_boolToFfm(value.active, arena))
+    return segment
+}
 
+private fun dancerFromFfm(segment: MemorySegment): Dancer {
+    return Dancer(
+        id = segment.get(ValueLayout.JAVA_INT, 0L).toUInt(),
+        active = __koffi_option_boolFromFfm(segment.asSlice(4L, __koffi_option_boolLayout.byteSize())))
+}
 private fun payloadToFfm(value: Payload, arena: Arena): MemorySegment {
     val segment = arena.allocate(__koffi_struct_hello_kotlin_PayloadLayout)
     segment.set(ValueLayout.JAVA_SHORT, 0L, value.data.toShort())
@@ -111,9 +193,186 @@ private fun status_holderFromFfm(segment: MemorySegment): StatusHolder {
         tag = segment.get(ValueLayout.JAVA_BYTE, 8L).toUByte())
 }
 
+private fun __koffi_option___koffi_struct_hello_kotlin_DancerToFfm(value: Dancer?, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_option___koffi_struct_hello_kotlin_DancerLayout)
+    if (value != null) {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+        segment.asSlice(4L, __koffi_struct_hello_kotlin_DancerLayout.byteSize()).copyFrom(dancerToFfm(value, arena))
+    } else {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+    }
+    return segment
+}
+
+private fun __koffi_option___koffi_struct_hello_kotlin_DancerFromFfm(segment: MemorySegment): Dancer? {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        dancerFromFfm(segment.asSlice(4L, __koffi_struct_hello_kotlin_DancerLayout.byteSize()))
+    } else {
+        null
+    }
+}
+private fun __koffi_option___koffi_struct_hello_kotlin_PayloadToFfm(value: Payload?, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_option___koffi_struct_hello_kotlin_PayloadLayout)
+    if (value != null) {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+        segment.asSlice(2L, __koffi_struct_hello_kotlin_PayloadLayout.byteSize()).copyFrom(payloadToFfm(value, arena))
+    } else {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+    }
+    return segment
+}
+
+private fun __koffi_option___koffi_struct_hello_kotlin_PayloadFromFfm(segment: MemorySegment): Payload? {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        payloadFromFfm(segment.asSlice(2L, __koffi_struct_hello_kotlin_PayloadLayout.byteSize()))
+    } else {
+        null
+    }
+}
+private fun __koffi_option_boolToFfm(value: Boolean?, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_option_boolLayout)
+    if (value != null) {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+        segment.set(ValueLayout.JAVA_BOOLEAN, 1L, value)
+    } else {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+    }
+    return segment
+}
+
+private fun __koffi_option_boolFromFfm(segment: MemorySegment): Boolean? {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        segment.get(ValueLayout.JAVA_BOOLEAN, 1L)
+    } else {
+        null
+    }
+}
+private fun __koffi_option_f64ToFfm(value: Double?, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_option_f64Layout)
+    if (value != null) {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+        segment.set(ValueLayout.JAVA_DOUBLE, 8L, value)
+    } else {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+    }
+    return segment
+}
+
+private fun __koffi_option_f64FromFfm(segment: MemorySegment): Double? {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        segment.get(ValueLayout.JAVA_DOUBLE, 8L)
+    } else {
+        null
+    }
+}
+private fun __koffi_option_u32ToFfm(value: UInt?, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_option_u32Layout)
+    if (value != null) {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+        segment.set(ValueLayout.JAVA_INT, 4L, value.toInt())
+    } else {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+    }
+    return segment
+}
+
+private fun __koffi_option_u32FromFfm(segment: MemorySegment): UInt? {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        segment.get(ValueLayout.JAVA_INT, 4L).toUInt()
+    } else {
+        null
+    }
+}
+private fun __koffi_result___koffi_option_u32_u8ToFfm(value: KoffiResult<UInt?, UByte>, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_result___koffi_option_u32_u8Layout)
+    when (value) {
+        is KoffiResult.Ok<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+            segment.asSlice(4L, __koffi_option_u32Layout.byteSize()).copyFrom(__koffi_option_u32ToFfm((value as KoffiResult.Ok<UInt?>).value, arena))
+        }
+        is KoffiResult.Err<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+            segment.set(ValueLayout.JAVA_BYTE, 4L, (value as KoffiResult.Err<UByte>).error.toByte())
+        }
+    }
+    return segment
+}
+
+private fun __koffi_result___koffi_option_u32_u8FromFfm(segment: MemorySegment): KoffiResult<UInt?, UByte> {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        KoffiResult.Ok(__koffi_option_u32FromFfm(segment.asSlice(4L, __koffi_option_u32Layout.byteSize())))
+    } else {
+        KoffiResult.Err(segment.get(ValueLayout.JAVA_BYTE, 4L).toUByte())
+    }
+}
+private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusToFfm(value: KoffiResult<Payload, Status>, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusLayout)
+    when (value) {
+        is KoffiResult.Ok<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+            segment.asSlice(4L, __koffi_struct_hello_kotlin_PayloadLayout.byteSize()).copyFrom(payloadToFfm((value as KoffiResult.Ok<Payload>).value, arena))
+        }
+        is KoffiResult.Err<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+            segment.asSlice(4L, __koffi_enum_hello_kotlin_StatusLayout.byteSize()).copyFrom(statusToFfm((value as KoffiResult.Err<Status>).error, arena))
+        }
+    }
+    return segment
+}
+
+private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromFfm(segment: MemorySegment): KoffiResult<Payload, Status> {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        KoffiResult.Ok(payloadFromFfm(segment.asSlice(4L, __koffi_struct_hello_kotlin_PayloadLayout.byteSize())))
+    } else {
+        KoffiResult.Err(statusFromFfm(segment.asSlice(4L, __koffi_enum_hello_kotlin_StatusLayout.byteSize())))
+    }
+}
+private fun __koffi_result_u32_u8ToFfm(value: KoffiResult<UInt, UByte>, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_result_u32_u8Layout)
+    when (value) {
+        is KoffiResult.Ok<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+            segment.set(ValueLayout.JAVA_INT, 4L, (value as KoffiResult.Ok<UInt>).value.toInt())
+        }
+        is KoffiResult.Err<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+            segment.set(ValueLayout.JAVA_BYTE, 4L, (value as KoffiResult.Err<UByte>).error.toByte())
+        }
+    }
+    return segment
+}
+
+private fun __koffi_result_u32_u8FromFfm(segment: MemorySegment): KoffiResult<UInt, UByte> {
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        KoffiResult.Ok(segment.get(ValueLayout.JAVA_INT, 4L).toUInt())
+    } else {
+        KoffiResult.Err(segment.get(ValueLayout.JAVA_BYTE, 4L).toUByte())
+    }
+}
+
+private val __koffi_fn_hello_kotlin_maybe_payload: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_maybe_payload").orElseThrow(),
+    FunctionDescriptor.of(__koffi_option___koffi_struct_hello_kotlin_PayloadLayout, ValueLayout.JAVA_BOOLEAN),
+)
+private val __koffi_fn_hello_kotlin_add_optional: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_add_optional").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, __koffi_option_u32Layout),
+)
+private val __koffi_fn_hello_kotlin_divide: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_divide").orElseThrow(),
+    FunctionDescriptor.of(__koffi_result_u32_u8Layout, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
+)
+private val __koffi_fn_hello_kotlin_nothing: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_nothing").orElseThrow(),
+    FunctionDescriptor.of(__koffi_option_u32Layout),
+)
 private val __koffi_fn_hello_kotlin_c_status: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_c_status").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_INT),
+)
+private val __koffi_fn_hello_kotlin_drink: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_drink").orElseThrow(),
+    FunctionDescriptor.of(__koffi_result___koffi_option_u32_u8Layout, ValueLayout.JAVA_INT),
 )
 private val __koffi_fn_hello_kotlin_holder_status: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_holder_status").orElseThrow(),
@@ -131,9 +390,25 @@ private val __koffi_fn_hello_kotlin_rect_area: MethodHandle = linker.downcallHan
     lookup.find("__koffi_fn_hello_kotlin_rect_area").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_INT, __koffi_struct_hello_kotlin_RectLayout),
 )
+private val __koffi_fn_hello_kotlin_mood_is_flying: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_mood_is_flying").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, __koffi_enum_hello_kotlin_MoodLayout),
+)
 private val __koffi_fn_hello_kotlin_Payload_describe_format: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_Payload_describe_format").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_INT),
+)
+private val __koffi_fn_hello_kotlin_ride: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_ride").orElseThrow(),
+    FunctionDescriptor.of(__koffi_option___koffi_struct_hello_kotlin_DancerLayout, __koffi_option___koffi_struct_hello_kotlin_DancerLayout),
+)
+private val __koffi_fn_hello_kotlin_result_value: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_result_value").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, __koffi_result_u32_u8Layout),
+)
+private val __koffi_fn_hello_kotlin_paint: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_paint").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, __koffi_option_boolLayout),
 )
 private val __koffi_fn_hello_kotlin_Status_describe: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_Status_describe").orElseThrow(),
@@ -142,6 +417,14 @@ private val __koffi_fn_hello_kotlin_Status_describe: MethodHandle = linker.downc
 private val __koffi_fn_hello_kotlin_rect_top_left: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_rect_top_left").orElseThrow(),
     FunctionDescriptor.of(__koffi_struct_hello_kotlin_PointLayout, __koffi_struct_hello_kotlin_RectLayout),
+)
+private val __koffi_fn_hello_kotlin_mood: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_mood").orElseThrow(),
+    FunctionDescriptor.of(__koffi_enum_hello_kotlin_MoodLayout),
+)
+private val __koffi_fn_hello_kotlin_how_long: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_how_long").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_DOUBLE, __koffi_option_f64Layout),
 )
 private val __koffi_fn_hello_kotlin_make_status: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_make_status").orElseThrow(),
@@ -163,9 +446,17 @@ private val __koffi_fn_hello_kotlin_hello: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_hello").orElseThrow(),
     FunctionDescriptor.of(__koffi_struct_hello_kotlin_PayloadLayout),
 )
+private val __koffi_fn_hello_kotlin_nominate: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_nominate").orElseThrow(),
+    FunctionDescriptor.of(__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusLayout, ValueLayout.JAVA_INT),
+)
 private val __koffi_fn_hello_kotlin_Payload_with_data: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_Payload_with_data").orElseThrow(),
     FunctionDescriptor.of(__koffi_struct_hello_kotlin_PayloadLayout, __koffi_struct_hello_kotlin_PayloadLayout, ValueLayout.JAVA_SHORT),
+)
+private val __koffi_fn_hello_kotlin_favorite: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_favorite").orElseThrow(),
+    FunctionDescriptor.of(__koffi_option_u32Layout),
 )
 private val __koffi_fn_hello_kotlin_make_holder: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_make_holder").orElseThrow(),
@@ -228,10 +519,41 @@ actual object HelloKotlinFfi {
     }
 }
 
+actual fun maybePayload(show: Boolean): Payload? {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_maybe_payload.invokeWithArguments(callArena, show)
+        return __koffi_option___koffi_struct_hello_kotlin_PayloadFromFfm(__r as MemorySegment)
+    }
+}
+actual fun addOptional(a: UInt, b: UInt?): UInt {
+    Arena.ofConfined().use { callArena ->
+        val bSegment = __koffi_option_u32ToFfm(b, callArena)
+        val __r = __koffi_fn_hello_kotlin_add_optional.invokeWithArguments(a.toInt(), bSegment)
+        return (__r as Int).toUInt()
+    }
+}
+actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_divide.invokeWithArguments(callArena, n.toInt(), d.toInt())
+        return __koffi_result_u32_u8FromFfm(__r as MemorySegment)
+    }
+}
+actual fun nothing(): UInt? {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_nothing.invokeWithArguments(callArena)
+        return __koffi_option_u32FromFfm(__r as MemorySegment)
+    }
+}
 actual fun cStatus(): CStatus {
     Arena.ofConfined().use { callArena ->
         val __r = __koffi_fn_hello_kotlin_c_status.invokeWithArguments()
         return CStatus.fromDiscriminant((__r as Int).toUInt())
+    }
+}
+actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_drink.invokeWithArguments(callArena, x.toInt())
+        return __koffi_result___koffi_option_u32_u8FromFfm(__r as MemorySegment)
     }
 }
 actual fun holderStatus(h: StatusHolder): Status {
@@ -254,11 +576,52 @@ actual fun rectArea(r: Rect): Int {
         return (__r as Int)
     }
 }
+actual fun moodIsFlying(m: Mood): Boolean {
+    Arena.ofConfined().use { callArena ->
+        val mSegment = moodToFfm(m, callArena)
+        val __r = __koffi_fn_hello_kotlin_mood_is_flying.invokeWithArguments(mSegment)
+        return (__r as Boolean)
+    }
+}
+actual fun ride(dance: Dancer?): Dancer? {
+    Arena.ofConfined().use { callArena ->
+        val danceSegment = __koffi_option___koffi_struct_hello_kotlin_DancerToFfm(dance, callArena)
+        val __r = __koffi_fn_hello_kotlin_ride.invokeWithArguments(callArena, danceSegment)
+        return __koffi_option___koffi_struct_hello_kotlin_DancerFromFfm(__r as MemorySegment)
+    }
+}
+actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt {
+    Arena.ofConfined().use { callArena ->
+        val rSegment = __koffi_result_u32_u8ToFfm(r, callArena)
+        val __r = __koffi_fn_hello_kotlin_result_value.invokeWithArguments(rSegment)
+        return (__r as Int).toUInt()
+    }
+}
+actual fun paint(color: Boolean?): Boolean {
+    Arena.ofConfined().use { callArena ->
+        val colorSegment = __koffi_option_boolToFfm(color, callArena)
+        val __r = __koffi_fn_hello_kotlin_paint.invokeWithArguments(colorSegment)
+        return (__r as Boolean)
+    }
+}
 actual fun rectTopLeft(r: Rect): Point {
     Arena.ofConfined().use { callArena ->
         val rSegment = rectToFfm(r, callArena)
         val __r = __koffi_fn_hello_kotlin_rect_top_left.invokeWithArguments(callArena, rSegment)
         return pointFromFfm(__r as MemorySegment)
+    }
+}
+actual fun mood(): Mood {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_mood.invokeWithArguments(callArena)
+        return moodFromFfm(__r as MemorySegment)
+    }
+}
+actual fun howLong(seconds: Double?): Double {
+    Arena.ofConfined().use { callArena ->
+        val secondsSegment = __koffi_option_f64ToFfm(seconds, callArena)
+        val __r = __koffi_fn_hello_kotlin_how_long.invokeWithArguments(secondsSegment)
+        return (__r as Double)
     }
 }
 actual fun makeStatus(): Status {
@@ -277,6 +640,18 @@ actual fun hello(): Payload {
     Arena.ofConfined().use { callArena ->
         val __r = __koffi_fn_hello_kotlin_hello.invokeWithArguments(callArena)
         return payloadFromFfm(__r as MemorySegment)
+    }
+}
+actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_nominate.invokeWithArguments(callArena, x.toInt())
+        return __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromFfm(__r as MemorySegment)
+    }
+}
+actual fun favorite(): UInt? {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_favorite.invokeWithArguments(callArena)
+        return __koffi_option_u32FromFfm(__r as MemorySegment)
     }
 }
 actual fun makeHolder(): StatusHolder {

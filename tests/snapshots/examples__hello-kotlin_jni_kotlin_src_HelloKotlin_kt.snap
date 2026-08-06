@@ -6,6 +6,16 @@ expression: "fs::read_to_string(&file)?"
 
 package hello_kotlin
 
+sealed class KoffiResult<out Ok, out Err> {
+    data class Ok<out Ok>(val value: Ok) : KoffiResult<Ok, Nothing>()
+    data class Err<out Err>(val error: Err) : KoffiResult<Nothing, Err>()
+}
+
+
+data class Dancer(
+    val id: UInt,
+    val active: Boolean?
+)
 data class Payload(
     val data: UShort
 ) {
@@ -46,6 +56,17 @@ enum class CStatus(val discriminant: UInt) {
 }
 
 
+sealed class Mood(val discriminant: Int) {
+    object Fine : Mood(0)
+    data class Flying(
+        val field0: Boolean?
+    ) : Mood(1)
+
+    companion object {
+    }
+}
+
+
 sealed class Status(val discriminant: Int) {
     object Idle : Status(0)
     data class Busy(
@@ -71,14 +92,27 @@ sealed class Status(val discriminant: Int) {
 }
 
 
+expect fun maybePayload(show: Boolean): Payload?
+expect fun addOptional(a: UInt, b: UInt?): UInt
+expect fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte>
+expect fun nothing(): UInt?
 expect fun cStatus(): CStatus
+expect fun drink(x: UInt): KoffiResult<UInt?, UByte>
 expect fun holderStatus(h: StatusHolder): Status
 expect fun cStatusIsErr(s: CStatus): Boolean
 expect fun rectArea(r: Rect): Int
+expect fun moodIsFlying(m: Mood): Boolean
+expect fun ride(dance: Dancer?): Dancer?
+expect fun resultValue(r: KoffiResult<UInt, UByte>): UInt
+expect fun paint(color: Boolean?): Boolean
 expect fun rectTopLeft(r: Rect): Point
+expect fun mood(): Mood
+expect fun howLong(seconds: Double?): Double
 expect fun makeStatus(): Status
 expect fun makeRect(): Rect
 expect fun hello(): Payload
+expect fun nominate(x: UInt): KoffiResult<Payload, Status>
+expect fun favorite(): UInt?
 expect fun makeHolder(): StatusHolder
 expect fun statusCode(s: Status): UInt
 

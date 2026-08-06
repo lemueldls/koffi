@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::schema::{
     ScalarKind, SchemaEnum, SchemaEnumVariant, SchemaField, SchemaStruct, SchemaTypeRef,
+    SchemaWrapper, WrapperMember,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -48,6 +49,7 @@ pub fn layout_of(
     ty: &SchemaTypeRef,
     structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
+    wrappers: &BTreeMap<String, SchemaWrapper>,
 ) -> anyhow::Result<Layout> {
     match ty {
         SchemaTypeRef::Scalar(k) => Ok(scalar_layout(*k)),
@@ -65,6 +67,15 @@ pub fn layout_of(
                 .ok_or_else(|| anyhow::anyhow!("layout_of: `{name}` not yet in the enum map"))?;
             Ok(e.layout.total)
         }
+        SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+            let w = wrappers.get(&ty.unique_ident()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "layout_of: `{}` not yet in the wrapper map",
+                    ty.unique_ident()
+                )
+            })?;
+            Ok(w.layout.total)
+        }
     }
 }
 
@@ -72,6 +83,7 @@ pub fn compute_struct_layout(
     fields: &[SchemaField],
     structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
+    wrappers: &BTreeMap<String, SchemaWrapper>,
 ) -> anyhow::Result<StructLayoutInfo> {
     let mut entries = Vec::new();
     let mut placements = Vec::new();
@@ -79,7 +91,7 @@ pub fn compute_struct_layout(
     let mut max_align: u64 = 1;
 
     for field in fields {
-        let fl = layout_of(&field.ty, structs, enums)?;
+        let fl = layout_of(&field.ty, structs, enums, wrappers)?;
         let aligned = round_up(offset, fl.align);
         if aligned > offset {
             entries.push(LayoutEntry::Padding {
@@ -87,7 +99,7 @@ pub fn compute_struct_layout(
             });
         }
         entries.push(LayoutEntry::Value {
-            kotlin_layout: kotlin_value_layout_name(&field.ty, true, structs, enums)?,
+            kotlin_layout: kotlin_value_layout_name(&field.ty, true, structs, enums, wrappers)?,
             name: field.name.clone(),
         });
         placements.push(FieldPlacement {
@@ -129,6 +141,7 @@ pub fn compute_enum_layout(
     variants: &[SchemaEnumVariant],
     structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
+    wrappers: &BTreeMap<String, SchemaWrapper>,
 ) -> anyhow::Result<StructLayoutInfo> {
     if !matches!(
         discriminant,
@@ -156,8 +169,9 @@ pub fn compute_enum_layout(
 
     for variant in variants {
         for placement in &variant.placements {
-            let fl = layout_of(&placement.ty, structs, enums)?;
-            let layout_name = kotlin_value_layout_name(&placement.ty, false, structs, enums)?;
+            let fl = layout_of(&placement.ty, structs, enums, wrappers)?;
+            let layout_name =
+                kotlin_value_layout_name(&placement.ty, false, structs, enums, wrappers)?;
             let end = placement.offset + fl.size;
             max_end = max_end.max(end);
             max_align = max_align.max(fl.align);
@@ -184,6 +198,7 @@ pub fn compute_enum_layout(
             false,
             structs,
             enums,
+            wrappers,
         )?,
         name: "discriminant".to_string(),
     });
@@ -221,6 +236,7 @@ fn kotlin_value_layout_name(
     allow_structs: bool,
     _structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
+    wrappers: &BTreeMap<String, SchemaWrapper>,
 ) -> anyhow::Result<String> {
     match ty {
         SchemaTypeRef::Scalar(k) => Ok(k.kotlin_ffm_value_layout().to_string()),
@@ -253,5 +269,99 @@ fn kotlin_value_layout_name(
                 )
             }
         }
+        // A wrapper's layout is always a leaf reference to its own FFM
+        // layout constant, struct-typed or not: the struct inside is one
+        // nesting level removed from the enum variant, and the topo sort
+        // in `Schema::types_in_layout_order` handles the declaration order.
+        SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+            let w = wrappers.get(&ty.unique_ident()).ok_or_else(|| {
+                anyhow::anyhow!("`{}` not yet in the wrapper map", ty.unique_ident())
+            })?;
+            Ok(w.kotlin_ffm_value_layout())
+        }
     }
+}
+
+/// Lays out an `Option`/`Result` wrapper as C would: the `u8`
+/// discriminant at offset 0, then the payload union over its members.
+///
+/// Unlike `compute_enum_layout`, the union starts *all* members at one
+/// shared offset (`round_up(1, max_align)`): `Result<u8, u32>` puts both
+/// `ok` and `err` at offset 4, never `ok` at 1.
+///
+/// `align(Option<T>) == align(T)`, so a wrapper's alignment matches the
+/// real type's, which is what keeps variant-payload field offsets (from
+/// facet) lining up with the wire struct. Sizes can diverge for niche
+/// inners (`Option<bool>` is 1 real byte, 2 on the wire) which only
+/// matters when a later field in the same variant would land in the
+/// gap; that's a documented limitation, not something this layout fixes.
+pub fn compute_wrapper_layout(
+    members: &[WrapperMember],
+    structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
+    enums: &BTreeMap<(Option<String>, String), SchemaEnum>,
+    wrappers: &BTreeMap<String, SchemaWrapper>,
+) -> anyhow::Result<StructLayoutInfo> {
+    let d_layout = scalar_layout(ScalarKind::U8);
+    let mut max_align = d_layout.align;
+
+    let mut member_layouts: Vec<(Layout, String)> = Vec::with_capacity(members.len());
+    for member in members {
+        let fl = layout_of(&member.ty, structs, enums, wrappers)?;
+        let layout_name = kotlin_value_layout_name(&member.ty, true, structs, enums, wrappers)?;
+        max_align = max_align.max(fl.align);
+        member_layouts.push((fl, layout_name));
+    }
+
+    // All members sit at the same union offset. The widest one sizes the
+    // region; placement offsets are per-member (`placements`), so writes
+    // always use the member's own layout.
+    let union_offset = round_up(d_layout.size, max_align);
+    let max_size = member_layouts
+        .iter()
+        .map(|(l, _)| l.size)
+        .max()
+        .unwrap_or(0);
+    let total_size = round_up(union_offset + max_size, max_align);
+
+    let mut entries = Vec::new();
+    entries.push(LayoutEntry::Value {
+        kotlin_layout: ScalarKind::U8.kotlin_ffm_value_layout().to_string(),
+        name: "discriminant".to_string(),
+    });
+    if union_offset > d_layout.size {
+        entries.push(LayoutEntry::Padding {
+            bytes: union_offset - d_layout.size,
+        });
+    }
+    if let Some((_, widest_name)) = member_layouts.iter().max_by_key(|(l, _)| l.size) {
+        entries.push(LayoutEntry::Value {
+            kotlin_layout: widest_name.clone(),
+            name: String::new(),
+        });
+    }
+    if total_size > union_offset + max_size {
+        entries.push(LayoutEntry::Padding {
+            bytes: total_size - (union_offset + max_size),
+        });
+    }
+
+    let placements = members
+        .iter()
+        .map(|m| {
+            FieldPlacement {
+                name: m.name.clone(),
+                ty: m.ty.clone(),
+                offset: union_offset,
+            }
+        })
+        .collect();
+
+    Ok(StructLayoutInfo {
+        entries,
+        placements,
+        total: Layout {
+            size: total_size,
+            align: max_align,
+        },
+    })
 }

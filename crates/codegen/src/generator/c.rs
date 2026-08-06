@@ -16,7 +16,7 @@ impl SchemaFn {
     /// JNI symbol for the `private external fun <member>Impl` helper on
     /// the Kotlin `actual object`. JNI name mangling: `.` in the package
     /// becomes `_`, every original `_` becomes `_1`, and the components are
-    /// joined with `_`. The member is `ffi_member_name() + "Impl"` — the
+    /// joined with `_`. The member is `ffi_member_name() + "Impl"` - the
     /// same lowerCamelCase names the expect object's functions use.
     #[must_use]
     pub fn jni_symbol(&self, schema: &Schema) -> String {

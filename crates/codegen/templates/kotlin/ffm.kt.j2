@@ -36,6 +36,10 @@ import java.nio.file.StandardCopyOption
 {{ indent }}        return {{ name }}.fromDiscriminant((__r as {{ discriminant.jvm_boxed_type() }}){{ discriminant.from_ffm_suffix() }})
         {%- when SchemaTypeRef::Struct { .. } %}
         {# unreachable: is_memory_backed covers structs #}
+        {%- when SchemaTypeRef::Option { .. } %}
+        {# unreachable: is_memory_backed covers wrappers #}
+        {%- when SchemaTypeRef::Result { .. } %}
+        {# unreachable: is_memory_backed covers wrappers #}
         {%- endmatch %}
         {%- endif %}
 {{ indent }}    }
@@ -50,10 +54,24 @@ private val arena: Arena = Arena.ofShared()
 private val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)
 private val linker: Linker = Linker.nativeLinker()
 
-{#~ Enum layouts first: struct layouts may embed them, and Kotlin
-   initializes properties in declaration order (a forward reference is
-   a compile error). Fieldless enums have no layout constant. -#}
-{%~ for e in schema.enums %}{% if e.has_data %}
+{#~ Layouts in dependency order: any type whose FFM layout (or C typedef)
+   embeds another's must be declared after it - Kotlin initializes `val`
+   layout properties in declaration order (a forward reference is a
+   compile error). Fieldless enums and scalars embed nothing, so they
+   never appear here. -#}
+{%~ for item in schema.types_in_layout_order() %}{%~ match item %}
+{%- when LayoutOrderItem::Struct(s) %}
+private val {{ s.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
+    {%- for entry in s.layout.entries %}
+    {%- match entry %}
+    {%- when LayoutEntry::Value { kotlin_layout, name } %}
+    {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
+    {%- when LayoutEntry::Padding { bytes } %}
+    MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
+    {%- endmatch %}
+    {%- endfor %}
+)
+{%- when LayoutOrderItem::DataEnum(e) %}
 private val {{ e.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
     {%- for entry in e.layout.entries %}
     {%- match entry %}
@@ -64,11 +82,24 @@ private val {{ e.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.struc
     {%- endmatch %}
     {%- endfor %}
 )
+{%- when LayoutOrderItem::Wrapper(w) %}
+private val {{ w.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
+    {%- for entry in w.layout.entries %}
+    {%- match entry %}
+    {%- when LayoutEntry::Value { kotlin_layout, name } %}
+    {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
+    {%- when LayoutEntry::Padding { bytes } %}
+    MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
+    {%- endmatch %}
+    {%- endfor %}
+)
+{%- endmatch %}{%- endfor %}
 
 {#~ Per-enum marshallers. `statusToFfm` materializes the enum's memory
    image (discriminant + active variant's payload at absolute offsets);
    `statusFromFfm` reads it back. Only data-carrying enums need these;
    fieldless ones cross the ABI as their plain discriminant scalar. -#}
+{%~ for e in schema.enums %}{% if e.has_data %}
 private fun {{ e.to_ffm_ident() }}(value: {{ e.name }}, arena: Arena): MemorySegment {
     val segment = arena.allocate({{ e.kotlin_ffm_value_layout() }})
     segment.set({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L, value.discriminant{{ e.discriminant.to_ffm_suffix() }})
@@ -80,7 +111,11 @@ private fun {{ e.to_ffm_ident() }}(value: {{ e.name }}, arena: Arena): MemorySeg
         {%- else %}
         is {{ e.name }}.{{ v.name }} -> {
             {%- for f in v.placements %}
+            {%- if f.ty.is_memory_backed() %}
+            segment.asSlice({{ f.offset }}L, {{ f.ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ f.ty.to_ffm_ident() }}(value.{{ f.kotlin_name() }}, arena))
+            {%- else %}
             segment.set({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L, value.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
+            {%- endif %}
             {%- endfor %}
         }
         {%- endif %}
@@ -93,29 +128,12 @@ private fun {{ e.from_ffm_ident() }}(segment: MemorySegment): {{ e.name }} {
     val d = segment.get({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L){{ e.discriminant.from_ffm_suffix() }}
     return when (d) {
         {%- for v in e.variants %}
-        {{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }} -> {% if v.placements.is_empty() %}{{ e.name }}.{{ v.name }}{% else %}{{ e.name }}.{{ v.name }}({% for f in v.placements %}{{ f.kotlin_name() }} = segment.get({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L){{ f.ty.from_ffm_suffix() }}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
+        {{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }} -> {% if v.placements.is_empty() %}{{ e.name }}.{{ v.name }}{% else %}{{ e.name }}.{{ v.name }}({% for f in v.placements %}{% if f.ty.is_memory_backed() %}{{ f.kotlin_name() }} = {{ f.ty.from_ffm_ident() }}(segment.asSlice({{ f.offset }}L, {{ f.ty.kotlin_ffm_value_layout() }}.byteSize())){% else %}{{ f.kotlin_name() }} = segment.get({{ f.ty.kotlin_ffm_value_layout() }}, {{ f.offset }}L){{ f.ty.from_ffm_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
         {%- endfor %}
         else -> error("koffi: invalid {{ e.name }} discriminant $d")
     }
 }
 {%- endif %}{%- endfor %}
-
-{#~ Struct layouts in topological order: a struct used as a field of
-   another must have its layout declared first (Kotlin initializes
-   `val` properties in declaration order). Enums are already emitted
-   above since struct layouts can embed data-enum layouts. -#}
-{%~ for s in schema.structs_in_layout_order() %}
-private val {{ s.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.structLayout(
-    {%- for entry in s.layout.entries %}
-    {%- match entry %}
-    {%- when LayoutEntry::Value { kotlin_layout, name } %}
-    {{ kotlin_layout }}.withName("{{ name }}"){% if !loop.last %},{% endif %}
-    {%- when LayoutEntry::Padding { bytes } %}
-    MemoryLayout.paddingLayout({{ bytes }}){% if !loop.last %},{% endif %}
-    {%- endmatch %}
-    {%- endfor %}
-)
-{%- endfor %}
 
 {#~ Per-struct marshallers. `payloadToFfm` materializes the struct's
    memory image (each field at its absolute offset); `payloadFromFfm`
@@ -148,6 +166,69 @@ private fun {{ s.from_ffm_ident() }}(segment: MemorySegment): {{ s.name }} {
         {%- endif %}
         {%- endfor -%}
     )
+}
+{%- endfor %}
+
+{#~ Per-wrapper marshallers, same shape as the struct marshallers plus a
+   `_d` discriminant byte at offset 0 (None/Err = 0, Some/Ok = 1) and the
+   payload union at `{{ w.union_offset() }}`. The inner value rides the
+   same copyFrom/set helpers as a struct field, so wrappers compose:
+   `doesItDance(dance: Dancer?)` nests one wrapper inside another. -#}
+{%~ for w in schema.wrappers %}
+private fun {{ w.to_ffm_ident() }}(value: {{ w.kotlin_type() }}, arena: Arena): MemorySegment {
+    val segment = arena.allocate({{ w.kotlin_ffm_value_layout() }})
+    {%- if w.is_option() %}
+    if (value != null) {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+        {%- if w.some().ty.is_memory_backed() %}
+        segment.asSlice({{ w.union_offset() }}L, {{ w.some().ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ w.some().ty.to_ffm_ident() }}(value, arena))
+        {%- else %}
+        segment.set({{ w.some().ty.kotlin_ffm_value_layout() }}, {{ w.union_offset() }}L, value{{ w.some().ty.to_ffm_suffix() }})
+        {%- endif %}
+    } else {
+        segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+    }
+    {%- else %}
+    when (value) {
+        is KoffiResult.Ok<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 1.toByte())
+            {%- if w.ok().ty.is_memory_backed() %}
+            segment.asSlice({{ w.union_offset() }}L, {{ w.ok().ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ w.ok().ty.to_ffm_ident() }}((value as KoffiResult.Ok<{{ w.ok().ty.kotlin_type() }}>).value, arena))
+            {%- else %}
+            segment.set({{ w.ok().ty.kotlin_ffm_value_layout() }}, {{ w.union_offset() }}L, (value as KoffiResult.Ok<{{ w.ok().ty.kotlin_type() }}>).value{{ w.ok().ty.to_ffm_suffix() }})
+            {%- endif %}
+        }
+        is KoffiResult.Err<*> -> {
+            segment.set(ValueLayout.JAVA_BYTE, 0L, 0.toByte())
+            {%- if w.err().ty.is_memory_backed() %}
+            segment.asSlice({{ w.union_offset() }}L, {{ w.err().ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ w.err().ty.to_ffm_ident() }}((value as KoffiResult.Err<{{ w.err().ty.kotlin_type() }}>).error, arena))
+            {%- else %}
+            segment.set({{ w.err().ty.kotlin_ffm_value_layout() }}, {{ w.union_offset() }}L, (value as KoffiResult.Err<{{ w.err().ty.kotlin_type() }}>).error{{ w.err().ty.to_ffm_suffix() }})
+            {%- endif %}
+        }
+    }
+    {%- endif %}
+    return segment
+}
+
+private fun {{ w.from_ffm_ident() }}(segment: MemorySegment): {{ w.kotlin_type() }} {
+    {%- if w.is_option() %}
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        {%- if w.some().ty.is_memory_backed() %}
+        {{ w.some().ty.from_ffm_ident() }}(segment.asSlice({{ w.union_offset() }}L, {{ w.some().ty.kotlin_ffm_value_layout() }}.byteSize()))
+        {%- else %}
+        segment.get({{ w.some().ty.kotlin_ffm_value_layout() }}, {{ w.union_offset() }}L){{ w.some().ty.from_ffm_suffix() }}
+        {%- endif %}
+    } else {
+        null
+    }
+    {%- else %}
+    return if (segment.get(ValueLayout.JAVA_BYTE, 0L) == 1.toByte()) {
+        KoffiResult.Ok({%- if w.ok().ty.is_memory_backed() %}{{ w.ok().ty.from_ffm_ident() }}(segment.asSlice({{ w.union_offset() }}L, {{ w.ok().ty.kotlin_ffm_value_layout() }}.byteSize())){%- else %}segment.get({{ w.ok().ty.kotlin_ffm_value_layout() }}, {{ w.union_offset() }}L){{ w.ok().ty.from_ffm_suffix() }}{%- endif %})
+    } else {
+        KoffiResult.Err({%- if w.err().ty.is_memory_backed() %}{{ w.err().ty.from_ffm_ident() }}(segment.asSlice({{ w.union_offset() }}L, {{ w.err().ty.kotlin_ffm_value_layout() }}.byteSize())){%- else %}segment.get({{ w.err().ty.kotlin_ffm_value_layout() }}, {{ w.union_offset() }}L){{ w.err().ty.from_ffm_suffix() }}{%- endif %})
+    }
+    {%- endif %}
 }
 {%- endfor %}
 

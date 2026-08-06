@@ -1,2 +1,5 @@
 modules:
   - ./generated/kotlin
+  - ./shared
+  - ./jvm
+  - ./linux

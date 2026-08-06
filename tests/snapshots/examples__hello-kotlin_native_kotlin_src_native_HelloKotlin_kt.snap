@@ -11,6 +11,23 @@ package hello_kotlin
 import hello_kotlin.cinterop.*
 import kotlinx.cinterop.*
 
+private fun moodToC(v: Mood): CValue<__koffi_enum_hello_kotlin_Mood> = cValue {
+    _d = v.discriminant
+    when (v) {
+        is Mood.Flying -> {
+            __koffi_option_boolToC(v.field0).place(_u.flying.field0.ptr)
+        }
+        else -> {}
+    }
+}
+
+private fun moodFromC(w: CValue<__koffi_enum_hello_kotlin_Mood>): Mood = w.useContents {
+    when (_d) {
+        0 -> Mood.Fine
+        1 -> Mood.Flying(field0 = __koffi_option_boolFromC(_u.flying.field0.readValue()))
+        else -> error("koffi: invalid Mood discriminant $_d")
+    }
+}
 private fun statusToC(v: Status): CValue<__koffi_enum_hello_kotlin_Status> = cValue {
     _d = v.discriminant
     when (v) {
@@ -34,6 +51,16 @@ private fun statusFromC(w: CValue<__koffi_enum_hello_kotlin_Status>): Status = w
     }
 }
 
+private fun dancerToC(v: Dancer): CValue<__koffi_struct_hello_kotlin_Dancer> = cValue {
+    id = v.id
+    __koffi_option_boolToC(v.active).place(active.ptr)
+}
+
+private fun dancerFromC(w: CValue<__koffi_struct_hello_kotlin_Dancer>): Dancer = w.useContents {
+    Dancer(
+        id = id,
+        active = __koffi_option_boolFromC(active.readValue()))
+}
 private fun payloadToC(v: Payload): CValue<__koffi_struct_hello_kotlin_Payload> = cValue {
     data = v.data
 }
@@ -72,6 +99,158 @@ private fun status_holderFromC(w: CValue<__koffi_struct_hello_kotlin_StatusHolde
         status = statusFromC(status.readValue()),
         tag = tag)
 }
+
+private fun __koffi_option___koffi_struct_hello_kotlin_DancerToC(v: Dancer?): CValue<__koffi_option___koffi_struct_hello_kotlin_Dancer> = cValue {
+    if (v != null) {
+        _d = 1.toUByte()
+        val inner = v
+        dancerToC(inner).place(_u.some.ptr)
+    } else {
+        _d = 0.toUByte()
+    }
+}
+
+private fun __koffi_option___koffi_struct_hello_kotlin_DancerFromC(c: CValue<__koffi_option___koffi_struct_hello_kotlin_Dancer>): Dancer? = c.useContents {
+    if (_d == 1.toUByte()) {
+        dancerFromC(_u.some.readValue())
+    } else {
+        null
+    }
+}
+private fun __koffi_option___koffi_struct_hello_kotlin_PayloadToC(v: Payload?): CValue<__koffi_option___koffi_struct_hello_kotlin_Payload> = cValue {
+    if (v != null) {
+        _d = 1.toUByte()
+        val inner = v
+        payloadToC(inner).place(_u.some.ptr)
+    } else {
+        _d = 0.toUByte()
+    }
+}
+
+private fun __koffi_option___koffi_struct_hello_kotlin_PayloadFromC(c: CValue<__koffi_option___koffi_struct_hello_kotlin_Payload>): Payload? = c.useContents {
+    if (_d == 1.toUByte()) {
+        payloadFromC(_u.some.readValue())
+    } else {
+        null
+    }
+}
+private fun __koffi_option_boolToC(v: Boolean?): CValue<__koffi_option_bool> = cValue {
+    if (v != null) {
+        _d = 1.toUByte()
+        val inner = v
+        _u.some = inner.let { if (it) 1u.toUByte() else 0u.toUByte() }
+    } else {
+        _d = 0.toUByte()
+    }
+}
+
+private fun __koffi_option_boolFromC(c: CValue<__koffi_option_bool>): Boolean? = c.useContents {
+    if (_d == 1.toUByte()) {
+        _u.some != 0u.toUByte()
+    } else {
+        null
+    }
+}
+private fun __koffi_option_f64ToC(v: Double?): CValue<__koffi_option_f64> = cValue {
+    if (v != null) {
+        _d = 1.toUByte()
+        val inner = v
+        _u.some = inner
+    } else {
+        _d = 0.toUByte()
+    }
+}
+
+private fun __koffi_option_f64FromC(c: CValue<__koffi_option_f64>): Double? = c.useContents {
+    if (_d == 1.toUByte()) {
+        _u.some
+    } else {
+        null
+    }
+}
+private fun __koffi_option_u32ToC(v: UInt?): CValue<__koffi_option_u32> = cValue {
+    if (v != null) {
+        _d = 1.toUByte()
+        val inner = v
+        _u.some = inner
+    } else {
+        _d = 0.toUByte()
+    }
+}
+
+private fun __koffi_option_u32FromC(c: CValue<__koffi_option_u32>): UInt? = c.useContents {
+    if (_d == 1.toUByte()) {
+        _u.some
+    } else {
+        null
+    }
+}
+private fun __koffi_result___koffi_option_u32_u8ToC(v: KoffiResult<UInt?, UByte>): CValue<__koffi_result___koffi_option_u32_u8> = cValue {
+    when (v) {
+        is KoffiResult.Ok<*> -> {
+            _d = 1.toUByte()
+            val inner = (v as KoffiResult.Ok<UInt?>).value
+            __koffi_option_u32ToC(inner).place(_u.ok.ptr)
+        }
+        is KoffiResult.Err<*> -> {
+            _d = 0.toUByte()
+            val inner = (v as KoffiResult.Err<UByte>).error
+            _u.err = inner
+        }
+    }
+}
+
+private fun __koffi_result___koffi_option_u32_u8FromC(c: CValue<__koffi_result___koffi_option_u32_u8>): KoffiResult<UInt?, UByte> = c.useContents {
+    if (_d == 1.toUByte()) {
+        KoffiResult.Ok(__koffi_option_u32FromC(_u.ok.readValue()))
+    } else {
+        KoffiResult.Err(_u.err)
+    }
+}
+private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusToC(v: KoffiResult<Payload, Status>): CValue<__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status> = cValue {
+    when (v) {
+        is KoffiResult.Ok<*> -> {
+            _d = 1.toUByte()
+            val inner = (v as KoffiResult.Ok<Payload>).value
+            payloadToC(inner).place(_u.ok.ptr)
+        }
+        is KoffiResult.Err<*> -> {
+            _d = 0.toUByte()
+            val inner = (v as KoffiResult.Err<Status>).error
+            statusToC(inner).place(_u.err.ptr)
+        }
+    }
+}
+
+private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromC(c: CValue<__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status>): KoffiResult<Payload, Status> = c.useContents {
+    if (_d == 1.toUByte()) {
+        KoffiResult.Ok(payloadFromC(_u.ok.readValue()))
+    } else {
+        KoffiResult.Err(statusFromC(_u.err.readValue()))
+    }
+}
+private fun __koffi_result_u32_u8ToC(v: KoffiResult<UInt, UByte>): CValue<__koffi_result_u32_u8> = cValue {
+    when (v) {
+        is KoffiResult.Ok<*> -> {
+            _d = 1.toUByte()
+            val inner = (v as KoffiResult.Ok<UInt>).value
+            _u.ok = inner
+        }
+        is KoffiResult.Err<*> -> {
+            _d = 0.toUByte()
+            val inner = (v as KoffiResult.Err<UByte>).error
+            _u.err = inner
+        }
+    }
+}
+
+private fun __koffi_result_u32_u8FromC(c: CValue<__koffi_result_u32_u8>): KoffiResult<UInt, UByte> = c.useContents {
+    if (_d == 1.toUByte()) {
+        KoffiResult.Ok(_u.ok)
+    } else {
+        KoffiResult.Err(_u.err)
+    }
+}
 actual object HelloKotlinFfi {
 
     actual fun helloKotlinPayloadNew(data: UShort): Payload {
@@ -97,8 +276,23 @@ actual object HelloKotlinFfi {
     }
 }
 
+actual fun maybePayload(show: Boolean): Payload? {
+    return __koffi_fn_hello_kotlin_maybe_payload(show.let { if (it) 1u.toUByte() else 0u.toUByte() }).let { __koffi_option___koffi_struct_hello_kotlin_PayloadFromC(it) }
+}
+actual fun addOptional(a: UInt, b: UInt?): UInt {
+    return __koffi_fn_hello_kotlin_add_optional(a, __koffi_option_u32ToC(b))
+}
+actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
+    return __koffi_fn_hello_kotlin_divide(n, d).let { __koffi_result_u32_u8FromC(it) }
+}
+actual fun nothing(): UInt? {
+    return __koffi_fn_hello_kotlin_nothing().let { __koffi_option_u32FromC(it) }
+}
 actual fun cStatus(): CStatus {
     return __koffi_fn_hello_kotlin_c_status().let { CStatus.fromDiscriminant(it) }
+}
+actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
+    return __koffi_fn_hello_kotlin_drink(x).let { __koffi_result___koffi_option_u32_u8FromC(it) }
 }
 actual fun holderStatus(h: StatusHolder): Status {
     return __koffi_fn_hello_kotlin_holder_status(status_holderToC(h)).let { statusFromC(it) }
@@ -109,8 +303,26 @@ actual fun cStatusIsErr(s: CStatus): Boolean {
 actual fun rectArea(r: Rect): Int {
     return __koffi_fn_hello_kotlin_rect_area(rectToC(r))
 }
+actual fun moodIsFlying(m: Mood): Boolean {
+    return __koffi_fn_hello_kotlin_mood_is_flying(moodToC(m)) != 0u.toUByte()
+}
+actual fun ride(dance: Dancer?): Dancer? {
+    return __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_DancerToC(dance)).let { __koffi_option___koffi_struct_hello_kotlin_DancerFromC(it) }
+}
+actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt {
+    return __koffi_fn_hello_kotlin_result_value(__koffi_result_u32_u8ToC(r))
+}
+actual fun paint(color: Boolean?): Boolean {
+    return __koffi_fn_hello_kotlin_paint(__koffi_option_boolToC(color)) != 0u.toUByte()
+}
 actual fun rectTopLeft(r: Rect): Point {
     return __koffi_fn_hello_kotlin_rect_top_left(rectToC(r)).let { pointFromC(it) }
+}
+actual fun mood(): Mood {
+    return __koffi_fn_hello_kotlin_mood().let { moodFromC(it) }
+}
+actual fun howLong(seconds: Double?): Double {
+    return __koffi_fn_hello_kotlin_how_long(__koffi_option_f64ToC(seconds))
 }
 actual fun makeStatus(): Status {
     return __koffi_fn_hello_kotlin_make_status().let { statusFromC(it) }
@@ -120,6 +332,12 @@ actual fun makeRect(): Rect {
 }
 actual fun hello(): Payload {
     return __koffi_fn_hello_kotlin_hello().let { payloadFromC(it) }
+}
+actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
+    return __koffi_fn_hello_kotlin_nominate(x).let { __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromC(it) }
+}
+actual fun favorite(): UInt? {
+    return __koffi_fn_hello_kotlin_favorite().let { __koffi_option_u32FromC(it) }
 }
 actual fun makeHolder(): StatusHolder {
     return __koffi_fn_hello_kotlin_make_holder().let { status_holderFromC(it) }

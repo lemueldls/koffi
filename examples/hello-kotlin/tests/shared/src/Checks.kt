@@ -12,7 +12,7 @@ fun check(name: String, cond: Boolean) {
     }
 }
 
-fun main() {
+fun runChecks() {
     // Free fns: struct return, enum return, scalars.
     check("hello() -> Payload(data=42)", hello().data == 42u.toUShort())
 
@@ -67,6 +67,50 @@ fun main() {
     check("rectArea(makeRect()) == 24", rectArea(rect) == 24)
     check("rectTopLeft(makeRect()) == Point(1,2)", rectTopLeft(rect) == Point(1, 2))
     check("rectArea(Rect(Point(0,0), Point(3,4))) == 12", rectArea(Rect(Point(0, 0), Point(3, 4))) == 12)
+
+    // Option<T> as scalar param and return: None maps to null.
+    check("addOptional(5, Some(3)) == 8", addOptional(5u, 3u) == 8u)
+    check("addOptional(5, null) == 5", addOptional(5u, null) == 5u)
+    check("favorite() == Some(7)", favorite() == 7u)
+    check("nothing() == null", nothing() == null)
+
+    // Option of a struct.
+    check("maybePayload(true) == Some(data=11)", maybePayload(true)?.data == 11u.toUShort())
+    check("maybePayload(false) == null", maybePayload(false) == null)
+
+    // Option<bool> and Option<f64> param marshalling.
+    check("paint(Some(true))", paint(true))
+    check("paint(null) == false", !paint(null))
+    check("howLong(Some(2.5)) == 2.5", howLong(2.5) == 2.5)
+    check("howLong(null) == 1.5", howLong(null) == 1.5)
+
+    // Result<T, E> return and param: Ok/Err via the sealed class.
+    check("divide(10, 2) is Ok(5)", divide(10u, 2u) == KoffiResult.Ok(5u))
+    check("divide(10, 0) is Err(1)", divide(10u, 0u) == KoffiResult.Err(1u.toUByte()))
+    check("resultValue(Ok(9)) == 9", resultValue(KoffiResult.Ok(9u)) == 9u)
+    check("resultValue(Err(2)) == 0", resultValue(KoffiResult.Err(2u.toUByte())) == 0u)
+
+    // Result<Payload, Status>: data enum on the error side.
+    val nom = nominate(50u)
+    check("nominate(50) is Ok(Payload(50))", nom is KoffiResult.Ok && nom.value.data == 50u.toUShort())
+    val nerr = nominate(500u)
+    check("nominate(500) is Err(Busy(500))", nerr is KoffiResult.Err && nerr.error == Status.Busy(500u))
+
+    // Nested wrapper: Result<Option<u32>, u8>.
+    check("drink(4) is Ok(Some(4))", drink(4u) == KoffiResult.Ok(4u))
+    check("drink(3) is Ok(null)", drink(3u) == KoffiResult.Ok(null))
+
+    // Struct with an Option field, roundtripped through an Option param+return.
+    val rode = ride(Dancer(3u, true))
+    check("ride(Some(Dancer(3, true))) -> Some(id=4)", rode?.id == 4u)
+    check("ride(...).active == Some(true)", rode?.active == true)
+    check("ride(null) == null", ride(null) == null)
+
+    // Data enum with an Option variant payload (memory-backed variant branch).
+    check("mood() == Flying(Some(true))", mood() == Mood.Flying(true))
+    check("moodIsFlying(Flying(Some(true)))", moodIsFlying(Mood.Flying(true)))
+    check("moodIsFlying(Flying(null)) == false", !moodIsFlying(Mood.Flying(null)))
+    check("moodIsFlying(Fine) == false", !moodIsFlying(Mood.Fine))
 
     if (failures > 0) {
         println("\n$failures test(s) FAILED")

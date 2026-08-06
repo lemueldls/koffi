@@ -2,42 +2,43 @@ use askama::Template;
 use koffi_build::config::TargetPlatform;
 
 use crate::{
+    generator::kotlin::LayoutOrderItem,
     layout::LayoutEntry,
     schema::{ScalarKind, Schema, SchemaTypeRef},
 };
 
 #[derive(Template)]
-#[template(path = "rust/lib.rs.j2")]
+#[template(path = "rust/lib.rs.j2", escape = "none")]
 pub struct RustLib<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "rust/types.rs.j2")]
+#[template(path = "rust/types.rs.j2", escape = "none")]
 pub struct RustTypes<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "rust/cabi.rs.j2")]
+#[template(path = "rust/cabi.rs.j2", escape = "none")]
 pub struct RustCabi<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "rust/jni.rs.j2")]
+#[template(path = "rust/jni.rs.j2", escape = "none")]
 pub struct RustJni<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "rust/wasm.rs.j2")]
+#[template(path = "rust/wasm.rs.j2", escape = "none")]
 pub struct RustWasm<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "rust/cargo.toml.j2")]
+#[template(path = "rust/cargo.toml.j2", escape = "none")]
 pub struct RustCargoToml<'a> {
     pub crate_name: &'a str,
     pub required_dependencies: &'a [CargoDep],
@@ -57,19 +58,19 @@ pub struct CargoOptionalDep {
 }
 
 #[derive(Template)]
-#[template(path = "kotlin/common.kt.j2")]
+#[template(path = "kotlin/common.kt.j2", escape = "none")]
 pub struct KotlinCommon<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "kotlin/ffm.kt.j2")]
+#[template(path = "kotlin/ffm.kt.j2", escape = "none")]
 pub struct KotlinFfm<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "kotlin/jni.kt.j2")]
+#[template(path = "kotlin/jni.kt.j2", escape = "none")]
 pub struct KotlinJni<'a> {
     pub schema: &'a Schema,
     /// Android load mode (`System.loadLibrary` + jniLibs staging) vs. the
@@ -78,13 +79,13 @@ pub struct KotlinJni<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "kotlin/native.kt.j2")]
+#[template(path = "kotlin/native.kt.j2", escape = "none")]
 pub struct KotlinNative<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "kotlin/module.yaml.j2")]
+#[template(path = "kotlin/module.yaml.j2", escape = "none")]
 pub struct KotlinModuleYaml<'a> {
     pub platforms: &'a [TargetPlatform],
     pub dependencies: &'a [&'a str],
@@ -92,13 +93,13 @@ pub struct KotlinModuleYaml<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "native/header.c.j2")]
+#[template(path = "native/header.c.j2", escape = "none")]
 pub struct CHeader<'a> {
     pub schema: &'a Schema,
 }
 
 #[derive(Template)]
-#[template(path = "native/cinterop.def.j2")]
+#[template(path = "native/cinterop.def.j2", escape = "none")]
 pub struct CInteropDef<'a> {
     pub schema: &'a Schema,
     pub native_platforms: &'a [&'a TargetPlatform],

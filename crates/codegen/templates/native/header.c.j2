@@ -6,10 +6,24 @@
 #include <stdint.h>
 
 // Fieldless enums arrive as their discriminant C type; the Kotlin side
-// casts the value back to a real enum. Data-carrying enums are a wrapper
-// struct with an explicit discriminant and a payload union.
-{%~ for e in schema.enums %}
-{% if e.has_data %}
+// casts the value back to a real enum. Data-carrying enums and wrappers
+// are a wrapper struct with an explicit discriminant and a payload union,
+// emitted in dependency order further down.
+{%~ for e in schema.enums %}{% if !e.has_data %}
+typedef {{ e.discriminant.c_type() }} {{ e.unique_ident() }};
+{% endif %}{%- endfor %}
+
+// All layout-bearing types in dependency order: a type used as a field of
+// another must have its typedef declared first. repr(C) in Rust means no
+// padding bookkeeping here: the header mirrors the field lists directly.
+{%~ for item in schema.types_in_layout_order() %}{%~ match item %}
+{%- when LayoutOrderItem::Struct(s) %}
+typedef struct {
+    {%- for f in s.fields %}
+    {{ f.ty.c_type() }} {{ f.name }};
+    {%- endfor %}
+} {{ s.unique_ident() }};
+{%- when LayoutOrderItem::DataEnum(e) %}
 {%- for v in e.variants %}{% if !v.placements.is_empty() %}
 typedef struct {
     {%- for f in v.placements %}
@@ -28,20 +42,18 @@ typedef struct {
     {{ e.discriminant.c_type() }} _d;
     {{ e.payload_union_ident() }} _u;
 } {{ e.unique_ident() }};
-{% else %}
-typedef {{ e.discriminant.c_type() }} {{ e.unique_ident() }};
-{% endif %}
-{%- endfor %}
-
-// repr(C) in Rust means no padding bookkeeping here: the header mirrors
-// the struct's field list directly.
-{%~ for s in schema.structs_in_layout_order() %}
-typedef struct {
-    {%- for f in s.fields %}
-    {{ f.ty.c_type() }} {{ f.name }};
+{%- when LayoutOrderItem::Wrapper(w) %}
+typedef union {
+    {%- for m in w.members %}
+    {{ m.ty.c_type() }} {{ m.name }};
     {%- endfor %}
-} {{ s.unique_ident() }};
-{%- endfor %}
+} {{ w.union_ident() }};
+
+typedef struct {
+    uint8_t _d;
+    {{ w.union_ident() }} _u;
+} {{ w.unique_ident }};
+{%- endmatch %}{%- endfor %}
 
 {%~ for f in schema.functions %}
 {{ f.return_type.c_type() }} {{ f.c_abi_symbol() }}({% for p in f.params %}{{ p.ty.c_type() }} {{ p.c_abi_symbol() }}{% if !loop.last %}, {% endif %}{% else %}void{% endfor %});

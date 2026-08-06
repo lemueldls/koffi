@@ -10,13 +10,37 @@ expression: "fs::read_to_string(&file)?"
 #include <stdint.h>
 
 // Fieldless enums arrive as their discriminant C type; the Kotlin side
-// casts the value back to a real enum. Data-carrying enums are a wrapper
-// struct with an explicit discriminant and a payload union.
-
+// casts the value back to a real enum. Data-carrying enums and wrappers
+// are a wrapper struct with an explicit discriminant and a payload union,
+// emitted in dependency order further down.
 
 typedef uint32_t __koffi_enum_hello_kotlin_CStatus;
 
 
+// All layout-bearing types in dependency order: a type used as a field of
+// another must have its typedef declared first. repr(C) in Rust means no
+// padding bookkeeping here: the header mirrors the field lists directly.
+
+typedef union {
+    uint8_t some;
+} __koffi_option_bool_payload;
+
+typedef struct {
+    uint8_t _d;
+    __koffi_option_bool_payload _u;
+} __koffi_option_bool;
+typedef struct {
+    __koffi_option_bool field0;
+} __koffi_enum_hello_kotlin_Mood_flying;
+
+typedef union {
+    __koffi_enum_hello_kotlin_Mood_flying flying;
+} __koffi_enum_hello_kotlin_Mood_payload;
+
+typedef struct {
+    int32_t _d;
+    __koffi_enum_hello_kotlin_Mood_payload _u;
+} __koffi_enum_hello_kotlin_Mood;
 typedef struct {
     uint32_t field0;
 } __koffi_enum_hello_kotlin_Status_busy;
@@ -34,11 +58,10 @@ typedef struct {
     int32_t _d;
     __koffi_enum_hello_kotlin_Status_payload _u;
 } __koffi_enum_hello_kotlin_Status;
-
-
-// repr(C) in Rust means no padding bookkeeping here: the header mirrors
-// the struct's field list directly.
-
+typedef struct {
+    uint32_t id;
+    __koffi_option_bool active;
+} __koffi_struct_hello_kotlin_Dancer;
 typedef struct {
     uint16_t data;
 } __koffi_struct_hello_kotlin_Payload;
@@ -54,21 +77,93 @@ typedef struct {
     __koffi_enum_hello_kotlin_Status status;
     uint8_t tag;
 } __koffi_struct_hello_kotlin_StatusHolder;
+typedef union {
+    __koffi_struct_hello_kotlin_Dancer some;
+} __koffi_option___koffi_struct_hello_kotlin_Dancer_payload;
 
+typedef struct {
+    uint8_t _d;
+    __koffi_option___koffi_struct_hello_kotlin_Dancer_payload _u;
+} __koffi_option___koffi_struct_hello_kotlin_Dancer;
+typedef union {
+    __koffi_struct_hello_kotlin_Payload some;
+} __koffi_option___koffi_struct_hello_kotlin_Payload_payload;
+
+typedef struct {
+    uint8_t _d;
+    __koffi_option___koffi_struct_hello_kotlin_Payload_payload _u;
+} __koffi_option___koffi_struct_hello_kotlin_Payload;
+typedef union {
+    double some;
+} __koffi_option_f64_payload;
+
+typedef struct {
+    uint8_t _d;
+    __koffi_option_f64_payload _u;
+} __koffi_option_f64;
+typedef union {
+    uint32_t some;
+} __koffi_option_u32_payload;
+
+typedef struct {
+    uint8_t _d;
+    __koffi_option_u32_payload _u;
+} __koffi_option_u32;
+typedef union {
+    __koffi_option_u32 ok;
+    uint8_t err;
+} __koffi_result___koffi_option_u32_u8_payload;
+
+typedef struct {
+    uint8_t _d;
+    __koffi_result___koffi_option_u32_u8_payload _u;
+} __koffi_result___koffi_option_u32_u8;
+typedef union {
+    __koffi_struct_hello_kotlin_Payload ok;
+    __koffi_enum_hello_kotlin_Status err;
+} __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status_payload;
+
+typedef struct {
+    uint8_t _d;
+    __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status_payload _u;
+} __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status;
+typedef union {
+    uint32_t ok;
+    uint8_t err;
+} __koffi_result_u32_u8_payload;
+
+typedef struct {
+    uint8_t _d;
+    __koffi_result_u32_u8_payload _u;
+} __koffi_result_u32_u8;
+
+__koffi_option___koffi_struct_hello_kotlin_Payload __koffi_fn_hello_kotlin_maybe_payload(uint8_t show);
+uint32_t __koffi_fn_hello_kotlin_add_optional(uint32_t a, __koffi_option_u32 b);
+__koffi_result_u32_u8 __koffi_fn_hello_kotlin_divide(uint32_t n, uint32_t d);
+__koffi_option_u32 __koffi_fn_hello_kotlin_nothing(void);
 __koffi_enum_hello_kotlin_CStatus __koffi_fn_hello_kotlin_c_status(void);
+__koffi_result___koffi_option_u32_u8 __koffi_fn_hello_kotlin_drink(uint32_t x);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_holder_status(__koffi_struct_hello_kotlin_StatusHolder h);
 __koffi_struct_hello_kotlin_Payload __koffi_fn_hello_kotlin_Payload_new(uint16_t data);
 uint8_t __koffi_fn_hello_kotlin_c_status_is_err(__koffi_enum_hello_kotlin_CStatus s);
 int32_t __koffi_fn_hello_kotlin_rect_area(__koffi_struct_hello_kotlin_Rect r);
+uint8_t __koffi_fn_hello_kotlin_mood_is_flying(__koffi_enum_hello_kotlin_Mood m);
 uint32_t __koffi_fn_hello_kotlin_Payload_describe_format(void);
+__koffi_option___koffi_struct_hello_kotlin_Dancer __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_Dancer dance);
+uint32_t __koffi_fn_hello_kotlin_result_value(__koffi_result_u32_u8 r);
+uint8_t __koffi_fn_hello_kotlin_paint(__koffi_option_bool color);
 uint32_t __koffi_fn_hello_kotlin_Status_describe(__koffi_enum_hello_kotlin_Status self);
 __koffi_struct_hello_kotlin_Point __koffi_fn_hello_kotlin_rect_top_left(__koffi_struct_hello_kotlin_Rect r);
+__koffi_enum_hello_kotlin_Mood __koffi_fn_hello_kotlin_mood(void);
+double __koffi_fn_hello_kotlin_how_long(__koffi_option_f64 seconds);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_make_status(void);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_Status_idle(void);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_Status_new_busy(uint32_t code);
 __koffi_struct_hello_kotlin_Rect __koffi_fn_hello_kotlin_make_rect(void);
 __koffi_struct_hello_kotlin_Payload __koffi_fn_hello_kotlin_hello(void);
+__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_nominate(uint32_t x);
 __koffi_struct_hello_kotlin_Payload __koffi_fn_hello_kotlin_Payload_with_data(__koffi_struct_hello_kotlin_Payload self, uint16_t data);
+__koffi_option_u32 __koffi_fn_hello_kotlin_favorite(void);
 __koffi_struct_hello_kotlin_StatusHolder __koffi_fn_hello_kotlin_make_holder(void);
 uint32_t __koffi_fn_hello_kotlin_status_code(__koffi_enum_hello_kotlin_Status s);
 uint32_t __koffi_fn_hello_kotlin_Payload_describe(__koffi_struct_hello_kotlin_Payload self);

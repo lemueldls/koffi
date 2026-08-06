@@ -25,7 +25,7 @@ import kotlinx.cinterop.*
 
 {#~ Per-enum marshallers. `statusToC` builds the wrapper's memory image
    (discriminant + active variant's payload union member);
-   `statusFromC` reads it back. Only data-carrying enums need these —
+   `statusFromC` reads it back. Only data-carrying enums need these -
    fieldless ones cross the ABI as their plain discriminant scalar,
    identity with the C typedef. -#}
 {%~ for e in schema.enums %}{% if e.has_data %}
@@ -35,7 +35,11 @@ private fun {{ e.to_c_ident() }}(v: {{ e.name }}): CValue<{{ e.unique_ident() }}
         {%- for v2 in e.variants %}{% if !v2.placements.is_empty() %}
         is {{ e.name }}.{{ v2.name }} -> {
             {%- for f in v2.placements %}
+            {%- if f.ty.is_memory_backed() %}
+            {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}).place(_u.{{ e.variant_wire_name(v2) }}.{{ f.name }}.ptr)
+            {%- else %}
             _u.{{ e.variant_wire_name(v2) }}.{{ f.name }} = v.{{ f.kotlin_name() }}{{ f.ty.to_c_suffix() }}
+            {%- endif %}
             {%- endfor %}
         }
         {%- endif %}{%- endfor %}
@@ -46,7 +50,7 @@ private fun {{ e.to_c_ident() }}(v: {{ e.name }}): CValue<{{ e.unique_ident() }}
 private fun {{ e.from_c_ident() }}(w: CValue<{{ e.unique_ident() }}>): {{ e.name }} = w.useContents {
     when (_d) {
         {%- for v2 in e.variants %}
-        {{ e.discriminant.kotlin_discriminant_literal(v2.discriminant) }} -> {% if v2.placements.is_empty() %}{{ e.name }}.{{ v2.name }}{% else %}{{ e.name }}.{{ v2.name }}({% for f in v2.placements %}{{ f.kotlin_name() }} = _u.{{ e.variant_wire_name(v2) }}.{{ f.name }}{{ f.ty.from_c_suffix() }}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
+        {{ e.discriminant.kotlin_discriminant_literal(v2.discriminant) }} -> {% if v2.placements.is_empty() %}{{ e.name }}.{{ v2.name }}{% else %}{{ e.name }}.{{ v2.name }}({% for f in v2.placements %}{% if f.ty.is_memory_backed() %}{{ f.kotlin_name() }} = {{ f.ty.from_c_ident() }}(_u.{{ e.variant_wire_name(v2) }}.{{ f.name }}.readValue()){% else %}{{ f.kotlin_name() }} = _u.{{ e.variant_wire_name(v2) }}.{{ f.name }}{{ f.ty.from_c_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
         {%- endfor %}
         else -> error("koffi: invalid {{ e.name }} discriminant $_d")
     }
@@ -79,6 +83,69 @@ private fun {{ s.from_c_ident() }}(w: CValue<{{ s.unique_ident() }}>): {{ s.name
         {%- endfor -%}
     )
 }{%- endfor %}
+
+{#~ Per-wrapper marshallers, same shape as the struct marshallers plus the
+   `_d` discriminant byte (None/Err = 0, Some/Ok = 1) and the payload union
+   under `_u`. Memory-backed inners recurse through their own `toC`/`fromC`
+   helpers into the union member. -#}
+{%~ for w in schema.wrappers %}
+private fun {{ w.to_c_ident() }}(v: {{ w.kotlin_type() }}): CValue<{{ w.unique_ident }}> = cValue {
+    {%- if w.is_option() %}
+    if (v != null) {
+        _d = 1.toUByte()
+        val inner = v
+        {%- if w.some().ty.is_memory_backed() %}
+        {{ w.some().ty.to_c_ident() }}(inner).place(_u.some.ptr)
+        {%- else %}
+        _u.some = inner{{ w.some().ty.to_c_suffix() }}
+        {%- endif %}
+    } else {
+        _d = 0.toUByte()
+    }
+    {%- else %}
+    when (v) {
+        is KoffiResult.Ok<*> -> {
+            _d = 1.toUByte()
+            val inner = (v as KoffiResult.Ok<{{ w.ok().ty.kotlin_type() }}>).value
+            {%- if w.ok().ty.is_memory_backed() %}
+            {{ w.ok().ty.to_c_ident() }}(inner).place(_u.ok.ptr)
+            {%- else %}
+            _u.ok = inner{{ w.ok().ty.to_c_suffix() }}
+            {%- endif %}
+        }
+        is KoffiResult.Err<*> -> {
+            _d = 0.toUByte()
+            val inner = (v as KoffiResult.Err<{{ w.err().ty.kotlin_type() }}>).error
+            {%- if w.err().ty.is_memory_backed() %}
+            {{ w.err().ty.to_c_ident() }}(inner).place(_u.err.ptr)
+            {%- else %}
+            _u.err = inner{{ w.err().ty.to_c_suffix() }}
+            {%- endif %}
+        }
+    }
+    {%- endif %}
+}
+
+private fun {{ w.from_c_ident() }}(c: CValue<{{ w.unique_ident }}>): {{ w.kotlin_type() }} = c.useContents {
+    {%- if w.is_option() %}
+    if (_d == 1.toUByte()) {
+        {%- if w.some().ty.is_memory_backed() %}
+        {{ w.some().ty.from_c_ident() }}(_u.some.readValue())
+        {%- else %}
+        _u.some{{ w.some().ty.from_c_suffix() }}
+        {%- endif %}
+    } else {
+        null
+    }
+    {%- else %}
+    if (_d == 1.toUByte()) {
+        KoffiResult.Ok({%- if w.ok().ty.is_memory_backed() %}{{ w.ok().ty.from_c_ident() }}(_u.ok.readValue()){%- else %}_u.ok{{ w.ok().ty.from_c_suffix() }}{%- endif %})
+    } else {
+        KoffiResult.Err({%- if w.err().ty.is_memory_backed() %}{{ w.err().ty.from_c_ident() }}(_u.err.readValue()){%- else %}_u.err{{ w.err().ty.from_c_suffix() }}{%- endif %})
+    }
+    {%- endif %}
+}
+{%- endfor %}
 
 {#~ `actual object` matching the `expect object` in common.kt.j2, carrying
    only the parent-having fns. Free fns have their top-level `actual fun`s

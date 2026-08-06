@@ -6,6 +6,106 @@ Schema {
     crate_name: "hello-kotlin",
     functions: [
         SchemaFn {
+            rust_name: "maybe_payload",
+            kotlin_name: "maybePayload",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "show",
+                    ty: Scalar(
+                        Bool,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Option {
+                inner: Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            },
+        },
+        SchemaFn {
+            rust_name: "add_optional",
+            kotlin_name: "addOptional",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: Option {
+                        inner: Scalar(
+                            U32,
+                        ),
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "divide",
+            kotlin_name: "divide",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "n",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                },
+                SchemaParam {
+                    name: "d",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Scalar(
+                    U32,
+                ),
+                err: Scalar(
+                    U8,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "nothing",
+            kotlin_name: "nothing",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Option {
+                inner: Scalar(
+                    U32,
+                ),
+            },
+        },
+        SchemaFn {
             rust_name: "c_status",
             kotlin_name: "cStatus",
             module_path: Some(
@@ -20,6 +120,33 @@ Schema {
                 ),
                 discriminant: U32,
                 has_data: false,
+            },
+        },
+        SchemaFn {
+            rust_name: "drink",
+            kotlin_name: "drink",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "x",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Option {
+                    inner: Scalar(
+                        U32,
+                    ),
+                },
+                err: Scalar(
+                    U8,
+                ),
             },
         },
         SchemaFn {
@@ -129,6 +256,31 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "mood_is_flying",
+            kotlin_name: "moodIsFlying",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "m",
+                    ty: Enum {
+                        name: "Mood",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
             rust_name: "describe_format",
             kotlin_name: "describeFormat",
             module_path: Some(
@@ -145,6 +297,83 @@ Schema {
             params: [],
             return_type: Scalar(
                 U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "ride",
+            kotlin_name: "ride",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "dance",
+                    ty: Option {
+                        inner: Struct {
+                            name: "Dancer",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Option {
+                inner: Struct {
+                    name: "Dancer",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            },
+        },
+        SchemaFn {
+            rust_name: "result_value",
+            kotlin_name: "resultValue",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "r",
+                    ty: Result {
+                        ok: Scalar(
+                            U32,
+                        ),
+                        err: Scalar(
+                            U8,
+                        ),
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "paint",
+            kotlin_name: "paint",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "color",
+                    ty: Option {
+                        inner: Scalar(
+                            Bool,
+                        ),
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
             ),
         },
         SchemaFn {
@@ -206,6 +435,45 @@ Schema {
                     "hello_kotlin",
                 ),
             },
+        },
+        SchemaFn {
+            rust_name: "mood",
+            kotlin_name: "mood",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Mood",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "how_long",
+            kotlin_name: "howLong",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "seconds",
+                    ty: Option {
+                        inner: Scalar(
+                            F64,
+                        ),
+                    },
+                    is_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                F64,
+            ),
         },
         SchemaFn {
             rust_name: "make_status",
@@ -315,6 +583,39 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "nominate",
+            kotlin_name: "nominate",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "x",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+                err: Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            },
+        },
+        SchemaFn {
             rust_name: "with_data",
             kotlin_name: "withData",
             module_path: Some(
@@ -351,6 +652,20 @@ Schema {
                 name: "Payload",
                 module_path: Some(
                     "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "favorite",
+            kotlin_name: "favorite",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Option {
+                inner: Scalar(
+                    U32,
                 ),
             },
         },
@@ -426,6 +741,65 @@ Schema {
         },
     ],
     structs: [
+        SchemaStruct {
+            name: "Dancer",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "id",
+                    ty: Scalar(
+                        U32,
+                    ),
+                },
+                SchemaField {
+                    name: "active",
+                    ty: Option {
+                        inner: Scalar(
+                            Bool,
+                        ),
+                    },
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "id",
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_option_boolLayout",
+                        name: "active",
+                    },
+                    Padding {
+                        bytes: 2,
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "id",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 0,
+                    },
+                    FieldPlacement {
+                        name: "active",
+                        ty: Option {
+                            inner: Scalar(
+                                Bool,
+                            ),
+                        },
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 8,
+                    align: 4,
+                },
+            },
+        },
         SchemaStruct {
             name: "Payload",
             module_path: Some(
@@ -680,6 +1054,68 @@ Schema {
             },
         },
         SchemaEnum {
+            name: "Mood",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            discriminant: I32,
+            has_data: true,
+            variants: [
+                SchemaEnumVariant {
+                    name: "Fine",
+                    discriminant: 0,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+                SchemaEnumVariant {
+                    name: "Flying",
+                    discriminant: 1,
+                    placements: [
+                        FieldPlacement {
+                            name: "field0",
+                            ty: Option {
+                                inner: Scalar(
+                                    Bool,
+                                ),
+                            },
+                            offset: 4,
+                        },
+                    ],
+                    is_struct_variant: false,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "discriminant",
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_option_boolLayout",
+                        name: "",
+                    },
+                    Padding {
+                        bytes: 2,
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "field0",
+                        ty: Option {
+                            inner: Scalar(
+                                Bool,
+                            ),
+                        },
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 8,
+                    align: 4,
+                },
+            },
+        },
+        SchemaEnum {
             name: "Status",
             module_path: Some(
                 "hello_kotlin",
@@ -751,6 +1187,396 @@ Schema {
                         name: "code",
                         ty: Scalar(
                             U32,
+                        ),
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 8,
+                    align: 4,
+                },
+            },
+        },
+    ],
+    wrappers: [
+        SchemaWrapper {
+            kind: Option,
+            unique_ident: "__koffi_option___koffi_struct_hello_kotlin_Dancer",
+            members: [
+                WrapperMember {
+                    name: "some",
+                    ty: Struct {
+                        name: "Dancer",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Padding {
+                        bytes: 3,
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_DancerLayout",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "some",
+                        ty: Struct {
+                            name: "Dancer",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 12,
+                    align: 4,
+                },
+            },
+        },
+        SchemaWrapper {
+            kind: Option,
+            unique_ident: "__koffi_option___koffi_struct_hello_kotlin_Payload",
+            members: [
+                WrapperMember {
+                    name: "some",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Padding {
+                        bytes: 1,
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_PayloadLayout",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "some",
+                        ty: Struct {
+                            name: "Payload",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 2,
+                    },
+                ],
+                total: Layout {
+                    size: 4,
+                    align: 2,
+                },
+            },
+        },
+        SchemaWrapper {
+            kind: Option,
+            unique_ident: "__koffi_option_bool",
+            members: [
+                WrapperMember {
+                    name: "some",
+                    ty: Scalar(
+                        Bool,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BOOLEAN",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "some",
+                        ty: Scalar(
+                            Bool,
+                        ),
+                        offset: 1,
+                    },
+                ],
+                total: Layout {
+                    size: 2,
+                    align: 1,
+                },
+            },
+        },
+        SchemaWrapper {
+            kind: Option,
+            unique_ident: "__koffi_option_f64",
+            members: [
+                WrapperMember {
+                    name: "some",
+                    ty: Scalar(
+                        F64,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Padding {
+                        bytes: 7,
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_DOUBLE",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "some",
+                        ty: Scalar(
+                            F64,
+                        ),
+                        offset: 8,
+                    },
+                ],
+                total: Layout {
+                    size: 16,
+                    align: 8,
+                },
+            },
+        },
+        SchemaWrapper {
+            kind: Option,
+            unique_ident: "__koffi_option_u32",
+            members: [
+                WrapperMember {
+                    name: "some",
+                    ty: Scalar(
+                        U32,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Padding {
+                        bytes: 3,
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "some",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 8,
+                    align: 4,
+                },
+            },
+        },
+        SchemaWrapper {
+            kind: Result,
+            unique_ident: "__koffi_result___koffi_option_u32_u8",
+            members: [
+                WrapperMember {
+                    name: "ok",
+                    ty: Option {
+                        inner: Scalar(
+                            U32,
+                        ),
+                    },
+                },
+                WrapperMember {
+                    name: "err",
+                    ty: Scalar(
+                        U8,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Padding {
+                        bytes: 3,
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_option_u32Layout",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "ok",
+                        ty: Option {
+                            inner: Scalar(
+                                U32,
+                            ),
+                        },
+                        offset: 4,
+                    },
+                    FieldPlacement {
+                        name: "err",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 12,
+                    align: 4,
+                },
+            },
+        },
+        SchemaWrapper {
+            kind: Result,
+            unique_ident: "__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status",
+            members: [
+                WrapperMember {
+                    name: "ok",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                },
+                WrapperMember {
+                    name: "err",
+                    ty: Enum {
+                        name: "Status",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Padding {
+                        bytes: 3,
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_enum_hello_kotlin_StatusLayout",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "ok",
+                        ty: Struct {
+                            name: "Payload",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 4,
+                    },
+                    FieldPlacement {
+                        name: "err",
+                        ty: Enum {
+                            name: "Status",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                            discriminant: I32,
+                            has_data: true,
+                        },
+                        offset: 4,
+                    },
+                ],
+                total: Layout {
+                    size: 12,
+                    align: 4,
+                },
+            },
+        },
+        SchemaWrapper {
+            kind: Result,
+            unique_ident: "__koffi_result_u32_u8",
+            members: [
+                WrapperMember {
+                    name: "ok",
+                    ty: Scalar(
+                        U32,
+                    ),
+                },
+                WrapperMember {
+                    name: "err",
+                    ty: Scalar(
+                        U8,
+                    ),
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "discriminant",
+                    },
+                    Padding {
+                        bytes: 3,
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "ok",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                    },
+                    FieldPlacement {
+                        name: "err",
+                        ty: Scalar(
+                            U8,
                         ),
                         offset: 4,
                     },

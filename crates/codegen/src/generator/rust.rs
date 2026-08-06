@@ -104,6 +104,14 @@ impl SchemaTypeRef {
             SchemaTypeRef::Scalar(k) => k.rust_type_name().to_string(),
             SchemaTypeRef::Struct { .. } => format!("__koffi_struct_{}", self.abi_ident_infix()),
             SchemaTypeRef::Enum { .. } => format!("__koffi_enum_{}", self.abi_ident_infix()),
+            SchemaTypeRef::Option { inner } => format!("__koffi_option_{}", inner.unique_ident()),
+            SchemaTypeRef::Result { ok, err } => {
+                format!(
+                    "__koffi_result_{}_{}",
+                    ok.unique_ident(),
+                    err.unique_ident()
+                )
+            }
         }
     }
 
@@ -120,6 +128,18 @@ impl SchemaTypeRef {
                 }
             }
             SchemaTypeRef::Scalar(k) => k.rust_type_name().to_string(),
+            // Recurses so nested wrappers (`Result<Option<u32>, u8>`)
+            // build their full path for the generated From impls.
+            SchemaTypeRef::Option { inner } => {
+                format!("::core::option::Option<{}>", inner.rust_absolute_path())
+            }
+            SchemaTypeRef::Result { ok, err } => {
+                format!(
+                    "::core::result::Result<{}, {}>",
+                    ok.rust_absolute_path(),
+                    err.rust_absolute_path()
+                )
+            }
         }
     }
 }

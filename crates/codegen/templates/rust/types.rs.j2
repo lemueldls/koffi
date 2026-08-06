@@ -135,3 +135,76 @@ impl From<{{ e.rust_absolute_path() }}> for {{ e.unique_ident() }} {
 }
 {% endif %}
 {%- endfor %}
+
+{#~ Option/Result wrappers: a `#[repr(C)]` struct with a `u8`
+   discriminant (`0` = None/Err, `1` = Some/Ok) and a payload union over
+   the inner wire type(s). The `.into()` chains compose for nested
+   wrappers because every level has its own From pair. -#}
+{%~ for w in schema.wrappers %}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union {{ w.union_ident() }} {
+    {%- for m in w.members %}
+    {{ m.name }}: {{ m.ty.unique_ident() }},
+    {%- endfor %}
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct {{ w.unique_ident }} {
+    pub _d: u8,
+    pub _u: {{ w.union_ident() }},
+}
+
+{% if w.is_option() %}
+impl From<{{ w.unique_ident }}> for ::core::option::Option<{{ w.some().ty.rust_absolute_path() }}> {
+    fn from(c: {{ w.unique_ident }}) -> Self {
+        if c._d == 0 {
+            ::core::option::Option::None
+        } else {
+            ::core::option::Option::Some(unsafe { c._u.some }.into())
+        }
+    }
+}
+
+impl From<::core::option::Option<{{ w.some().ty.rust_absolute_path() }}>> for {{ w.unique_ident }} {
+    fn from(v: ::core::option::Option<{{ w.some().ty.rust_absolute_path() }}>) -> Self {
+        match v {
+            ::core::option::Option::Some(x) => Self {
+                _d: 1,
+                _u: {{ w.union_ident() }} { some: x.into() },
+            },
+            ::core::option::Option::None => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+        }
+    }
+}
+{% else %}
+impl From<{{ w.unique_ident }}> for ::core::result::Result<{{ w.some().ty.rust_absolute_path() }}, {{ w.err().ty.rust_absolute_path() }}> {
+    fn from(c: {{ w.unique_ident }}) -> Self {
+        if c._d == 0 {
+            ::core::result::Result::Err(unsafe { c._u.err }.into())
+        } else {
+            ::core::result::Result::Ok(unsafe { c._u.ok }.into())
+        }
+    }
+}
+
+impl From<::core::result::Result<{{ w.some().ty.rust_absolute_path() }}, {{ w.err().ty.rust_absolute_path() }}>> for {{ w.unique_ident }} {
+    fn from(v: ::core::result::Result<{{ w.some().ty.rust_absolute_path() }}, {{ w.err().ty.rust_absolute_path() }}>) -> Self {
+        match v {
+            ::core::result::Result::Ok(x) => Self {
+                _d: 1,
+                _u: {{ w.union_ident() }} { ok: x.into() },
+            },
+            ::core::result::Result::Err(e) => Self {
+                _d: 0,
+                _u: {{ w.union_ident() }} { err: e.into() },
+            },
+        }
+    }
+}
+{% endif %}
+{%- endfor %}

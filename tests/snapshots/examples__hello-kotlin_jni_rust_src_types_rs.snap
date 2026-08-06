@@ -8,6 +8,30 @@ expression: "fs::read_to_string(&file)?"
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_Dancer {
+    pub id: u32,
+    pub active: __koffi_option_bool,
+}
+
+impl From<__koffi_struct_hello_kotlin_Dancer> for ::hello_kotlin::Dancer {
+    fn from(c: __koffi_struct_hello_kotlin_Dancer) -> Self {
+        Self {
+            id: c.id.into(),
+            active: c.active.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::Dancer> for __koffi_struct_hello_kotlin_Dancer {
+    fn from(v: ::hello_kotlin::Dancer) -> Self {
+        Self {
+            id: v.id.into(),
+            active: v.active.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct __koffi_struct_hello_kotlin_Payload {
     pub data: u16,
 }
@@ -131,6 +155,61 @@ impl From<::hello_kotlin::CStatus> for __koffi_enum_hello_kotlin_CStatus {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct __koffi_enum_hello_kotlin_Mood_flying {
+    pub field0: __koffi_option_bool,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_enum_hello_kotlin_Mood_payload {
+    flying: __koffi_enum_hello_kotlin_Mood_flying,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_enum_hello_kotlin_Mood {
+    pub _d: i32,
+    pub _u: __koffi_enum_hello_kotlin_Mood_payload,
+}
+
+impl From<__koffi_enum_hello_kotlin_Mood> for ::hello_kotlin::Mood {
+    fn from(w: __koffi_enum_hello_kotlin_Mood) -> Self {
+        match w._d {
+            0 => {
+                Self::Fine
+            },
+            1 => {
+                Self::Flying(unsafe { w._u.flying }.field0.into())
+            },
+            _ => unreachable!("koffi: invalid Mood discriminant"),
+        }
+    }
+}
+
+impl From<::hello_kotlin::Mood> for __koffi_enum_hello_kotlin_Mood {
+    fn from(v: ::hello_kotlin::Mood) -> Self {
+        match v {
+            ::hello_kotlin::Mood::Fine => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+            ::hello_kotlin::Mood::Flying(field0) => Self {
+                _d: 1,
+                _u: __koffi_enum_hello_kotlin_Mood_payload {
+                    flying: __koffi_enum_hello_kotlin_Mood_flying {
+                        field0: field0.into(),
+                    }
+                },
+            },
+        }
+    }
+}
+
+
+
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct __koffi_enum_hello_kotlin_Status_busy {
     pub field0: u32,
 }
@@ -205,6 +284,322 @@ impl From<::hello_kotlin::Status> for __koffi_enum_hello_kotlin_Status {
             ::hello_kotlin::Status::Failed => Self {
                 _d: -1,
                 _u: unsafe { std::mem::zeroed() },
+            },
+        }
+    }
+}
+
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_option___koffi_struct_hello_kotlin_Dancer_payload {
+    some: __koffi_struct_hello_kotlin_Dancer,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_option___koffi_struct_hello_kotlin_Dancer {
+    pub _d: u8,
+    pub _u: __koffi_option___koffi_struct_hello_kotlin_Dancer_payload,
+}
+
+
+impl From<__koffi_option___koffi_struct_hello_kotlin_Dancer> for ::core::option::Option<::hello_kotlin::Dancer> {
+    fn from(c: __koffi_option___koffi_struct_hello_kotlin_Dancer) -> Self {
+        if c._d == 0 {
+            ::core::option::Option::None
+        } else {
+            ::core::option::Option::Some(unsafe { c._u.some }.into())
+        }
+    }
+}
+
+impl From<::core::option::Option<::hello_kotlin::Dancer>> for __koffi_option___koffi_struct_hello_kotlin_Dancer {
+    fn from(v: ::core::option::Option<::hello_kotlin::Dancer>) -> Self {
+        match v {
+            ::core::option::Option::Some(x) => Self {
+                _d: 1,
+                _u: __koffi_option___koffi_struct_hello_kotlin_Dancer_payload { some: x.into() },
+            },
+            ::core::option::Option::None => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_option___koffi_struct_hello_kotlin_Payload_payload {
+    some: __koffi_struct_hello_kotlin_Payload,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_option___koffi_struct_hello_kotlin_Payload {
+    pub _d: u8,
+    pub _u: __koffi_option___koffi_struct_hello_kotlin_Payload_payload,
+}
+
+
+impl From<__koffi_option___koffi_struct_hello_kotlin_Payload> for ::core::option::Option<::hello_kotlin::Payload> {
+    fn from(c: __koffi_option___koffi_struct_hello_kotlin_Payload) -> Self {
+        if c._d == 0 {
+            ::core::option::Option::None
+        } else {
+            ::core::option::Option::Some(unsafe { c._u.some }.into())
+        }
+    }
+}
+
+impl From<::core::option::Option<::hello_kotlin::Payload>> for __koffi_option___koffi_struct_hello_kotlin_Payload {
+    fn from(v: ::core::option::Option<::hello_kotlin::Payload>) -> Self {
+        match v {
+            ::core::option::Option::Some(x) => Self {
+                _d: 1,
+                _u: __koffi_option___koffi_struct_hello_kotlin_Payload_payload { some: x.into() },
+            },
+            ::core::option::Option::None => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_option_bool_payload {
+    some: bool,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_option_bool {
+    pub _d: u8,
+    pub _u: __koffi_option_bool_payload,
+}
+
+
+impl From<__koffi_option_bool> for ::core::option::Option<bool> {
+    fn from(c: __koffi_option_bool) -> Self {
+        if c._d == 0 {
+            ::core::option::Option::None
+        } else {
+            ::core::option::Option::Some(unsafe { c._u.some }.into())
+        }
+    }
+}
+
+impl From<::core::option::Option<bool>> for __koffi_option_bool {
+    fn from(v: ::core::option::Option<bool>) -> Self {
+        match v {
+            ::core::option::Option::Some(x) => Self {
+                _d: 1,
+                _u: __koffi_option_bool_payload { some: x.into() },
+            },
+            ::core::option::Option::None => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_option_f64_payload {
+    some: f64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_option_f64 {
+    pub _d: u8,
+    pub _u: __koffi_option_f64_payload,
+}
+
+
+impl From<__koffi_option_f64> for ::core::option::Option<f64> {
+    fn from(c: __koffi_option_f64) -> Self {
+        if c._d == 0 {
+            ::core::option::Option::None
+        } else {
+            ::core::option::Option::Some(unsafe { c._u.some }.into())
+        }
+    }
+}
+
+impl From<::core::option::Option<f64>> for __koffi_option_f64 {
+    fn from(v: ::core::option::Option<f64>) -> Self {
+        match v {
+            ::core::option::Option::Some(x) => Self {
+                _d: 1,
+                _u: __koffi_option_f64_payload { some: x.into() },
+            },
+            ::core::option::Option::None => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_option_u32_payload {
+    some: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_option_u32 {
+    pub _d: u8,
+    pub _u: __koffi_option_u32_payload,
+}
+
+
+impl From<__koffi_option_u32> for ::core::option::Option<u32> {
+    fn from(c: __koffi_option_u32) -> Self {
+        if c._d == 0 {
+            ::core::option::Option::None
+        } else {
+            ::core::option::Option::Some(unsafe { c._u.some }.into())
+        }
+    }
+}
+
+impl From<::core::option::Option<u32>> for __koffi_option_u32 {
+    fn from(v: ::core::option::Option<u32>) -> Self {
+        match v {
+            ::core::option::Option::Some(x) => Self {
+                _d: 1,
+                _u: __koffi_option_u32_payload { some: x.into() },
+            },
+            ::core::option::Option::None => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_result___koffi_option_u32_u8_payload {
+    ok: __koffi_option_u32,
+    err: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_result___koffi_option_u32_u8 {
+    pub _d: u8,
+    pub _u: __koffi_result___koffi_option_u32_u8_payload,
+}
+
+
+impl From<__koffi_result___koffi_option_u32_u8> for ::core::result::Result<::core::option::Option<u32>, u8> {
+    fn from(c: __koffi_result___koffi_option_u32_u8) -> Self {
+        if c._d == 0 {
+            ::core::result::Result::Err(unsafe { c._u.err }.into())
+        } else {
+            ::core::result::Result::Ok(unsafe { c._u.ok }.into())
+        }
+    }
+}
+
+impl From<::core::result::Result<::core::option::Option<u32>, u8>> for __koffi_result___koffi_option_u32_u8 {
+    fn from(v: ::core::result::Result<::core::option::Option<u32>, u8>) -> Self {
+        match v {
+            ::core::result::Result::Ok(x) => Self {
+                _d: 1,
+                _u: __koffi_result___koffi_option_u32_u8_payload { ok: x.into() },
+            },
+            ::core::result::Result::Err(e) => Self {
+                _d: 0,
+                _u: __koffi_result___koffi_option_u32_u8_payload { err: e.into() },
+            },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status_payload {
+    ok: __koffi_struct_hello_kotlin_Payload,
+    err: __koffi_enum_hello_kotlin_Status,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status {
+    pub _d: u8,
+    pub _u: __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status_payload,
+}
+
+
+impl From<__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status> for ::core::result::Result<::hello_kotlin::Payload, ::hello_kotlin::Status> {
+    fn from(c: __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status) -> Self {
+        if c._d == 0 {
+            ::core::result::Result::Err(unsafe { c._u.err }.into())
+        } else {
+            ::core::result::Result::Ok(unsafe { c._u.ok }.into())
+        }
+    }
+}
+
+impl From<::core::result::Result<::hello_kotlin::Payload, ::hello_kotlin::Status>> for __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status {
+    fn from(v: ::core::result::Result<::hello_kotlin::Payload, ::hello_kotlin::Status>) -> Self {
+        match v {
+            ::core::result::Result::Ok(x) => Self {
+                _d: 1,
+                _u: __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status_payload { ok: x.into() },
+            },
+            ::core::result::Result::Err(e) => Self {
+                _d: 0,
+                _u: __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status_payload { err: e.into() },
+            },
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_result_u32_u8_payload {
+    ok: u32,
+    err: u8,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_result_u32_u8 {
+    pub _d: u8,
+    pub _u: __koffi_result_u32_u8_payload,
+}
+
+
+impl From<__koffi_result_u32_u8> for ::core::result::Result<u32, u8> {
+    fn from(c: __koffi_result_u32_u8) -> Self {
+        if c._d == 0 {
+            ::core::result::Result::Err(unsafe { c._u.err }.into())
+        } else {
+            ::core::result::Result::Ok(unsafe { c._u.ok }.into())
+        }
+    }
+}
+
+impl From<::core::result::Result<u32, u8>> for __koffi_result_u32_u8 {
+    fn from(v: ::core::result::Result<u32, u8>) -> Self {
+        match v {
+            ::core::result::Result::Ok(x) => Self {
+                _d: 1,
+                _u: __koffi_result_u32_u8_payload { ok: x.into() },
+            },
+            ::core::result::Result::Err(e) => Self {
+                _d: 0,
+                _u: __koffi_result_u32_u8_payload { err: e.into() },
             },
         }
     }

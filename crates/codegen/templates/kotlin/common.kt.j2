@@ -2,6 +2,18 @@
 
 package {{ schema.kotlin_package() }}
 
+{#~ `KoffiResult` is the Kotlin stand-in for Rust `Result<T, E>`; Kotlin's
+   stdlib `Result<T>` only fits `Throwable` errors. `Ok`/`Err` use the
+   canonical out-variance pattern so a `when (r) { is KoffiResult.Ok -> .. }`
+   smart-casts the payload. The name is reserved: a user type called
+   `KoffiResult` in the same package would clash. -#}
+{% if schema.has_result_wrappers() %}
+sealed class KoffiResult<out Ok, out Err> {
+    data class Ok<out Ok>(val value: Ok) : KoffiResult<Ok, Nothing>()
+    data class Err<out Err>(val error: Err) : KoffiResult<Nothing, Err>()
+}
+{% endif %}
+
 {#~ Kotlin nice-API param list, skipping receiver entries (`this` supplies
    that implicitly for instance methods; constructor/companion fns never
    have one, so the filter is a no-op there). -#}

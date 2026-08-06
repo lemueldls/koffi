@@ -27,7 +27,7 @@ private fun ByteBuffer.section(offset: Int): ByteBuffer =
    memory image (discriminant at 0, active variant's payload at its
    absolute offsets); `statusFromWire` reads it back; `statusToBuf`
    allocates a fresh wire buffer for an argument. Only data-carrying
-   enums need these — fieldless ones cross as their discriminant
+   enums need these - fieldless ones cross as their discriminant
    scalar, identical to the ffm layout. -#}
 {%~ for e in schema.enums %}{% if e.has_data %}
 private fun {{ e.to_wire_ident() }}(v: {{ e.name }}, buf: ByteBuffer) {
@@ -125,6 +125,100 @@ private fun {{ s.from_wire_ident() }}(buf: ByteBuffer): {{ s.name }} =
 private fun {{ s.to_buf_ident() }}(v: {{ s.name }}): ByteBuffer {
     val buf = allocateWire({{ s.layout.total.size }})
     {{ s.to_wire_ident() }}(v, buf)
+    return buf
+}
+{%- endfor %}
+
+{#~ One inner payload write. `expr` is the Kotlin expression holding the
+   value; memory-backed inners recurse into their own wire marshallers on
+   a section. Mirrors the struct placement arms above. -#}
+{%- macro write_inner(expr, ty, offset) -%}
+{%- if ty.is_memory_backed() %}
+{{ ty.to_wire_ident() }}({{ expr }}, buf.section({{ offset }}))
+{%- else -%}
+{%- match ty %}
+{%- when SchemaTypeRef::Scalar(kind) -%}
+{%- match kind %}
+{%- when ScalarKind::Bool %}
+buf.put({{ offset }}, if ({{ expr }}) 1.toByte() else 0.toByte())
+{%- when _ %}
+buf.{{ kind.wire_putter() }}({{ offset }}, {{ expr }}{{ kind.to_ffm_suffix() }})
+{%- endmatch %}
+{%- when SchemaTypeRef::Enum { discriminant, .. } %}
+buf.{{ discriminant.wire_putter() }}({{ offset }}, {{ expr }}{{ ty.to_ffm_suffix() }})
+{%- else %}unreachable!()
+{%- endmatch %}
+{%- endif %}
+{%- endmacro -%}
+
+{#~ One inner payload read, the mirror of `write_inner`. -#}
+{%- macro read_inner(ty, offset) -%}
+{%- if ty.is_memory_backed() %}
+{{ ty.from_wire_ident() }}(buf.section({{ offset }}))
+{%- else -%}
+{%- match ty %}
+{%- when SchemaTypeRef::Scalar(kind) -%}
+{%- match kind %}
+{%- when ScalarKind::Bool %}
+buf.get({{ offset }}) != 0.toByte()
+{%- when _ %}
+buf.{{ kind.wire_getter() }}({{ offset }}){{ kind.from_ffm_suffix() }}
+{%- endmatch %}
+{%- when SchemaTypeRef::Enum { discriminant, .. } %}
+buf.{{ discriminant.wire_getter() }}({{ offset }}){{ ty.from_ffm_suffix() }}
+{%- else %}unreachable!()
+{%- endmatch %}
+{%- endif %}
+{%- endmacro -%}
+
+{#~ Per-wrapper wire marshallers, same three helpers as structs and enums.
+   `_d` is a byte at offset 0 (None/Err = 0, Some/Ok = 1) and the payload
+   union sits at `{{ w.union_offset() }}`. -#}
+{%~ for w in schema.wrappers %}
+private fun {{ w.to_wire_ident() }}(v: {{ w.kotlin_type() }}, buf: ByteBuffer) {
+    {%- if w.is_option() %}
+    if (v != null) {
+        buf.put(0, 1.toByte())
+        val inner = v
+        {{ write_inner(&"inner", &w.some().ty, &w.union_offset()) }}
+    } else {
+        buf.put(0, 0.toByte())
+    }
+    {%- else %}
+    when (v) {
+        is KoffiResult.Ok<*> -> {
+            buf.put(0, 1.toByte())
+            val inner = (v as KoffiResult.Ok<{{ w.ok().ty.kotlin_type() }}>).value
+            {{ write_inner(&"inner", &w.ok().ty, &w.union_offset()) }}
+        }
+        is KoffiResult.Err<*> -> {
+            buf.put(0, 0.toByte())
+            val inner = (v as KoffiResult.Err<{{ w.err().ty.kotlin_type() }}>).error
+            {{ write_inner(&"inner", &w.err().ty, &w.union_offset()) }}
+        }
+    }
+    {%- endif %}
+}
+
+private fun {{ w.from_wire_ident() }}(buf: ByteBuffer): {{ w.kotlin_type() }} {
+    {%- if w.is_option() %}
+    return if (buf.get(0) == 1.toByte()) {
+        {{ read_inner(&w.some().ty, &w.union_offset()) }}
+    } else {
+        null
+    }
+    {%- else %}
+    return if (buf.get(0) == 1.toByte()) {
+        KoffiResult.Ok({{ read_inner(&w.ok().ty, &w.union_offset()) }})
+    } else {
+        KoffiResult.Err({{ read_inner(&w.err().ty, &w.union_offset()) }})
+    }
+    {%- endif %}
+}
+
+private fun {{ w.to_buf_ident() }}(v: {{ w.kotlin_type() }}): ByteBuffer {
+    val buf = allocateWire({{ w.layout.total.size }})
+    {{ w.to_wire_ident() }}(v, buf)
     return buf
 }
 {%- endfor %}

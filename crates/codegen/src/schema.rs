@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use heck::ToLowerCamelCase;
 use koffi_core::FnShapeRef;
 
-use crate::layout::{FieldPlacement, StructLayoutInfo, compute_enum_layout, compute_struct_layout};
+use crate::layout::{
+    FieldPlacement, StructLayoutInfo, compute_enum_layout, compute_struct_layout,
+    compute_wrapper_layout,
+};
 
 #[derive(Debug, Clone)]
 pub struct Schema {
@@ -11,6 +14,7 @@ pub struct Schema {
     pub functions: Vec<SchemaFn>,
     pub structs: Vec<SchemaStruct>,
     pub enums: Vec<SchemaEnum>,
+    pub wrappers: Vec<SchemaWrapper>,
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +102,42 @@ pub struct SchemaEnumVariant {
     pub is_struct_variant: bool,
 }
 
+/// An `Option<T>` or `Result<T, E>` used anywhere in the schema.
+///
+/// Each distinct instantiation gets one wire type: a `#[repr(C)]` struct
+/// with a `u8` discriminant (`0` = None/Err, `1` = Some/Ok) and a payload
+/// union holding the inner wire type(s), mirroring the data-enum wire format.
+#[derive(Debug, Clone)]
+pub struct SchemaWrapper {
+    pub kind: WrapperKind,
+    pub unique_ident: String,
+    pub members: Vec<WrapperMember>,
+    pub layout: StructLayoutInfo,
+}
+
+impl SchemaWrapper {
+    /// Payload union wire ident: `__koffi_option_u32_payload`. Follows the
+    /// `__koffi_enum_*_payload` convention so the C header reads the same.
+    #[must_use]
+    pub fn union_ident(&self) -> String {
+        format!("{}_payload", self.unique_ident)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WrapperKind {
+    Option,
+    Result,
+}
+
+/// One payload union member of a wrapper: `some` for Option, `ok`/`err`
+/// for Result, with the member's (already converted) type.
+#[derive(Debug, Clone)]
+pub struct WrapperMember {
+    pub name: String,
+    pub ty: SchemaTypeRef,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SchemaTypeRef {
     Scalar(ScalarKind),
@@ -110,6 +150,13 @@ pub enum SchemaTypeRef {
         module_path: Option<String>,
         discriminant: ScalarKind,
         has_data: bool,
+    },
+    Option {
+        inner: Box<SchemaTypeRef>,
+    },
+    Result {
+        ok: Box<SchemaTypeRef>,
+        err: Box<SchemaTypeRef>,
     },
 }
 
@@ -125,6 +172,11 @@ impl SchemaTypeRef {
                 format!("{mod_infix}_{name}")
             }
             SchemaTypeRef::Scalar(k) => k.rust_type_name().to_string(),
+            // Wrappers are only ever fn params/returns/fields, never an
+            // `impl` block's Self type, so they can't be a `parent`.
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                unreachable!("an Option/Result can't be an impl-block parent")
+            }
         }
     }
 
@@ -167,6 +219,7 @@ pub enum ScalarKind {
 pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Result<Schema> {
     let mut structs: BTreeMap<(Option<String>, String), SchemaStruct> = BTreeMap::new();
     let mut enums: BTreeMap<(Option<String>, String), SchemaEnum> = BTreeMap::new();
+    let mut wrappers: BTreeMap<String, SchemaWrapper> = BTreeMap::new();
     let mut functions = Vec::new();
 
     for entry in fn_entries {
@@ -176,7 +229,7 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
 
         let parent = entry
             .parent
-            .map(|ty| convert_shape(ty.shape(), &mut structs, &mut enums))
+            .map(|ty| convert_shape(ty.shape(), &mut structs, &mut enums, &mut wrappers))
             .transpose()?;
 
         // `is_receiver` comes straight from the macro; it can't be
@@ -188,13 +241,23 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
             .map(|p| {
                 Ok(SchemaParam {
                     name: p.name.to_string(),
-                    ty: convert_shape(p.param_type.shape(), &mut structs, &mut enums)?,
+                    ty: convert_shape(
+                        p.param_type.shape(),
+                        &mut structs,
+                        &mut enums,
+                        &mut wrappers,
+                    )?,
                     is_receiver: p.is_receiver,
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        let return_type = convert_shape(entry.return_type.shape(), &mut structs, &mut enums)?;
+        let return_type = convert_shape(
+            entry.return_type.shape(),
+            &mut structs,
+            &mut enums,
+            &mut wrappers,
+        )?;
 
         functions.push(SchemaFn {
             rust_name,
@@ -211,6 +274,7 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
         functions,
         structs: structs.into_values().collect(),
         enums: enums.into_values().collect(),
+        wrappers: wrappers.into_values().collect(),
     })
 }
 
@@ -218,9 +282,75 @@ fn convert_shape(
     shape: &'static facet::Shape,
     structs: &mut BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &mut BTreeMap<(Option<String>, String), SchemaEnum>,
+    wrappers: &mut BTreeMap<String, SchemaWrapper>,
 ) -> anyhow::Result<SchemaTypeRef> {
     match shape.def {
         facet::Def::Scalar => Ok(SchemaTypeRef::Scalar(scalar_kind_of(shape)?)),
+        facet::Def::Option(def) => {
+            let inner = convert_shape(def.t, structs, enums, wrappers)?;
+
+            if matches!(inner, SchemaTypeRef::Option { .. }) {
+                anyhow::bail!(
+                    "koffi M0 doesn't support Option<Option<T>>: double nullability has no \
+                     Kotlin equivalent"
+                );
+            }
+
+            let ident = format!("__koffi_option_{}", inner.unique_ident());
+            if !wrappers.contains_key(&ident) {
+                // The inner is converted first, so its structs/enums/wrappers
+                // are registered before this wrapper's layout is computed.
+                let members = vec![WrapperMember {
+                    name: "some".to_string(),
+                    ty: inner.clone(),
+                }];
+                let layout = compute_wrapper_layout(&members, structs, enums, wrappers)?;
+                wrappers.insert(ident.clone(), SchemaWrapper {
+                    kind: WrapperKind::Option,
+                    unique_ident: ident,
+                    members,
+                    layout,
+                });
+            }
+
+            Ok(SchemaTypeRef::Option {
+                inner: Box::new(inner),
+            })
+        }
+        facet::Def::Result(def) => {
+            let ok = convert_shape(def.t, structs, enums, wrappers)?;
+            let err = convert_shape(def.e, structs, enums, wrappers)?;
+
+            let ident = format!(
+                "__koffi_result_{}_{}",
+                ok.unique_ident(),
+                err.unique_ident()
+            );
+            if !wrappers.contains_key(&ident) {
+                let members = vec![
+                    WrapperMember {
+                        name: "ok".to_string(),
+                        ty: ok.clone(),
+                    },
+                    WrapperMember {
+                        name: "err".to_string(),
+                        ty: err.clone(),
+                    },
+                ];
+                let layout = compute_wrapper_layout(&members, structs, enums, wrappers)?;
+                wrappers.insert(ident.clone(), SchemaWrapper {
+                    kind: WrapperKind::Result,
+                    unique_ident: ident,
+                    members,
+                    layout,
+                });
+            }
+
+            Ok(SchemaTypeRef::Result {
+                ok: Box::new(ok),
+                err: Box::new(err),
+            })
+        }
         facet::Def::Undefined => {
             match shape.ty {
                 facet::Type::User(facet::UserType::Struct(s)) => {
@@ -236,7 +366,7 @@ fn convert_shape(
                                 let field_shape = f.shape();
                                 Ok(SchemaField {
                                     name: f.effective_name().to_string(),
-                                    ty: convert_shape(field_shape, structs, enums)?,
+                                    ty: convert_shape(field_shape, structs, enums, wrappers)?,
                                 })
                             })
                             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -246,7 +376,7 @@ fn convert_shape(
                         // the recursive convert_shape calls above), and a
                         // value cycle (X containing Y containing X) can't
                         // compile in Rust in the first place.
-                        let layout = compute_struct_layout(&fields, structs, enums)?;
+                        let layout = compute_struct_layout(&fields, structs, enums, wrappers)?;
                         structs.insert(key.clone(), SchemaStruct {
                             name,
                             module_path,
@@ -291,13 +421,14 @@ fn convert_shape(
                                         )
                                     })?,
                                     is_struct_variant: v.data.kind == facet::StructKind::Struct,
-                                    placements: project_variant_fields(v, structs, enums)?,
+                                    placements: project_variant_fields(v, structs, enums, wrappers)?,
                                 };
                                 Ok(variant)
                             })
                             .collect::<anyhow::Result<Vec<_>>>()?;
 
-                        let layout = compute_enum_layout(discriminant, &variants, structs, enums)?;
+                        let layout =
+                            compute_enum_layout(discriminant, &variants, structs, enums, wrappers)?;
                         enums.insert(key.clone(), SchemaEnum {
                             name: name.clone(),
                             module_path,
@@ -342,6 +473,7 @@ fn project_variant_fields(
     variant: &'static facet::Variant,
     structs: &mut BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &mut BTreeMap<(Option<String>, String), SchemaEnum>,
+    wrappers: &mut BTreeMap<String, SchemaWrapper>,
 ) -> anyhow::Result<Vec<FieldPlacement>> {
     variant
         .data
@@ -356,7 +488,7 @@ fn project_variant_fields(
             Ok(FieldPlacement {
                 name,
                 offset: f.offset as u64,
-                ty: convert_shape(f.shape(), structs, enums)?,
+                ty: convert_shape(f.shape(), structs, enums, wrappers)?,
             })
         })
         .collect()
@@ -401,5 +533,31 @@ fn scalar_kind_of(shape: &'static facet::Shape) -> anyhow::Result<ScalarKind> {
         "f32" => Ok(ScalarKind::F32),
         "f64" => Ok(ScalarKind::F64),
         other => anyhow::bail!("koffi M0 doesn't recognize scalar `{other}`"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use facet::Facet;
+    use koffi_core::{FnShapeRef, TypeShapeRef};
+
+    use super::build_schema;
+
+    /// Double nullability has no Kotlin type: `None` of `Option<Option<T>>`
+    /// would need a third state. This must fail at codegen time, not at the
+    /// Kotlin compiler.
+    #[test]
+    fn double_nullability_bails() {
+        let entry = FnShapeRef {
+            name: "bad",
+            params: &[],
+            return_type: TypeShapeRef::from_shape(<Option<Option<u32>> as Facet>::SHAPE),
+            module_path: None,
+            parent: None,
+        };
+
+        let err = build_schema("t".to_string(), &[entry])
+            .expect_err("build_schema must reject Option<Option<T>>");
+        assert!(err.to_string().contains("Option<Option<T>>"), "got: {err}");
     }
 }

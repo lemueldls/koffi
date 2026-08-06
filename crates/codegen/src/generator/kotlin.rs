@@ -4,7 +4,7 @@ use crate::{
     layout::FieldPlacement,
     schema::{
         ScalarKind, Schema, SchemaEnum, SchemaField, SchemaFn, SchemaParam, SchemaStruct,
-        SchemaTypeRef,
+        SchemaTypeRef, SchemaWrapper, WrapperKind, WrapperMember,
     },
 };
 
@@ -15,8 +15,8 @@ impl Schema {
     }
 
     /// Wire size in bytes of a memory-backed type: the total layout size
-    /// of the struct or data-carrying enum, padding included. Drives the
-    /// out-buffer allocation in jni.kt.j2.
+    /// of the struct, data-carrying enum or Option/Result wrapper, padding
+    /// included. Drives the out-buffer allocation in jni.kt.j2.
     #[must_use]
     pub fn layout_size(&self, ty: &SchemaTypeRef) -> u64 {
         match ty {
@@ -35,6 +35,12 @@ impl Schema {
                     .map_or(0, |e| e.layout.total.size)
             }
             SchemaTypeRef::Scalar(_) => 0,
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                self.wrappers
+                    .iter()
+                    .find(|w| w.unique_ident == ty.unique_ident())
+                    .map_or(0, |w| w.layout.total.size)
+            }
         }
     }
 
@@ -117,49 +123,147 @@ impl Schema {
         }
     }
 
-    /// Structs ordered so that any struct used as a field type of another
-    /// struct appears before it. Kotlin `val` layout properties are
-    /// initialized in declaration order, so a forward reference to a
-    /// not-yet-initialized `val` is a compile error. Function declarations
-    /// (`toFfm`/`fromFfm`) don't have this constraint, but the layout
-    /// `val`s do. This sort feeds the layout declaration order in
-    /// `ffm.kt.j2`.
+    /// Does the schema use `Result` anywhere? Decides whether common.kt.j2
+    /// declares the generic `KoffiResult` class at all; emitting it for a
+    /// Result-less crate would just be dead weight.
+    #[must_use]
+    pub fn has_result_wrappers(&self) -> bool {
+        self.wrappers.iter().any(|w| w.kind == WrapperKind::Result)
+    }
+}
+
+/// One entry of `Schema::types_in_layout_order`: a type whose FFM layout
+/// constant (or C typedef) can embed other layout-bearing types. Fieldless
+/// enums and scalars are leaves and never appear.
+#[derive(Debug, Clone, Copy)]
+pub enum LayoutOrderItem<'a> {
+    Struct(&'a SchemaStruct),
+    DataEnum(&'a SchemaEnum),
+    Wrapper(&'a SchemaWrapper),
+}
+
+impl LayoutOrderItem<'_> {
+    fn key(&self) -> String {
+        match self {
+            LayoutOrderItem::Struct(s) => s.unique_ident(),
+            LayoutOrderItem::DataEnum(e) => e.unique_ident(),
+            LayoutOrderItem::Wrapper(w) => w.unique_ident.clone(),
+        }
+    }
+}
+
+impl Schema {
+    /// Structs, data-carrying enums and wrappers in dependency order: any
+    /// type whose FFM layout (or C typedef) embeds another's appears after
+    /// it. Kotlin `val` layout properties initialize in declaration order
+    /// (a forward reference is a compile error) and C typedefs must be
+    /// declared before use, so both ffm.kt.j2 and the header emit in this
+    /// order. Wrappers add the struct -> wrapper -> enum chain that the old
+    /// fixed "enums first, then structs" order couldn't express.
     ///
     /// Cycles are impossible (Rust rejects value-recursive types), so a
-    /// simple DFS suffices.
+    /// simple DFS suffices. Roots are iterated deterministically: data
+    /// enums, then structs, then wrappers (BTreeMap-ordered idents).
     #[must_use]
-    pub fn structs_in_layout_order(&self) -> Vec<&SchemaStruct> {
-        fn key(s: &SchemaStruct) -> (Option<String>, String) {
-            (s.module_path.clone(), s.name.clone())
+    pub fn types_in_layout_order(&self) -> Vec<LayoutOrderItem<'_>> {
+        fn push_type_deps<'a>(
+            ty: &SchemaTypeRef,
+            schema: &'a Schema,
+            out: &mut Vec<LayoutOrderItem<'a>>,
+        ) {
+            match ty {
+                SchemaTypeRef::Struct { name, module_path } => {
+                    if let Some(s) = schema
+                        .structs
+                        .iter()
+                        .find(|s| &s.name == name && &s.module_path == module_path)
+                    {
+                        out.push(LayoutOrderItem::Struct(s));
+                    }
+                }
+                SchemaTypeRef::Enum {
+                    name,
+                    module_path,
+                    has_data: true,
+                    ..
+                } => {
+                    if let Some(e) = schema
+                        .enums
+                        .iter()
+                        .find(|e| &e.name == name && &e.module_path == module_path)
+                    {
+                        out.push(LayoutOrderItem::DataEnum(e));
+                    }
+                }
+                // The wrapper's own layout embeds its members' layouts
+                // (nested wrappers included); visiting the wrapper item
+                // handles the members.
+                SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                    if let Some(w) = schema
+                        .wrappers
+                        .iter()
+                        .find(|w| w.unique_ident == ty.unique_ident())
+                    {
+                        out.push(LayoutOrderItem::Wrapper(w));
+                    }
+                }
+                // Fieldless enums and scalars embed nothing.
+                SchemaTypeRef::Enum {
+                    has_data: false, ..
+                }
+                | SchemaTypeRef::Scalar(_) => {}
+            }
         }
 
         fn visit<'a>(
-            s: &'a SchemaStruct,
-            all: &'a [SchemaStruct],
-            visited: &mut std::collections::HashSet<(Option<String>, String)>,
-            result: &mut Vec<&'a SchemaStruct>,
+            item: LayoutOrderItem<'a>,
+            schema: &'a Schema,
+            visited: &mut std::collections::HashSet<String>,
+            result: &mut Vec<LayoutOrderItem<'a>>,
         ) {
-            let k = key(s);
-            if !visited.insert(k) {
+            if !visited.insert(item.key()) {
                 return;
             }
-            for field in &s.fields {
-                if let SchemaTypeRef::Struct { name, module_path } = &field.ty
-                    && let Some(dep) = all
-                        .iter()
-                        .find(|s2| &s2.name == name && &s2.module_path == module_path)
-                {
-                    visit(dep, all, visited, result);
+
+            let mut deps = Vec::new();
+            match item {
+                LayoutOrderItem::Struct(s) => {
+                    for f in &s.fields {
+                        push_type_deps(&f.ty, schema, &mut deps);
+                    }
+                }
+                LayoutOrderItem::DataEnum(e) => {
+                    for p in &e.layout.placements {
+                        push_type_deps(&p.ty, schema, &mut deps);
+                    }
+                }
+                LayoutOrderItem::Wrapper(w) => {
+                    for m in &w.members {
+                        push_type_deps(&m.ty, schema, &mut deps);
+                    }
                 }
             }
-            result.push(s);
+            for dep in deps {
+                visit(dep, schema, visited, result);
+            }
+            result.push(item);
         }
 
         let mut visited = std::collections::HashSet::new();
-        let mut result = Vec::with_capacity(self.structs.len());
-        for s in &self.structs {
-            visit(s, &self.structs, &mut visited, &mut result);
+        let mut result = Vec::new();
+        let mut roots: Vec<LayoutOrderItem> = Vec::new();
+        roots.extend(
+            self.enums
+                .iter()
+                .filter(|e| e.has_data)
+                .map(LayoutOrderItem::DataEnum),
+        );
+        roots.extend(self.structs.iter().map(LayoutOrderItem::Struct));
+        roots.extend(self.wrappers.iter().map(LayoutOrderItem::Wrapper));
+        for root in roots {
+            visit(root, self, &mut visited, &mut result);
         }
+
         result
     }
 }
@@ -170,23 +274,31 @@ impl SchemaTypeRef {
         match self {
             SchemaTypeRef::Scalar(k) => k.kotlin_type().to_string(),
             SchemaTypeRef::Struct { name, .. } | SchemaTypeRef::Enum { name, .. } => name.clone(),
+            // None is `null`; the nullability is what marshals the
+            // None case, so the marshaller just checks for null.
+            SchemaTypeRef::Option { inner } => format!("{}?", inner.kotlin_type()),
+            SchemaTypeRef::Result { ok, err } => {
+                format!("KoffiResult<{}, {}>", ok.kotlin_type(), err.kotlin_type())
+            }
         }
     }
 
-    /// C type name in the generated header. Structs and enums cross by
-    /// their `__koffi_*` typedef, scalars by their fixed-width C type.
+    /// C type name in the generated header. Structs, enums and wrappers
+    /// cross by their `__koffi_*` typedef, scalars by their fixed-width
+    /// C type.
     #[must_use]
     pub fn c_type(&self) -> String {
         match self {
             SchemaTypeRef::Scalar(k) => k.c_type().to_string(),
             SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { .. } => self.unique_ident(),
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => self.unique_ident(),
         }
     }
 
-    /// JNI sys type for the native `external fun` signature. Structs and
-    /// data-carrying enums marshal through a direct `JByteBuffer`;
-    /// scalars and fieldless enums (which cross as their discriminant)
-    /// use the bit-identical signed primitive.
+    /// JNI sys type for the native `external fun` signature. Structs,
+    /// data-carrying enums and wrappers marshal through a direct
+    /// `JByteBuffer`; scalars and fieldless enums (which cross as their
+    /// discriminant) use the bit-identical signed primitive.
     #[must_use]
     pub fn jni_type(&self) -> String {
         match self {
@@ -196,9 +308,10 @@ impl SchemaTypeRef {
                 has_data: false,
                 ..
             } => discriminant.jni_type().to_string(),
-            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
-                "JByteBuffer".to_string()
-            }
+            SchemaTypeRef::Struct { .. }
+            | SchemaTypeRef::Enum { has_data: true, .. }
+            | SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. } => "JByteBuffer".to_string(),
         }
     }
 
@@ -216,9 +329,10 @@ impl SchemaTypeRef {
                 has_data: false,
                 ..
             } => discriminant.jni_kotlin_type().to_string(),
-            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
-                "ByteBuffer".to_string()
-            }
+            SchemaTypeRef::Struct { .. }
+            | SchemaTypeRef::Enum { has_data: true, .. }
+            | SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. } => "ByteBuffer".to_string(),
         }
     }
 
@@ -230,14 +344,17 @@ impl SchemaTypeRef {
     }
 
     /// True for types that cross the FFI boundary as a `MemorySegment` and
-    /// need a `SegmentAllocator` argument: structs (always) and
-    /// data-carrying enums. Scalars and fieldless enums pass as plain
-    /// values.
+    /// need a `SegmentAllocator` argument: structs (always), data-carrying
+    /// enums, and every Option/Result wrapper. Scalars and fieldless
+    /// enums pass as plain values.
     #[must_use]
     pub const fn is_memory_backed(&self) -> bool {
         matches!(
             self,
-            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. }
+            SchemaTypeRef::Struct { .. }
+                | SchemaTypeRef::Enum { has_data: true, .. }
+                | SchemaTypeRef::Option { .. }
+                | SchemaTypeRef::Result { .. }
         )
     }
 
@@ -257,13 +374,16 @@ impl SchemaTypeRef {
                     discriminant.kotlin_ffm_value_layout().to_string()
                 }
             }
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}Layout", self.unique_ident())
+            }
         }
     }
 
     /// Identifier of the top-level marshalling helper for a data-carrying
-    /// enum (`statusToFfm`) or a struct (`payloadToFfm`). Scalars and
-    /// fieldless enums never use this, they cross the FFI boundary as
-    /// plain values.
+    /// enum (`statusToFfm`), a struct (`payloadToFfm`) or an Option/Result
+    /// wrapper (`__koffi_option_u32ToFfm`). Scalars and fieldless enums
+    /// never use this, they cross the FFI boundary as plain values.
     #[must_use]
     pub fn to_ffm_ident(&self) -> String {
         match self {
@@ -276,6 +396,13 @@ impl SchemaTypeRef {
             }
             SchemaTypeRef::Struct { name, .. } => {
                 format!("{}ToFfm", name.to_snake_case())
+            }
+            // Wrapper idents come from the full `unique_ident`
+            // (`__koffi_option_u32ToFfm`), a namespace user types can't
+            // reach: a user struct named `OptionU32` already owns
+            // `option_u32ToFfm`.
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}ToFfm", self.unique_ident())
             }
             _ => String::new(),
         }
@@ -294,6 +421,9 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { name, .. } => {
                 format!("{}FromFfm", name.to_snake_case())
             }
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}FromFfm", self.unique_ident())
+            }
             _ => String::new(),
         }
     }
@@ -302,8 +432,8 @@ impl SchemaTypeRef {
     /// spot in native.kt.j2. Scalars are identity (cinterop already maps
     /// `uint8_t` to `UByte` and so on), `bool` widens explicitly, and a
     /// fieldless enum contributes its discriminant value, which is the
-    /// exact C type of its typedef. Structs and data-carrying enums never
-    /// use this — they marshal through `toC` `CValue`s.
+    /// exact C type of its typedef. Structs, data-carrying enums and
+    /// wrappers never use this - they marshal through `toC` `CValue`s.
     #[must_use]
     pub fn to_c_suffix(&self) -> String {
         match self {
@@ -311,9 +441,10 @@ impl SchemaTypeRef {
             SchemaTypeRef::Enum {
                 has_data: false, ..
             } => ".discriminant".to_string(),
-            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
-                String::new()
-            }
+            SchemaTypeRef::Struct { .. }
+            | SchemaTypeRef::Enum { has_data: true, .. }
+            | SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. } => String::new(),
         }
     }
 
@@ -330,16 +461,18 @@ impl SchemaTypeRef {
                 has_data: false,
                 ..
             } => format!(".let {{ {name}.fromDiscriminant(it) }}"),
-            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
-                String::new()
-            }
+            SchemaTypeRef::Struct { .. }
+            | SchemaTypeRef::Enum { has_data: true, .. }
+            | SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. } => String::new(),
         }
     }
 
     /// Top-level marshalling helper written to native.kt.j2
-    /// (`payloadToC`, `statusToC`). Structs and data-carrying enums
-    /// marshal through `CValue`s; scalars and fieldless enums cross as
-    /// plain values and never use this.
+    /// (`payloadToC`, `statusToC`, `__koffi_option_u32ToC`). Structs,
+    /// data-carrying enums and wrappers marshal through `CValue`s;
+    /// scalars and fieldless enums cross as plain values and never use
+    /// this.
     #[must_use]
     pub fn to_c_ident(&self) -> String {
         match self {
@@ -349,6 +482,9 @@ impl SchemaTypeRef {
                 ..
             } => format!("{}ToC", name.to_snake_case()),
             SchemaTypeRef::Struct { name, .. } => format!("{}ToC", name.to_snake_case()),
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}ToC", self.unique_ident())
+            }
             _ => String::new(),
         }
     }
@@ -362,16 +498,19 @@ impl SchemaTypeRef {
                 ..
             } => format!("{}FromC", name.to_snake_case()),
             SchemaTypeRef::Struct { name, .. } => format!("{}FromC", name.to_snake_case()),
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}FromC", self.unique_ident())
+            }
             _ => String::new(),
         }
     }
 
     /// Top-level marshalling helpers written to jni.kt.j2 (`payloadToWire`,
-    /// `payloadFromWire`, `payloadToBuf`): the direct-ByteBuffer
-    /// counterparts of the ffm segment marshallers. `ToWire` writes into
-    /// an existing buffer (nested fields recurse via `section`), `FromWire`
-    /// reads one back, and `ToBuf` allocates a fresh wire buffer for a
-    /// function argument.
+    /// `payloadFromWire`, `payloadToBuf`, plus the wrapper equivalents):
+    /// the direct-ByteBuffer counterparts of the ffm segment marshallers.
+    /// `ToWire` writes into an existing buffer (nested fields recurse via
+    /// `section`), `FromWire` reads one back, and `ToBuf` allocates a
+    /// fresh wire buffer for a function argument.
     #[must_use]
     pub fn to_wire_ident(&self) -> String {
         match self {
@@ -381,6 +520,9 @@ impl SchemaTypeRef {
                 ..
             } => format!("{}ToWire", name.to_snake_case()),
             SchemaTypeRef::Struct { name, .. } => format!("{}ToWire", name.to_snake_case()),
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}ToWire", self.unique_ident())
+            }
             _ => String::new(),
         }
     }
@@ -394,6 +536,9 @@ impl SchemaTypeRef {
                 ..
             } => format!("{}FromWire", name.to_snake_case()),
             SchemaTypeRef::Struct { name, .. } => format!("{}FromWire", name.to_snake_case()),
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}FromWire", self.unique_ident())
+            }
             _ => String::new(),
         }
     }
@@ -407,6 +552,9 @@ impl SchemaTypeRef {
                 ..
             } => format!("{}ToBuf", name.to_snake_case()),
             SchemaTypeRef::Struct { name, .. } => format!("{}ToBuf", name.to_snake_case()),
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
+                format!("{}ToBuf", self.unique_ident())
+            }
             _ => String::new(),
         }
     }
@@ -414,8 +562,8 @@ impl SchemaTypeRef {
     /// Suffix turning a Kotlin value into the raw FFI scalar, for the
     /// parameter-arg spot in ffm.kt.j2. A fieldless enum contributes its
     /// discriminant value (`status.discriminant.toUInt()`-shaped); a
-    /// data-carrying enum never uses this (it goes through a segment and
-    /// `toFfm`), and neither does a struct.
+    /// data-carrying enum, a struct, or a wrapper never uses this (they
+    /// go through a segment and `toFfm`).
     #[must_use]
     pub fn to_ffm_suffix(&self) -> String {
         match self {
@@ -427,16 +575,17 @@ impl SchemaTypeRef {
             } => {
                 format!(".discriminant{}", discriminant.to_ffm_suffix())
             }
-            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
-                String::new()
-            }
+            SchemaTypeRef::Struct { .. }
+            | SchemaTypeRef::Enum { has_data: true, .. }
+            | SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. } => String::new(),
         }
     }
 
     /// Suffix turning the boxed FFI scalar back into a Kotlin value, for
     /// the field-read spot in ffm.kt.j2. Fieldless enums roundtrip through
-    /// `fromDiscriminant`; data-carrying enums use `fromFfm` on a segment
-    /// and never hit this.
+    /// `fromDiscriminant`; data-carrying enums, structs and wrappers use
+    /// `fromFfm` on a segment and never hit this.
     #[must_use]
     pub fn from_ffm_suffix(&self) -> String {
         match self {
@@ -454,9 +603,10 @@ impl SchemaTypeRef {
                     format!(".let {{ {name}.fromDiscriminant(it{suffix}) }}")
                 }
             }
-            SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { has_data: true, .. } => {
-                String::new()
-            }
+            SchemaTypeRef::Struct { .. }
+            | SchemaTypeRef::Enum { has_data: true, .. }
+            | SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. } => String::new(),
         }
     }
 }
@@ -479,12 +629,15 @@ impl SchemaFn {
             | SchemaTypeRef::Enum {
                 name, module_path, ..
             } => (name, module_path),
-            SchemaTypeRef::Scalar(_) => {
+            SchemaTypeRef::Scalar(_)
+            | SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. } => {
                 unreachable!("impl-block parents are always structs or enums")
             }
         };
         let mod_infix = module_path.as_deref().unwrap_or("").replace("::", "_");
         let prefix = format!("{mod_infix}_{name}").to_lower_camel_case();
+
         format!("{prefix}{}", self.kotlin_name.to_upper_camel_case())
     }
 }
@@ -816,5 +969,106 @@ impl SchemaEnum {
     #[must_use]
     pub fn to_buf_ident(&self) -> String {
         format!("{}ToBuf", self.name.to_snake_case())
+    }
+}
+
+impl SchemaWrapper {
+    /// The Kotlin source type for a wrapper: nullable `T?` for `Option`,
+    /// `KoffiResult<Ok, Err>` for `Result`. Recursion composes the inner
+    /// type, so `Result<Option<u32>, Status>` reads naturally.
+    #[must_use]
+    pub fn kotlin_type(&self) -> String {
+        match self.kind {
+            WrapperKind::Option => format!("{}?", self.some().ty.kotlin_type()),
+            WrapperKind::Result => {
+                format!(
+                    "KoffiResult<{}, {}>",
+                    self.ok().ty.kotlin_type(),
+                    self.err().ty.kotlin_type()
+                )
+            }
+        }
+    }
+
+    /// True for an `Option` wrapper, false for `Result`. Template switch
+    /// for the Option-vs-Result From impls and sealed-class reads.
+    #[must_use]
+    pub fn is_option(&self) -> bool {
+        self.kind == WrapperKind::Option
+    }
+
+    /// The generated FFM struct layout constant for a wrapper. Wrappers
+    /// are always memory-backed, so they always get one, mirroring structs
+    /// and data-carrying enums.
+    #[must_use]
+    pub fn kotlin_ffm_value_layout(&self) -> String {
+        format!("{}Layout", self.unique_ident)
+    }
+
+    /// Absolute offset of the payload union: all members sit at the same
+    /// offset, so this one number drives every inner read/write.
+    #[must_use]
+    pub fn union_offset(&self) -> u64 {
+        self.layout.placements.first().map_or(0, |p| p.offset)
+    }
+
+    /// Accessor for the single `some` member of an `Option` wrapper. Askama
+    /// can't index into `Vec`, so templates reach members by name.
+    #[must_use]
+    pub fn some(&self) -> &WrapperMember {
+        &self.members[0]
+    }
+
+    /// Accessor for the `ok` member of a `Result` wrapper.
+    #[must_use]
+    pub fn ok(&self) -> &WrapperMember {
+        self.members
+            .iter()
+            .find(|m| m.name == "ok")
+            .expect("Result wrapper has an ok member")
+    }
+
+    /// Accessor for the `err` member of a `Result` wrapper.
+    #[must_use]
+    pub fn err(&self) -> &WrapperMember {
+        self.members
+            .iter()
+            .find(|m| m.name == "err")
+            .expect("Result wrapper has an err member")
+    }
+
+    #[must_use]
+    pub fn to_ffm_ident(&self) -> String {
+        format!("{}ToFfm", self.unique_ident)
+    }
+
+    #[must_use]
+    pub fn from_ffm_ident(&self) -> String {
+        format!("{}FromFfm", self.unique_ident)
+    }
+
+    #[must_use]
+    pub fn to_c_ident(&self) -> String {
+        format!("{}ToC", self.unique_ident)
+    }
+
+    #[must_use]
+    pub fn from_c_ident(&self) -> String {
+        format!("{}FromC", self.unique_ident)
+    }
+
+    #[must_use]
+    pub fn to_wire_ident(&self) -> String {
+        format!("{}ToWire", self.unique_ident)
+    }
+
+    #[must_use]
+    pub fn from_wire_ident(&self) -> String {
+        format!("{}FromWire", self.unique_ident)
+    }
+
+    #[must_use]
+    pub fn to_buf_ident(&self) -> String {
+        format!("{}ToBuf", self.unique_ident)
     }
 }
