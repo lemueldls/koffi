@@ -79,17 +79,29 @@ jobs:
           path: ~/.konan
           key: konan-${{ runner.os }}
 
-      - name: Install Kotlin Toolchain
+      - name: Install Kotlin Toolchain (linux/macOS)
         if: runner.os != 'Windows'
         run: curl -fsSL https://kotl.in/install.sh | sh
+
+      - name: Install Kotlin Toolchain (windows)
+        if: runner.os == 'Windows'
+        run: powershell -ExecutionPolicy ByPass -c "irm 'https://kotl.in/install.ps1' | iex"
 
       - name: Generate bindings and stage artifacts
         run:
           cargo run pack examples/hello-kotlin -o
           examples/hello-kotlin/tests/generated --config.platforms.0 jvm --config.platforms.1 linuxX64 --config.platforms.2 mingwX64 ${{ matrix.variant.pack_args }}
 
-      - name: Run tests
+      - name: Run tests (linux/macOS)
+        if: runner.os != 'Windows'
         working-directory: examples/hello-kotlin/tests
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           ./kotlin run -m ${{ matrix.variant.run_module }}
+
+      - name: Run tests (windows)
+        if: runner.os == 'Windows'
+        working-directory: examples/hello-kotlin/tests
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          .\kotlin.bat run -m ${{ matrix.variant.run_module }}

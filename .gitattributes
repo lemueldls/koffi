@@ -1,14 +1,13 @@
-#
 # https://help.github.com/articles/dealing-with-line-endings/
-#
-# Linux start script should use lf
+
+# Templates consumed by askama must use LF to avoid stray CR in generated files
+*.j2            text eol=lf
+
+# Linux start script should use LF
 /gradlew        text eol=lf
 
-# These are Windows script files and should use crlf
+# These are Windows script files and should use CRLF
 *.bat           text eol=crlf
 
 # Binary files should be left untouched
 *.jar           binary
-
-# Templates consumed by askama must use LF to avoid stray CR in generated files
-*.j2            text eol=lf
