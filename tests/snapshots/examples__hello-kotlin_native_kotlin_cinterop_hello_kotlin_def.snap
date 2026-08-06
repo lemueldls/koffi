@@ -7,5 +7,6 @@ expression: "fs::read_to_string(&file)?"
 headers = hello_kotlin.h
 package = hello_kotlin.cinterop
 staticLibraries = libhello_kotlin_glue.a
+linkerOpts.mingw = -lws2_32 -lntdll -ladvapi32 -lbcrypt -luserenv -lkernel32
 
 libraryPaths = __KOFFI_LIBS__/linuxX64
