@@ -3,6 +3,7 @@
 headers = {{ schema.crate_ident() }}.h
 package = {{ schema.kotlin_package() }}.cinterop
 staticLibraries = lib{{ schema.crate_ident() }}_glue.a
+linkerOpts.mingw = -lws2_32 -lntdll -ladvapi32 -lbcrypt -luserenv -lkernel32
 {% if native_platforms.len() == 1 %}
 libraryPaths = __KOFFI_LIBS__/{{ native_platforms[0].as_str() }}
 {% else %}

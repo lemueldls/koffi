@@ -74,6 +74,19 @@ pub enum TargetPlatform {
 
 impl TargetPlatform {
     #[must_use]
+    pub fn all() -> &'static [TargetPlatform] {
+        &[
+            TargetPlatform::Jvm,
+            TargetPlatform::Android,
+            TargetPlatform::LinuxX64,
+            TargetPlatform::LinuxArm64,
+            TargetPlatform::MacosX64,
+            TargetPlatform::MacosArm64,
+            TargetPlatform::MingwX64,
+        ]
+    }
+
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
             TargetPlatform::Jvm => "jvm",
@@ -98,7 +111,7 @@ impl TargetPlatform {
             TargetPlatform::LinuxArm64 => Some("aarch64-unknown-linux-gnu"),
             TargetPlatform::MacosX64 => Some("x86_64-apple-darwin"),
             TargetPlatform::MacosArm64 => Some("aarch64-apple-darwin"),
-            TargetPlatform::MingwX64 => Some("x86_64-w64-mingw32"),
+            TargetPlatform::MingwX64 => Some("x86_64-pc-windows-gnu"),
             _ => None,
         }
     }

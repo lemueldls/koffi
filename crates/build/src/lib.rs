@@ -282,14 +282,21 @@ fn absolutize_def(
     let mut def = std::fs::read_to_string(&def_path)?;
     def = def.replace(
         &format!("headers = {crate_ident}.h"),
-        &format!("headers = {}", header_abs.display()),
+        &format!(
+            "headers = {}",
+            header_abs.to_string_lossy().replace("\\", "/")
+        ),
     );
 
     for platform in config.native_platforms() {
         let platform = platform.as_str();
         def = def.replace(
             &format!("__KOFFI_LIBS__/{platform}"),
-            &kotlin_abs.join("libs").join(platform).to_string_lossy(),
+            &kotlin_abs
+                .join("libs")
+                .join(platform)
+                .to_string_lossy()
+                .replace("\\", "/"),
         );
     }
 
@@ -322,15 +329,9 @@ pub fn platform_library_file_name(crate_name: &str) -> String {
     }
 }
 
-/// Staticlib file name for the cross-compiled native artifacts. The cinterop
-/// def hardcodes `lib<ident>_glue.a`, which matches every unix target; the
-/// mingw case (`.lib`) is out of M0's scope.
+/// Staticlib file name for the cross-compiled native artifacts.
 #[must_use]
 pub fn static_library_file_name(crate_name: &str) -> String {
     let crate_ident = crate_name.replace('-', "_");
-    if cfg!(target_os = "windows") {
-        format!("{crate_ident}.lib")
-    } else {
-        format!("lib{crate_ident}.a")
-    }
+    format!("lib{crate_ident}.a")
 }

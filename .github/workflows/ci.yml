@@ -28,19 +28,25 @@ jobs:
 
   kotlin:
     name: test (${{ matrix.variant.name }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.variant.os }}
 
     strategy:
       fail-fast: false
       matrix:
         variant:
           - name: ffm
+            os: ubuntu-latest
             run_module: jvm
           - name: jni
+            os: ubuntu-latest
             run_module: jvm
             pack_args: --config.jvm_backend=jni
-          - name: native
+          - name: native-linux
+            os: ubuntu-latest
             run_module: linux
+          - name: native-windows
+            os: windows-latest
+            run_module: windows
 
     steps:
       - uses: actions/checkout@v7
@@ -74,10 +80,13 @@ jobs:
           key: konan-${{ runner.os }}
 
       - name: Install Kotlin Toolchain
+        if: runner.os != 'Windows'
         run: curl -fsSL https://kotl.in/install.sh | sh
 
       - name: Generate bindings and stage artifacts
-        run: cargo run pack examples/hello-kotlin -o examples/hello-kotlin/tests/generated --config.platforms.0 jvm --config.platforms.1 linuxX64 ${{ matrix.variant.pack_args }}
+        run:
+          cargo run pack examples/hello-kotlin -o
+          examples/hello-kotlin/tests/generated ${{ matrix.variant.pack_args }}
 
       - name: Run tests
         working-directory: examples/hello-kotlin/tests

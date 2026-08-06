@@ -156,7 +156,7 @@ fn render_kotlin(
 
     write_template(
         KotlinModuleYaml {
-            platforms: &config.platforms,
+            platforms: TargetPlatform::all(),
             dependencies: &[],
             android: config.has(&TargetPlatform::Android),
         },
