@@ -179,9 +179,8 @@ fn rustup_target_installed(triple: &str) -> bool {
 /// Layout, mirroring the plan:
 /// - jvm: `resources@jvm/native/lib<ident>_glue.<ext>` (the JNI actual extracts
 ///   this from `/native/` at runtime)
-/// - android: `src@android/jniLibs/<abi>/lib<ident>_glue.so` (best-effort: a
-///   missing NDK/target warns and leaves the dir empty, the module still
-///   compiles)
+/// - android: `jniLibs/<abi>/lib<ident>_glue.so` (best-effort: a missing
+///   NDK/target warns and leaves the dir empty, the module still compiles)
 /// - native: `libs/<KotlinPlatform>/lib<ident>_glue.a` (cinterop links it)
 pub fn build_and_stage(
     dirs: &OutputDirs,
@@ -216,14 +215,7 @@ pub fn build_and_stage(
             ) {
                 Ok(artifacts) => {
                     let so = artifacts.cdylib.expect("android wants the cdylib");
-                    stage(
-                        &so,
-                        &dirs
-                            .kotlin_out_dir
-                            .join("src@android")
-                            .join("jniLibs")
-                            .join(abi),
-                    )?;
+                    stage(&so, &dirs.kotlin_out_dir.join("jniLibs").join(abi))?;
                 }
                 Err(e) => warn!("skipping android abi {abi}: {e:#}"),
             }
