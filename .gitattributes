@@ -7,6 +7,8 @@
 # These are Windows script files and should use crlf
 *.bat           text eol=crlf
 
+# Templates consumed by askama must use LF to avoid stray CR in generated files
+*.j2            text eol=lf
+
 # Binary files should be left untouched
 *.jar           binary
-
