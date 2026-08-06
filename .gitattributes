@@ -10,3 +10,5 @@
 # Binary files should be left untouched
 *.jar           binary
 
+# Templates consumed by askama must use LF to avoid stray CR in generated files
+*.j2            text eol=lf

@@ -1,6 +1,5 @@
 use std::{fs, path::Path};
 
-use anyhow::bail;
 use askama::Template;
 
 mod c;
@@ -124,8 +123,8 @@ fn render_kotlin(
     if !native_platforms.is_empty() {
         for s in &schema.structs {
             if s.layout.total.size == 0 {
-                bail!(
-                    "koffi M0: zero-size struct `{}` can't be represented in a C header; \
+                anyhow::bail!(
+                    "koffi: zero-size struct `{}` can't be represented in a C header; \
                      drop the native platforms from platforms or change the struct",
                     s.name
                 );
@@ -156,7 +155,7 @@ fn render_kotlin(
 
     write_template(
         KotlinModuleYaml {
-            platforms: TargetPlatform::all(),
+            platforms: &config.platforms,
             dependencies: &[],
             android: config.has(&TargetPlatform::Android),
         },
@@ -171,7 +170,6 @@ fn write_template(template: impl Template, path: &Path) -> anyhow::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-
     fs::write(path, rendered)?;
 
     Ok(())

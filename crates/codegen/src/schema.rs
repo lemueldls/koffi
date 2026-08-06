@@ -291,7 +291,7 @@ fn convert_shape(
 
             if matches!(inner, SchemaTypeRef::Option { .. }) {
                 anyhow::bail!(
-                    "koffi M0 doesn't support Option<Option<T>>: double nullability has no \
+                    "koffi: unsupported Option<Option<T>>: double nullability has no \
                      Kotlin equivalent"
                 );
             }
@@ -417,7 +417,7 @@ fn convert_shape(
                                     name: v.name.to_string(),
                                     discriminant: v.discriminant.ok_or_else(|| {
                                         anyhow::anyhow!(
-                                            "koffi M0 can't reflect the discriminant of `{name}`: {shape:?}"
+                                            "koffi: can't reflect the discriminant of `{name}`: {shape:?}"
                                         )
                                     })?,
                                     is_struct_variant: v.data.kind == facet::StructKind::Struct,
@@ -451,7 +451,7 @@ fn convert_shape(
                 }
                 _ => {
                     anyhow::bail!(
-                        "koffi M0 only supports plain structs, fieldless #[repr(C)]/primitive-repr \
+                        "koffi: only supports plain structs, fieldless #[repr(C)]/primitive-repr \
                          enums, and scalars, got: {shape:?}"
                     )
                 }
@@ -459,7 +459,7 @@ fn convert_shape(
         }
         _ => {
             anyhow::bail!(
-                "koffi M0 only supports plain structs, fieldless #[repr(C)]/primitive-repr enums, \
+                "koffi: only supports plain structs, fieldless #[repr(C)]/primitive-repr enums, \
              and scalars: {shape:?}"
             )
         }
@@ -505,14 +505,11 @@ fn scalar_kind_of_enum_repr(repr: facet::EnumRepr) -> anyhow::Result<ScalarKind>
         facet::EnumRepr::I32 => Ok(ScalarKind::I32),
         facet::EnumRepr::I64 => Ok(ScalarKind::I64),
         facet::EnumRepr::Rust | facet::EnumRepr::RustNPO => {
-            anyhow::bail!(
-                "koffi M0 requires #[repr(C)] or an explicit primitive repr on enums (default Rust \
-             repr has no stable FFI layout)"
-            )
+            anyhow::bail!("koffi: no required #[repr(C)] or explicit primitive repr on enums")
         }
         facet::EnumRepr::USize | facet::EnumRepr::ISize => {
             anyhow::bail!(
-                "koffi M0 doesn't support enum discriminants with a platform-dependent layout \
+                "koffi: unsupported enum discriminants with a platform-dependent layout \
              (#[repr(usize)]/#[repr(isize)])"
             )
         }
@@ -532,7 +529,7 @@ fn scalar_kind_of(shape: &'static facet::Shape) -> anyhow::Result<ScalarKind> {
         "i64" => Ok(ScalarKind::I64),
         "f32" => Ok(ScalarKind::F32),
         "f64" => Ok(ScalarKind::F64),
-        other => anyhow::bail!("koffi M0 doesn't recognize scalar `{other}`"),
+        other => anyhow::bail!("koffi: unrecognized scalar `{other}`"),
     }
 }
 

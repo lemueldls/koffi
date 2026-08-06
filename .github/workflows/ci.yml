@@ -86,7 +86,7 @@ jobs:
       - name: Generate bindings and stage artifacts
         run:
           cargo run pack examples/hello-kotlin -o
-          examples/hello-kotlin/tests/generated ${{ matrix.variant.pack_args }}
+          examples/hello-kotlin/tests/generated --config.platforms.0 jvm --config.platforms.1 linuxX64 --config.platforms.2 mingwX64 ${{ matrix.variant.pack_args }}
 
       - name: Run tests
         working-directory: examples/hello-kotlin/tests

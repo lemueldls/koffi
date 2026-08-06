@@ -154,7 +154,7 @@ pub fn compute_enum_layout(
             | ScalarKind::I32
             | ScalarKind::I64
     ) {
-        anyhow::bail!("koffi M0: enum discriminant must be an integer scalar");
+        anyhow::bail!("koffi: enum discriminant must be an integer scalar");
     }
 
     let d_layout = scalar_layout(discriminant);
@@ -265,7 +265,7 @@ fn kotlin_value_layout_name(
                 Ok(ty.kotlin_ffm_value_layout())
             } else {
                 anyhow::bail!(
-                    "koffi M0 doesn't yet support a struct-typed field in an enum variant (`{name}`)"
+                    "koffi doesn't yet support a struct-typed field in an enum variant (`{name}`)"
                 )
             }
         }

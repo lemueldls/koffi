@@ -1,7 +1,7 @@
 use facet::Facet;
 
 /// The `[config]` root of the config file (see the `config` field). Read
-/// from `config.toml` / `config.jsonc` / `config.json` next to where `koffi`
+/// from `koffi.toml` / `koffi.jsonc` / `koffi.json` next to where `koffi`
 /// runs (or `--config <path>`), with CLI overrides on top.
 #[derive(Facet, Debug)]
 pub struct KoffiConfig {
@@ -13,6 +13,9 @@ pub struct KoffiConfig {
 
     #[facet(default = vec![AndroidAbi::Arm64V8a, AndroidAbi::X86_64])]
     pub android_abis: Vec<AndroidAbi>,
+
+    #[facet(default = false)]
+    pub cross_compile: bool,
 }
 
 impl KoffiConfig {
@@ -73,19 +76,6 @@ pub enum TargetPlatform {
 }
 
 impl TargetPlatform {
-    #[must_use]
-    pub fn all() -> &'static [TargetPlatform] {
-        &[
-            TargetPlatform::Jvm,
-            TargetPlatform::Android,
-            TargetPlatform::LinuxX64,
-            TargetPlatform::LinuxArm64,
-            TargetPlatform::MacosX64,
-            TargetPlatform::MacosArm64,
-            TargetPlatform::MingwX64,
-        ]
-    }
-
     #[must_use]
     pub fn as_str(&self) -> &str {
         match self {

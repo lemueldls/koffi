@@ -147,7 +147,8 @@ fn run_cargo_build(
         let hint = match triple {
             Some(triple) if !rustup_target_installed(triple) => {
                 format!(
-                    " (the target toolchain is missing; run `rustup target add {triple}` and retry)"
+                    " (the target toolchain is missing; run `rustup target add {triple}`, \
+                 or set `cross_compile = true` in the config to install it and try the cross build)"
                 )
             }
             _ => String::new(),
@@ -172,6 +173,98 @@ fn rustup_target_installed(triple: &str) -> bool {
         })
 }
 
+/// Installs the rustup target for every configured cross target (native
+/// platforms and android abis) that isn't installed yet, so a build can
+/// cross-compile on a host that doesn't match the targets. Best-effort: a
+/// missing rustup only warns - the cargo build then fails with its own hint.
+fn ensure_cross_targets(config: &KoffiConfig, host: &str) -> anyhow::Result<()> {
+    for (_, triple) in config
+        .android_targets()
+        .into_iter()
+        .chain(config.native_targets())
+    {
+        if rustup_target_installed(triple) {
+            debug!("cross target {triple} already installed");
+            continue;
+        }
+        info!("installing rustup target {triple} for cross compilation (host: {host})");
+        let installed = Command::new("rustup")
+            .args(["target", "add", triple])
+            .status()
+            .is_ok_and(|s| s.success());
+        if !installed {
+            warn!(
+                "could not install rustup target {triple}; install it manually or the build will fail"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// The host target triple, read from `rustc -vV`. Only feeds cross-compile
+/// decisions and log lines; cargo figures out what it needs on its own.
+fn host_triple() -> String {
+    Command::new("rustc")
+        .args(["-vV"])
+        .output()
+        .ok()
+        .and_then(|out| {
+            String::from_utf8(out.stdout).ok().and_then(|v| {
+                v.lines()
+                    .find_map(|l| l.strip_prefix("host: ").map(str::to_owned))
+            })
+        })
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// What usually supplies the C linker a cross build of `target` needs on
+/// `host`. A cross build only fails this far when the linker is the problem
+/// (the rustup target was already handled), so the hint names the install
+/// command rather than cargo's bare message.
+fn linker_hint(host: &str, target: &str) -> Option<&'static str> {
+    if target.contains("darwin") {
+        return Some("apple targets need a macOS SDK with clang (osxcross, or a real mac)");
+    }
+    match (triple_os(host), triple_os(target)) {
+        ("linux", "windows") => {
+            Some("install the mingw gcc, e.g. `sudo apt install gcc-mingw-w64-x86-64`")
+        }
+        ("linux", "linux") => {
+            Some(
+                "install the cross gcc for the target arch, e.g. `sudo apt install gcc-aarch64-linux-gnu`",
+            )
+        }
+        ("windows", "linux") => {
+            Some(
+                "a linker for linux targets on Windows is impractical; cross-compile inside WSL or a linux container",
+            )
+        }
+        ("macos", "windows") => Some("install the mingw gcc, e.g. `brew install mingw-w64`"),
+        ("macos", "linux") => {
+            Some(
+                "install a linux cross toolchain (musl-cross) or cross-compile inside a linux container",
+            )
+        }
+        _ => None,
+    }
+}
+
+/// The OS a koffi target triple runs on, for the linker hints. The known
+/// triples all spell the OS out verbatim (`-linux-`, `-windows-`, `darwin`),
+/// so a substring scan beats parsing the irregular tuple layout.
+fn triple_os(triple: &str) -> &'static str {
+    if triple.contains("darwin") {
+        "macos"
+    } else if triple.contains("windows") {
+        "windows"
+    } else if triple.contains("linux") {
+        "linux"
+    } else {
+        "unknown"
+    }
+}
+
 /// Builds and stages everything the configured platforms need, then rewrites
 /// the cinterop `.def` with absolute paths (the Kotlin compiler resolves
 /// them relative to the def's directory, so relative ones silently miss).
@@ -189,6 +282,11 @@ pub fn build_and_stage(
     config: &KoffiConfig,
 ) -> anyhow::Result<()> {
     let (glue_name, target_dir) = crate_metadata(&dirs.rust_out_dir)?;
+    let host = host_triple();
+
+    if config.cross_compile {
+        ensure_cross_targets(config, &host)?;
+    }
 
     if config.has(&TargetPlatform::Jvm) {
         let mut features = vec!["cabi"];
@@ -223,6 +321,14 @@ pub fn build_and_stage(
     }
 
     for (platform, triple) in config.native_targets() {
+        if triple != host {
+            if !config.cross_compile {
+                continue;
+            }
+
+            info!("cross-compiling {platform} ({triple}) for host {host}");
+        }
+
         let artifacts = build_for_target(
             &glue_name,
             &dirs.rust_out_dir,
@@ -231,7 +337,15 @@ pub fn build_and_stage(
             release,
             &["cabi"],
             &[TargetKind::Staticlib],
-        )?;
+        )
+        .map_err(|e| {
+            let linker = linker_hint(&host, triple).map_or_else(String::new, |hint| {
+                format!(" (the C linker for the target may be missing; {hint})")
+            });
+
+            anyhow::anyhow!("{e:#}{linker}")
+        })?;
+
         let a = artifacts.staticlib.expect("native wants the staticlib");
         stage(&a, &dirs.kotlin_out_dir.join("libs").join(platform))?;
     }

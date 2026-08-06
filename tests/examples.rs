@@ -41,16 +41,19 @@ fn render() -> anyhow::Result<()> {
             platforms: vec![TargetPlatform::Jvm],
             jvm_backend: JvmBackend::Ffm,
             android_abis: vec![AndroidAbi::Arm64V8a, AndroidAbi::X86_64],
+            cross_compile: false,
         }),
         ("jni", KoffiConfig {
             platforms: vec![TargetPlatform::Jvm, TargetPlatform::Android],
             jvm_backend: JvmBackend::Jni,
             android_abis: vec![AndroidAbi::Arm64V8a, AndroidAbi::X86_64],
+            cross_compile: false,
         }),
         ("native", KoffiConfig {
             platforms: vec![TargetPlatform::Jvm, TargetPlatform::LinuxX64],
             jvm_backend: JvmBackend::Ffm,
             android_abis: vec![AndroidAbi::Arm64V8a, AndroidAbi::X86_64],
+            cross_compile: false,
         }),
     ];
 
