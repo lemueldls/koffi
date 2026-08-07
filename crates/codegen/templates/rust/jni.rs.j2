@@ -7,6 +7,17 @@ use crate::types::*;
 use jni::objects::{JByteBuffer, JObject};
 use jni::sys::{jboolean, jbyte, jdouble, jfloat, jint, jlong, jshort};
 
+{#~ One call argument. Opaque handles arrive as jlongs: a receiver is
+   dereferenced and reborrowed (the `&`/`&mut` is taken inside the unsafe
+   block, since the wrapper below would otherwise move the non-Copy value
+   out of the raw pointer) and a by-value handle is read out with
+   `ptr::read`. -#}
+{%- macro call_args(f) -%}
+{%- for p in f.params %}
+{% if p.is_receiver %}{% if !p.ty.is_opaque() %}&{% if p.is_mut_receiver %}mut {% endif %}({% endif %}{% endif %}{% if p.ty.is_memory_backed() %}unsafe { (env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *const {{ p.ty.unique_ident() }}).read() }.into(){% else %}{% match p.ty %}{% when SchemaTypeRef::Scalar(kind) %}(p_{{ p.c_abi_symbol() }} as {{ kind.rust_type_name() }}).into(){% when SchemaTypeRef::Enum { discriminant, .. } %}unsafe { std::mem::transmute::<{{ discriminant.jni_type() }}, {{ p.ty.unique_ident() }}>(p_{{ p.c_abi_symbol() }}) }.into(){% when SchemaTypeRef::Opaque { .. } %}{% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *(p_{{ p.c_abi_symbol() }} as usize as *mut {{ p.ty.rust_absolute_path() }}) }{% else %}unsafe { &*(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unsafe { std::ptr::read(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unreachable!(){% endmatch %}{% endif %}{% if p.is_receiver %}{% if !p.ty.is_opaque() %}){% endif %}{% endif %}{% if !loop.last %},{% endif %}
+{%- endfor -%}
+{%- endmacro -%}
+
 {%~ for f in schema.functions %}
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn {{ f.jni_symbol(schema) }}<'c>(
@@ -24,19 +35,30 @@ pub unsafe extern "system" fn {{ f.jni_symbol(schema) }}<'c>(
     {%- endif %}
 ) -> {% if f.return_type.is_memory_backed() %}jint{% else %}{{ f.return_type.jni_type() }}{% endif %} {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        {%- if f.return_type.is_opaque() %}
+        // The returned handle is leaked on purpose, same contract as the
+        // opaque From impls in types.rs: the caller owns it.
+        let v: *mut {{ f.return_type.rust_absolute_path() }} =
+            Box::leak(Box::new({{ f.rust_absolute_path() }}(
+                {{- call_args(&f) }}
+            ))) as *mut {{ f.return_type.rust_absolute_path() }};
+
+        Ok(v as usize as jlong)
+        {%- elif f.return_type.is_memory_backed() %}
         let v: {{ f.return_type.unique_ident() }} = {{ f.rust_absolute_path() }}(
-            {%- for p in f.params %}
-            {% if p.is_receiver %}&({% endif %}{% if p.ty.is_memory_backed() %}unsafe { (env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *const {{ p.ty.unique_ident() }}).read() }.into(){% else %}{% match p.ty %}{% when SchemaTypeRef::Scalar(kind) %}(p_{{ p.c_abi_symbol() }} as {{ kind.rust_type_name() }}).into(){% when SchemaTypeRef::Enum { discriminant, .. } %}unsafe { std::mem::transmute::<{{ discriminant.jni_type() }}, {{ p.ty.unique_ident() }}>(p_{{ p.c_abi_symbol() }}) }.into(){% else %}unreachable!(){% endmatch %}{% endif %}{% if p.is_receiver %}){% endif %}{% if !loop.last %},{% endif %}
-            {%- endfor %}
+            {{- call_args(&f) }}
         ).into();
 
-        {% if f.return_type.is_memory_backed() %}
         let ptr = env.get_direct_buffer_address(&out)? as *mut {{ f.return_type.unique_ident() }};
         unsafe { ptr.write(v) };
         Ok(0 as jint)
-        {% else %}
+        {%- else %}
+        let v: {{ f.return_type.unique_ident() }} = {{ f.rust_absolute_path() }}(
+            {{- call_args(&f) }}
+        ).into();
+
         Ok(v as {{ f.return_type.jni_type() }})
-        {% endif %}
+        {%- endif %}
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()

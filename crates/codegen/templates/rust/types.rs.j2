@@ -2,6 +2,33 @@
 
 #![allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
 
+{#~ Opaque handle wire types. The address is the whole value: koffi marshals
+   opaque types as pointer-sized handles, so a handle crossing the boundary
+   by value leaks a Box (its From impl leaks on purpose), and reading one
+   back just copies the pointer value out of the leaked Box. That's the
+   documented contract of handle semantics - callers own the lifetime. -#}
+{%~ for o in schema.opaques %}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct {{ o.unique_ident() }} {
+    pub addr: *mut (),
+}
+
+impl From<{{ o.unique_ident() }}> for {{ o.rust_absolute_path() }} {
+    fn from(w: {{ o.unique_ident() }}) -> Self {
+        unsafe { (w.addr as *const {{ o.rust_absolute_path() }}).read() }
+    }
+}
+
+impl From<{{ o.rust_absolute_path() }}> for {{ o.unique_ident() }} {
+    fn from(v: {{ o.rust_absolute_path() }}) -> Self {
+        Self {
+            addr: Box::into_raw(Box::new(v)) as *mut (),
+        }
+    }
+}
+{%- endfor %}
+
 {%~ for s in schema.structs %}
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -15,7 +42,7 @@ impl From<{{ s.unique_ident() }}> for {{ s.rust_absolute_path() }} {
     fn from(c: {{ s.unique_ident() }}) -> Self {
         Self {
             {%- for field in s.fields %}
-            {{ field.name }}: c.{{ field.name }}.into(),
+            {{ field.name }}: {% if field.is_proxy %}{{ field.real_rust_path() }}::try_from({{ field.ty.rust_absolute_path() }}::from(c.{{ field.name }})).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ s.name }}::{{ field.name }}")){% else %}c.{{ field.name }}.into(){% endif %},
             {%- endfor %}
         }
     }
@@ -25,7 +52,7 @@ impl From<{{ s.rust_absolute_path() }}> for {{ s.unique_ident() }} {
     fn from(v: {{ s.rust_absolute_path() }}) -> Self {
         Self {
             {%- for field in s.fields %}
-            {{ field.name }}: v.{{ field.name }}.into(),
+            {{ field.name }}: {% if field.is_proxy %}{{ field.ty.rust_absolute_path() }}::try_from(&v.{{ field.name }}).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ s.name }}::{{ field.name }}")).into(){% else %}v.{{ field.name }}.into(){% endif %},
             {%- endfor %}
         }
     }
@@ -68,11 +95,21 @@ impl From<{{ e.unique_ident() }}> for {{ e.rust_absolute_path() }} {
                 {%- if v.is_struct_variant %}
                 Self::{{ v.name }} {
                     {%- for f in v.placements %}
-                    {{ f.name }}: unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ f.name }}.into(),
+                    {{ f.name }}: {% if f.is_proxy %}
+                        {{ f.real_rust_path() }}::try_from({{ f.ty.rust_absolute_path() }}::from(unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ f.name }}))
+                            .unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ e.name }}::{{ v.name }}::{{ f.name }}")),
+                    {% else %}
+                        unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ f.name }}.into(),
+                    {% endif %}
                     {%- endfor %}
                 }
                 {%- elif !v.placements.is_empty() %}
-                Self::{{ v.name }}(unsafe { w._u.{{ e.variant_wire_name(v) }} }.{% for f in v.placements %}{{ f.name }}.into(){% endfor %})
+                {%- if v.placements[0].is_proxy %}
+                Self::{{ v.name }}({{ v.placements[0].real_rust_path() }}::try_from({{ v.placements[0].ty.rust_absolute_path() }}::from(unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ v.placements[0].name }}))
+                    .unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ e.name }}::{{ v.name }}")))
+                {%- else %}
+                Self::{{ v.name }}(unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ v.placements[0].name }}.into())
+                {%- endif %}
                 {%- else %}
                 Self::{{ v.name }}
                 {%- endif %}
@@ -95,7 +132,12 @@ impl From<{{ e.rust_absolute_path() }}> for {{ e.unique_ident() }} {
                 _u: {{ e.payload_union_ident() }} {
                     {{ e.variant_wire_name(v) }}: {{ e.payload_ident(v) }} {
                         {%- for f in v.placements %}
+                        {% if f.is_proxy %}
+                        {{ f.name }}: {{ f.ty.rust_absolute_path() }}::try_from(&{{ f.name }})
+                            .unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ e.name }}::{{ v.name }}::{{ f.name }}")).into(),
+                        {% else %}
                         {{ f.name }}: {{ f.name }}.into(),
+                        {%- endif %}
                         {%- endfor %}
                     }
                 },

@@ -41,6 +41,8 @@ impl Schema {
                     .find(|w| w.unique_ident == ty.unique_ident())
                     .map_or(0, |w| w.layout.total.size)
             }
+            // Opaque handles cross as plain addresses, never as buffers.
+            SchemaTypeRef::Opaque { .. } => 0,
         }
     }
 
@@ -207,11 +209,12 @@ impl Schema {
                         out.push(LayoutOrderItem::Wrapper(w));
                     }
                 }
-                // Fieldless enums and scalars embed nothing.
+                // Fieldless enums, scalars and opaque handles embed nothing.
                 SchemaTypeRef::Enum {
                     has_data: false, ..
                 }
-                | SchemaTypeRef::Scalar(_) => {}
+                | SchemaTypeRef::Scalar(_)
+                | SchemaTypeRef::Opaque { .. } => {}
             }
         }
 
@@ -273,7 +276,9 @@ impl SchemaTypeRef {
     pub fn kotlin_type(&self) -> String {
         match self {
             SchemaTypeRef::Scalar(k) => k.kotlin_type().to_string(),
-            SchemaTypeRef::Struct { name, .. } | SchemaTypeRef::Enum { name, .. } => name.clone(),
+            SchemaTypeRef::Struct { name, .. }
+            | SchemaTypeRef::Enum { name, .. }
+            | SchemaTypeRef::Opaque { name, .. } => name.clone(),
             // None is `null`; the nullability is what marshals the
             // None case, so the marshaller just checks for null.
             SchemaTypeRef::Option { inner } => format!("{}?", inner.kotlin_type()),
@@ -292,6 +297,9 @@ impl SchemaTypeRef {
             SchemaTypeRef::Scalar(k) => k.c_type().to_string(),
             SchemaTypeRef::Struct { .. } | SchemaTypeRef::Enum { .. } => self.unique_ident(),
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => self.unique_ident(),
+            // Opaque handles cross as addresses; `intptr_t` maps to Kotlin
+            // `Long` in cinterop.
+            SchemaTypeRef::Opaque { .. } => "intptr_t".to_string(),
         }
     }
 
@@ -312,6 +320,8 @@ impl SchemaTypeRef {
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
             | SchemaTypeRef::Result { .. } => "JByteBuffer".to_string(),
+            // Opaque handles are pointer-sized values crossing as jlong.
+            SchemaTypeRef::Opaque { .. } => "jlong".to_string(),
         }
     }
 
@@ -333,6 +343,7 @@ impl SchemaTypeRef {
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
             | SchemaTypeRef::Result { .. } => "ByteBuffer".to_string(),
+            SchemaTypeRef::Opaque { .. } => "Long".to_string(),
         }
     }
 
@@ -377,6 +388,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}Layout", self.unique_ident())
             }
+            // Opaque handles cross as raw addresses, no struct layout.
+            SchemaTypeRef::Opaque { .. } => "ValueLayout.ADDRESS".to_string(),
         }
     }
 
@@ -444,7 +457,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::Opaque { .. } => String::new(),
         }
     }
 
@@ -464,7 +478,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::Opaque { .. } => String::new(),
         }
     }
 
@@ -578,7 +593,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::Opaque { .. } => String::new(),
         }
     }
 
@@ -606,7 +622,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::Opaque { .. } => String::new(),
         }
     }
 }
@@ -628,11 +645,12 @@ impl SchemaFn {
             SchemaTypeRef::Struct { name, module_path }
             | SchemaTypeRef::Enum {
                 name, module_path, ..
-            } => (name, module_path),
+            }
+            | SchemaTypeRef::Opaque { name, module_path } => (name, module_path),
             SchemaTypeRef::Scalar(_)
             | SchemaTypeRef::Option { .. }
             | SchemaTypeRef::Result { .. } => {
-                unreachable!("impl-block parents are always structs or enums")
+                unreachable!("impl-block parents are always structs, enums or opaque types")
             }
         };
         let mod_infix = module_path.as_deref().unwrap_or("").replace("::", "_");

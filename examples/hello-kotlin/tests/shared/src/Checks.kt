@@ -112,6 +112,28 @@ fun runChecks() {
     check("moodIsFlying(Flying(null)) == false", !moodIsFlying(Mood.Flying(null)))
     check("moodIsFlying(Fine) == false", !moodIsFlying(Mood.Fine))
 
+    // Opaque handle (Window is a Long typealias; its methods live on the
+    // Ffi object, there's no data class for an opaque type).
+    val w = HelloKotlinFfi.helloKotlinWindowOpen(42uL)
+    check("windowOpen(42).describe() == 42", HelloKotlinFfi.helloKotlinWindowDescribe(w) == 42uL)
+    check("windowRetag(w, 99) == 99", HelloKotlinFfi.helloKotlinWindowRetag(w, 99uL) == 99uL)
+    check("description reflects the retag", HelloKotlinFfi.helloKotlinWindowDescribe(w) == 99uL)
+    check("describeWindow(w) == 99", describeWindow(w) == 99uL)
+
+    // Opaque nested inside a plain struct: WindowPair carries two handles.
+    val pair = WindowPair.new(1uL, 2uL)
+    check("WindowPair.new(1,2).tag == 7", pair.tag == 7u.toUByte())
+    check("WindowPair.new(1,2).a.describe() == 1", HelloKotlinFfi.helloKotlinWindowDescribe(pair.a) == 1uL)
+    check("WindowPair.new(1,2).b.describe() == 2", HelloKotlinFfi.helloKotlinWindowDescribe(pair.b) == 2uL)
+    check("pair.firstDescribe() == 1", pair.firstDescribe() == 1uL)
+    check("pair.retagA(w, 42) == 42", pair.retagA(42uL) == 42uL)
+
+    // Proxy field: SafePacket.secret crosses as SecretWire, converted
+    // through the user's TryFrom pair on both directions.
+    val enc = encrypt(SafePacket(SecretWire(1u, 2u, 3u, 4u), 9u))
+    check("encrypt reverses secret bytes", enc.secret == SecretWire(4u, 3u, 2u, 1u))
+    check("encrypt bumps hop", enc.hop == 10u.toUByte())
+
     if (failures > 0) {
         println("\n$failures test(s) FAILED")
         exitProcess(1)

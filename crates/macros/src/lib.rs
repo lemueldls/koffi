@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
 use quote::{ToTokens, quote};
 use syn::{
-    FnArg, Ident, ImplItem, Item, ItemFn, ItemImpl, Pat, PatType, ReturnType, Signature, Type,
-    TypePath, fold::Fold, parse_macro_input, visit::Visit,
+    FnArg, Ident, ImplItem, Item, ItemFn, ItemImpl, Pat, PatType, Receiver, ReceiverKind,
+    ReturnType, Signature, Type, TypePath, fold::Fold, parse_macro_input, visit::Visit,
 };
 
 #[proc_macro_attribute]
@@ -107,6 +107,7 @@ fn fn_shape_entry(
     let mut param_names: Vec<String> = Vec::new();
     let mut param_types: Vec<Type> = Vec::new();
     let mut param_is_receiver: Vec<bool> = Vec::new();
+    let mut param_is_mut_receiver: Vec<bool> = Vec::new();
 
     for arg in &sig.inputs {
         if let FnArg::Typed(PatType { pat, ty, .. }) = arg
@@ -115,14 +116,17 @@ fn fn_shape_entry(
             param_names.push(pat_ident.ident.to_string());
             param_types.push(resolve_self(ty, self_ty));
             param_is_receiver.push(false);
+            param_is_mut_receiver.push(false);
         }
     }
 
-    let has_receiver = sig
-        .inputs
-        .iter()
-        .any(|arg| matches!(arg, FnArg::Receiver(..)));
-
+    let receiver_mutability = sig.inputs.iter().find_map(|arg| {
+        match arg {
+            FnArg::Receiver(r) => Some(receiver_is_mut(r)),
+            FnArg::Typed(_) => None,
+        }
+    });
+    let has_receiver = receiver_mutability.is_some();
     // The receiver, if any, is always self_ty. `has_receiver` with
     // `self_ty: None` shouldn't be reachable (parse_function rejects it);
     // treat as "no receiver" rather than panicking.
@@ -130,6 +134,7 @@ fn fn_shape_entry(
         param_names.insert(0, "self".to_string());
         param_types.insert(0, self_ty.clone());
         param_is_receiver.insert(0, true);
+        param_is_mut_receiver.insert(0, receiver_mutability.unwrap_or(false));
     }
 
     let parent_shape = match self_ty {
@@ -162,6 +167,7 @@ fn fn_shape_entry(
                     name: #param_names,
                     param_type: ::koffi::TypeShapeRef::from_shape(<#param_types as ::facet::Facet>::SHAPE),
                     is_receiver: #param_is_receiver,
+                    is_mut_receiver: #param_is_mut_receiver,
                 } ),*
             ],
             return_type: ::koffi::TypeShapeRef::from_shape(<#return_type as ::facet::Facet>::SHAPE),
@@ -171,7 +177,18 @@ fn fn_shape_entry(
     }
 }
 
-/// Collision-resistant static ident for a `FnShapeRef`:
+/// Whether a receiver argument is `&mut self` (or `mut self`). syn 3 stashes
+/// the `mut` of `&mut self` in `ReceiverKind::Reference`, leaving the
+/// top-level `Receiver::mutability` field as `None`; `mut self` keeps it in
+/// the top-level field. Both matter, so check both places.
+fn receiver_is_mut(r: &Receiver) -> bool {
+    match &r.kind {
+        ReceiverKind::Reference(_, _, mutability) => mutability.is_some(),
+        _ => r.mutability.is_some(),
+    }
+}
+
+/// Collision-resistant static ident for a `FnShapeRef`:///
 /// `__KOFFI_FN_<PART>_..._ENTRY`, uppercased. Takes multiple parts so a
 /// method's ident folds in its receiver type name
 /// (`__KOFFI_FN_PAYLOAD_GET_ENTRY`).
@@ -255,7 +272,7 @@ fn is_bare_self(ty: &Type) -> bool {
     matches!(ty, Type::Path(TypePath { qself: None, path, .. }) if path.is_ident("Self"))
 }
 
-/// A span-carrying witness if `sig` could only have compiled inside an
+/// A span-carrying witness if `sig` could only have compiled inside an///
 /// `impl`/`trait` block: it takes a `self` receiver, or `Self` shows up in
 /// a param or the return type. Used by `parse_function` to reject
 /// `#[koffi::export]` applied directly to a method or associated fn. Both

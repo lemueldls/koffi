@@ -11,35 +11,7 @@ use crate::types::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn maybePayload(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn addOptional(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn divide(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn nothing(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn cStatus(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn drink(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn holderStatus(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn new(/* TODO: wasm-bindgen-compatible params */) -> ! {
+pub fn makeHolder(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
@@ -47,11 +19,7 @@ pub fn cStatusIsErr(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
-pub fn rectArea(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn moodIsFlying(/* TODO: wasm-bindgen-compatible params */) -> ! {
+pub fn firstDescribe(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
@@ -59,43 +27,7 @@ pub fn describeFormat(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
-pub fn ride(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
 pub fn resultValue(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn paint(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn describe(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn rectTopLeft(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn mood(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn howLong(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn makeStatus(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn idle(/* TODO: wasm-bindgen-compatible params */) -> ! {
-    todo!("wasm-bindgen marshaling: see the scope note above")
-}
-#[wasm_bindgen]
-pub fn newBusy(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
@@ -103,11 +35,47 @@ pub fn makeRect(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
-pub fn hello(/* TODO: wasm-bindgen-compatible params */) -> ! {
+pub fn holderStatus(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
-pub fn nominate(/* TODO: wasm-bindgen-compatible params */) -> ! {
+pub fn divide(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn drink(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn makeStatus(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn describe(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn nothing(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn describe(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn describeWindow(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn ride(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn howLong(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn cStatus(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
@@ -119,7 +87,27 @@ pub fn favorite(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
-pub fn makeHolder(/* TODO: wasm-bindgen-compatible params */) -> ! {
+pub fn new(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn nominate(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn retag(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn mood(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn describe(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn retagA(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
@@ -127,6 +115,50 @@ pub fn statusCode(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
-pub fn describe(/* TODO: wasm-bindgen-compatible params */) -> ! {
+pub fn paint(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn newBusy(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn idle(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn rectArea(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn moodIsFlying(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn encrypt(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn open(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn maybePayload(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn new(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn addOptional(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn hello(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn rectTopLeft(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }

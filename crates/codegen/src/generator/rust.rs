@@ -1,8 +1,45 @@
 use heck::ToSnakeCase;
 
-use crate::schema::{
-    ScalarKind, Schema, SchemaEnum, SchemaEnumVariant, SchemaFn, SchemaStruct, SchemaTypeRef,
+use crate::{
+    layout::FieldPlacement,
+    schema::{
+        ScalarKind, Schema, SchemaEnum, SchemaEnumVariant, SchemaField, SchemaFn, SchemaOpaque,
+        SchemaStruct, SchemaTypeRef,
+    },
 };
+
+fn render_real_path(name: &str, module_path: Option<&str>) -> String {
+    match module_path {
+        Some(mp) => format!("::{mp}::{name}"),
+        None => name.to_string(),
+    }
+}
+
+impl SchemaField {
+    /// Absolute path to the real (non-wire) type of a proxy field, e.g.
+    /// `::hello_kotlin::Secret`. Generated conversions call
+    /// `<this>::try_from(...)` on it so rustc doesn't have to infer the
+    /// `TryFrom` target through the `.into()` chain. Only meaningful when
+    /// `is_proxy`; plain fields fall back to the field's own wire path.
+    #[must_use]
+    pub fn real_rust_path(&self) -> String {
+        match &self.real_ty {
+            Some((name, module_path)) => render_real_path(name, module_path.as_deref()),
+            None => self.ty.rust_absolute_path(),
+        }
+    }
+}
+
+impl FieldPlacement {
+    /// Same as `SchemaField::real_rust_path`, for enum payload fields.
+    #[must_use]
+    pub fn real_rust_path(&self) -> String {
+        match &self.real_ty {
+            Some((name, module_path)) => render_real_path(name, module_path.as_deref()),
+            None => self.ty.rust_absolute_path(),
+        }
+    }
+}
 
 impl Schema {
     #[must_use]
@@ -61,6 +98,22 @@ impl SchemaStruct {
     }
 }
 
+impl SchemaOpaque {
+    #[must_use]
+    pub fn unique_ident(&self) -> String {
+        let mod_infix = self.module_path.as_deref().unwrap_or("").replace("::", "_");
+        format!("__koffi_opaque_{mod_infix}_{}", self.name)
+    }
+
+    #[must_use]
+    pub fn rust_absolute_path(&self) -> String {
+        match &self.module_path {
+            Some(module_path) => format!("::{module_path}::{}", self.name),
+            None => self.name.clone(),
+        }
+    }
+}
+
 impl SchemaEnum {
     #[must_use]
     pub fn unique_ident(&self) -> String {
@@ -104,6 +157,9 @@ impl SchemaTypeRef {
             SchemaTypeRef::Scalar(k) => k.rust_type_name().to_string(),
             SchemaTypeRef::Struct { .. } => format!("__koffi_struct_{}", self.abi_ident_infix()),
             SchemaTypeRef::Enum { .. } => format!("__koffi_enum_{}", self.abi_ident_infix()),
+            SchemaTypeRef::Opaque { .. } => {
+                format!("__koffi_opaque_{}", self.abi_ident_infix())
+            }
             SchemaTypeRef::Option { inner } => format!("__koffi_option_{}", inner.unique_ident()),
             SchemaTypeRef::Result { ok, err } => {
                 format!(
@@ -121,7 +177,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { name, module_path }
             | SchemaTypeRef::Enum {
                 name, module_path, ..
-            } => {
+            }
+            | SchemaTypeRef::Opaque { name, module_path } => {
                 match module_path {
                     Some(mp) => format!("::{mp}::{name}"),
                     None => name.clone(),

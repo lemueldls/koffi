@@ -16,6 +16,14 @@ pub struct FieldPlacement {
     pub name: String,
     pub ty: SchemaTypeRef,
     pub offset: u64,
+    /// True when the field carries `#[facet(proxy = X)]`: generated marshal
+    /// helpers use the proxy's wire type, and the Rust From impls go
+    /// through the user's `TryFrom` pair.
+    pub is_proxy: bool,
+    /// For proxy fields: the real field type's `(name, module_path)`, used
+    /// to name the `TryFrom` target in generated conversions. `None` for
+    /// plain fields.
+    pub real_ty: Option<(String, Option<String>)>,
 }
 
 #[derive(Debug, Clone)]
@@ -76,6 +84,9 @@ pub fn layout_of(
             })?;
             Ok(w.layout.total)
         }
+        // Opaque handles are exactly pointer-sized (enforced when the schema
+        // is built), so the layout is a constant.
+        SchemaTypeRef::Opaque { .. } => Ok(Layout { size: 8, align: 8 }),
     }
 }
 
@@ -106,6 +117,8 @@ pub fn compute_struct_layout(
             name: field.name.clone(),
             ty: field.ty.clone(),
             offset: aligned,
+            is_proxy: field.is_proxy,
+            real_ty: field.real_ty.clone(),
         });
         offset = aligned + fl.size;
         max_align = max_align.max(fl.align);
@@ -279,6 +292,8 @@ fn kotlin_value_layout_name(
             })?;
             Ok(w.kotlin_ffm_value_layout())
         }
+        // Opaque handles cross as raw addresses.
+        SchemaTypeRef::Opaque { .. } => Ok("ValueLayout.ADDRESS".to_string()),
     }
 }
 
@@ -352,6 +367,9 @@ pub fn compute_wrapper_layout(
                 name: m.name.clone(),
                 ty: m.ty.clone(),
                 offset: union_offset,
+                // Wrapper members reflect real fields, never proxy fields.
+                is_proxy: false,
+                real_ty: None,
             }
         })
         .collect();

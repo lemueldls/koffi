@@ -8,6 +8,26 @@ expression: "fs::read_to_string(&file)?"
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct __koffi_opaque_hello_kotlin_Window {
+    pub addr: *mut (),
+}
+
+impl From<__koffi_opaque_hello_kotlin_Window> for ::hello_kotlin::Window {
+    fn from(w: __koffi_opaque_hello_kotlin_Window) -> Self {
+        unsafe { (w.addr as *const ::hello_kotlin::Window).read() }
+    }
+}
+
+impl From<::hello_kotlin::Window> for __koffi_opaque_hello_kotlin_Window {
+    fn from(v: ::hello_kotlin::Window) -> Self {
+        Self {
+            addr: Box::into_raw(Box::new(v)) as *mut (),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct __koffi_struct_hello_kotlin_Dancer {
     pub id: u32,
     pub active: __koffi_option_bool,
@@ -101,6 +121,60 @@ impl From<::hello_kotlin::Rect> for __koffi_struct_hello_kotlin_Rect {
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_SafePacket {
+    pub secret: __koffi_struct_hello_kotlin_SecretWire,
+    pub hop: u8,
+}
+
+impl From<__koffi_struct_hello_kotlin_SafePacket> for ::hello_kotlin::SafePacket {
+    fn from(c: __koffi_struct_hello_kotlin_SafePacket) -> Self {
+        Self {
+            secret: ::hello_kotlin::Secret::try_from(::hello_kotlin::SecretWire::from(c.secret)).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for SafePacket::secret")),
+            hop: c.hop.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::SafePacket> for __koffi_struct_hello_kotlin_SafePacket {
+    fn from(v: ::hello_kotlin::SafePacket) -> Self {
+        Self {
+            secret: ::hello_kotlin::SecretWire::try_from(&v.secret).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for SafePacket::secret")).into(),
+            hop: v.hop.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_SecretWire {
+    pub a: u8,
+    pub b: u8,
+    pub c: u8,
+    pub d: u8,
+}
+
+impl From<__koffi_struct_hello_kotlin_SecretWire> for ::hello_kotlin::SecretWire {
+    fn from(c: __koffi_struct_hello_kotlin_SecretWire) -> Self {
+        Self {
+            a: c.a.into(),
+            b: c.b.into(),
+            c: c.c.into(),
+            d: c.d.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::SecretWire> for __koffi_struct_hello_kotlin_SecretWire {
+    fn from(v: ::hello_kotlin::SecretWire) -> Self {
+        Self {
+            a: v.a.into(),
+            b: v.b.into(),
+            c: v.c.into(),
+            d: v.d.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct __koffi_struct_hello_kotlin_StatusHolder {
     pub status: __koffi_enum_hello_kotlin_Status,
     pub tag: u8,
@@ -119,6 +193,33 @@ impl From<::hello_kotlin::StatusHolder> for __koffi_struct_hello_kotlin_StatusHo
     fn from(v: ::hello_kotlin::StatusHolder) -> Self {
         Self {
             status: v.status.into(),
+            tag: v.tag.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_WindowPair {
+    pub a: __koffi_opaque_hello_kotlin_Window,
+    pub b: __koffi_opaque_hello_kotlin_Window,
+    pub tag: u8,
+}
+
+impl From<__koffi_struct_hello_kotlin_WindowPair> for ::hello_kotlin::WindowPair {
+    fn from(c: __koffi_struct_hello_kotlin_WindowPair) -> Self {
+        Self {
+            a: c.a.into(),
+            b: c.b.into(),
+            tag: c.tag.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::WindowPair> for __koffi_struct_hello_kotlin_WindowPair {
+    fn from(v: ::hello_kotlin::WindowPair) -> Self {
+        Self {
+            a: v.a.into(),
+            b: v.b.into(),
             tag: v.tag.into(),
         }
     }
@@ -197,6 +298,7 @@ impl From<::hello_kotlin::Mood> for __koffi_enum_hello_kotlin_Mood {
                 _d: 1,
                 _u: __koffi_enum_hello_kotlin_Mood_payload {
                     flying: __koffi_enum_hello_kotlin_Mood_flying {
+                        
                         field0: field0.into(),
                     }
                 },
@@ -247,7 +349,9 @@ impl From<__koffi_enum_hello_kotlin_Status> for ::hello_kotlin::Status {
             },
             2 => {
                 Self::Error {
-                    code: unsafe { w._u.error }.code.into(),
+                    code: 
+                        unsafe { w._u.error }.code.into(),
+                    
                 }
             },
             -1 => {
@@ -269,6 +373,7 @@ impl From<::hello_kotlin::Status> for __koffi_enum_hello_kotlin_Status {
                 _d: 1,
                 _u: __koffi_enum_hello_kotlin_Status_payload {
                     busy: __koffi_enum_hello_kotlin_Status_busy {
+                        
                         field0: field0.into(),
                     }
                 },
@@ -277,6 +382,7 @@ impl From<::hello_kotlin::Status> for __koffi_enum_hello_kotlin_Status {
                 _d: 2,
                 _u: __koffi_enum_hello_kotlin_Status_payload {
                     error: __koffi_enum_hello_kotlin_Status_error {
+                        
                         code: code.into(),
                     }
                 },

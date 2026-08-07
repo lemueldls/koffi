@@ -28,6 +28,13 @@ sealed class KoffiResult<out Ok, out Err> {
 {%- for p in params %}{{ p.name }}{% if !loop.last %}, {% endif %}{% endfor -%}
 {%- endmacro -%}
 
+{#~ Opaque Rust types cross the boundary as pointer-sized handles, so the
+   Kotlin side sees a plain `Long` address. The handle own the lifecycle on
+   the native side; copying the Long copies the handle, not the target. -#}
+{%- for o in schema.opaques %}
+typealias {{ o.name }} = Long
+{%- endfor %}
+
 {%~ for s in schema.structs %}
 data class {{ s.name }}(
 {%- for field in s.fields %}

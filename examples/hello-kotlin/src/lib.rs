@@ -231,3 +231,119 @@ pub fn mood() -> Mood {
 pub fn mood_is_flying(m: Mood) -> bool {
     matches!(m, Mood::Flying(Some(_)))
 }
+
+// Opaque handle: `#[facet(opaque)]` keeps the real layout (one `u64`,
+// pointer-sized) but exposes no fields, so koffi marshals it as a Long
+// address. Its methods have no data class to live on, so they stay on the
+// generated Ffi object as `helloKotlinWindowDescribe`,
+// `helloKotlinWindowRetag`, ...
+#[derive(Facet)]
+#[facet(opaque)]
+pub struct Window {
+    id: u64,
+}
+
+#[koffi::export]
+impl Window {
+    pub fn open(id: u64) -> Self {
+        Self { id }
+    }
+
+    pub fn describe(&self) -> u64 {
+        self.id
+    }
+
+    pub fn retag(&mut self, id: u64) -> u64 {
+        self.id = id;
+        self.id
+    }
+}
+
+#[derive(Facet)]
+pub struct WindowPair {
+    pub a: Window,
+    pub b: Window,
+    pub tag: u8,
+}
+
+#[koffi::export]
+impl WindowPair {
+    pub fn new(a: u64, b: u64) -> Self {
+        Self {
+            a: Window::open(a),
+            b: Window::open(b),
+            tag: 7,
+        }
+    }
+
+    pub fn first_describe(&self) -> u64 {
+        self.a.describe()
+    }
+
+    pub fn retag_a(&mut self, id: u64) -> u64 {
+        self.a.retag(id)
+    }
+}
+
+#[koffi::export]
+pub fn describe_window(w: Window) -> u64 {
+    w.describe()
+}
+
+// Proxy: `SafePacket.secret` is really a `Secret`, but crosses the boundary
+// as `SecretWire` thanks to `#[facet(proxy = ..)]` and the two TryFrom
+// impls below. facet still needs the real field type to have a shape, so
+// `Secret` derives Facet too - koffi never marshals it directly, the proxy
+// wire type is what appears on the wire.
+#[derive(Facet)]
+pub struct Secret {
+    bytes: [u8; 4],
+}
+
+#[derive(Facet)]
+pub struct SecretWire {
+    pub a: u8,
+    pub b: u8,
+    pub c: u8,
+    pub d: u8,
+}
+
+impl TryFrom<SecretWire> for Secret {
+    type Error = String;
+
+    fn try_from(w: SecretWire) -> Result<Self, Self::Error> {
+        Ok(Self {
+            bytes: [w.a, w.b, w.c, w.d],
+        })
+    }
+}
+
+impl TryFrom<&Secret> for SecretWire {
+    type Error = String;
+
+    fn try_from(s: &Secret) -> Result<Self, Self::Error> {
+        Ok(Self {
+            a: s.bytes[0],
+            b: s.bytes[1],
+            c: s.bytes[2],
+            d: s.bytes[3],
+        })
+    }
+}
+
+#[derive(Facet)]
+pub struct SafePacket {
+    #[facet(proxy = SecretWire)]
+    pub secret: Secret,
+    pub hop: u8,
+}
+
+#[koffi::export]
+pub fn encrypt(secret: SafePacket) -> SafePacket {
+    let mut bytes = secret.secret.bytes;
+    bytes.reverse();
+    SafePacket {
+        secret: Secret { bytes },
+        hop: secret.hop + 1,
+    }
+}

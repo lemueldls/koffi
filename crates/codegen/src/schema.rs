@@ -15,6 +15,7 @@ pub struct Schema {
     pub structs: Vec<SchemaStruct>,
     pub enums: Vec<SchemaEnum>,
     pub wrappers: Vec<SchemaWrapper>,
+    pub opaques: Vec<SchemaOpaque>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +59,9 @@ pub struct SchemaParam {
     pub name: String,
     pub ty: SchemaTypeRef,
     pub is_receiver: bool,
+    /// True for a `&mut self` receiver. Only meaningful for receivers; the
+    /// macro always stores `false` for real params.
+    pub is_mut_receiver: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -72,6 +76,26 @@ pub struct SchemaStruct {
 pub struct SchemaField {
     pub name: String,
     pub ty: SchemaTypeRef,
+    /// True when the field carries `#[facet(proxy = X)]`: `ty` is the
+    /// proxy's wire type and the generated From impls go through the user's
+    /// `TryFrom` pair instead of a plain `.into()`.
+    pub is_proxy: bool,
+    /// For proxy fields: the real field type's `(name, module_path)`, so
+    /// generated conversions can name the `TryFrom` target explicitly.
+    /// rustc can't infer it through the `.into()`/`TryFrom` chain
+    /// otherwise. `None` for plain fields.
+    pub real_ty: Option<(String, Option<String>)>,
+}
+
+/// A `#[facet(opaque)]` type.
+///
+/// Its shape keeps the real layout but exposes no fields; koffi marshals
+/// values as pointer-sized handles, so the whole type is represented by one
+/// `__koffi_opaque_*` wire struct holding an address.
+#[derive(Debug, Clone)]
+pub struct SchemaOpaque {
+    pub name: String,
+    pub module_path: Option<String>,
 }
 
 /// A reflected enum with its discriminant scalar kind, whether any
@@ -158,6 +182,10 @@ pub enum SchemaTypeRef {
         ok: Box<SchemaTypeRef>,
         err: Box<SchemaTypeRef>,
     },
+    Opaque {
+        name: String,
+        module_path: Option<String>,
+    },
 }
 
 impl SchemaTypeRef {
@@ -167,7 +195,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { name, module_path }
             | SchemaTypeRef::Enum {
                 name, module_path, ..
-            } => {
+            }
+            | SchemaTypeRef::Opaque { name, module_path } => {
                 let mod_infix = module_path.as_deref().unwrap_or("").replace("::", "_");
                 format!("{mod_infix}_{name}")
             }
@@ -199,6 +228,19 @@ impl SchemaTypeRef {
     pub const fn has_data(&self) -> bool {
         matches!(self, SchemaTypeRef::Enum { has_data: true, .. })
     }
+
+    /// True for an opaque handle type. These cross the ABI as addresses,
+    /// never through the struct/union wire types.
+    #[must_use]
+    pub const fn is_opaque(&self) -> bool {
+        matches!(self, SchemaTypeRef::Opaque { .. })
+    }
+
+    #[must_use]
+    pub fn same_opaque(&self, o: &SchemaOpaque) -> bool {
+        matches!(self, SchemaTypeRef::Opaque { name, module_path }
+            if name == &o.name && module_path == &o.module_path)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -220,6 +262,7 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
     let mut structs: BTreeMap<(Option<String>, String), SchemaStruct> = BTreeMap::new();
     let mut enums: BTreeMap<(Option<String>, String), SchemaEnum> = BTreeMap::new();
     let mut wrappers: BTreeMap<String, SchemaWrapper> = BTreeMap::new();
+    let mut opaques: Vec<SchemaOpaque> = Vec::new();
     let mut functions = Vec::new();
 
     for entry in fn_entries {
@@ -229,7 +272,15 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
 
         let parent = entry
             .parent
-            .map(|ty| convert_shape(ty.shape(), &mut structs, &mut enums, &mut wrappers))
+            .map(|ty| {
+                convert_shape(
+                    ty.shape(),
+                    &mut structs,
+                    &mut enums,
+                    &mut wrappers,
+                    &mut opaques,
+                )
+            })
             .transpose()?;
 
         // `is_receiver` comes straight from the macro; it can't be
@@ -246,8 +297,10 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
                         &mut structs,
                         &mut enums,
                         &mut wrappers,
+                        &mut opaques,
                     )?,
                     is_receiver: p.is_receiver,
+                    is_mut_receiver: p.is_mut_receiver,
                 })
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -257,6 +310,7 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
             &mut structs,
             &mut enums,
             &mut wrappers,
+            &mut opaques,
         )?;
 
         functions.push(SchemaFn {
@@ -275,6 +329,7 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
         structs: structs.into_values().collect(),
         enums: enums.into_values().collect(),
         wrappers: wrappers.into_values().collect(),
+        opaques,
     })
 }
 
@@ -283,11 +338,20 @@ fn convert_shape(
     structs: &mut BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &mut BTreeMap<(Option<String>, String), SchemaEnum>,
     wrappers: &mut BTreeMap<String, SchemaWrapper>,
+    opaques: &mut Vec<SchemaOpaque>,
 ) -> anyhow::Result<SchemaTypeRef> {
+    if shape.proxy.is_some() {
+        anyhow::bail!(
+            "koffi: container-level #[facet(proxy = X)] on `{}` is not supported yet; \
+             put #[facet(proxy = X)] on individual fields instead",
+            shape.effective_name()
+        );
+    }
+
     match shape.def {
         facet::Def::Scalar => Ok(SchemaTypeRef::Scalar(scalar_kind_of(shape)?)),
         facet::Def::Option(def) => {
-            let inner = convert_shape(def.t, structs, enums, wrappers)?;
+            let inner = convert_shape(def.t, structs, enums, wrappers, opaques)?;
 
             if matches!(inner, SchemaTypeRef::Option { .. }) {
                 anyhow::bail!(
@@ -318,8 +382,8 @@ fn convert_shape(
             })
         }
         facet::Def::Result(def) => {
-            let ok = convert_shape(def.t, structs, enums, wrappers)?;
-            let err = convert_shape(def.e, structs, enums, wrappers)?;
+            let ok = convert_shape(def.t, structs, enums, wrappers, opaques)?;
+            let err = convert_shape(def.e, structs, enums, wrappers, opaques)?;
 
             let ident = format!(
                 "__koffi_result_{}_{}",
@@ -363,10 +427,27 @@ fn convert_shape(
                             .fields
                             .iter()
                             .map(|f| {
-                                let field_shape = f.shape();
+                                // A `#[facet(proxy = X)]` field is wired as X
+                                // (the proxy shape) and converted through the
+                                // user's TryFrom pair in the generated glue.
+                                let field_shape = f.proxy_shape().unwrap_or_else(|| f.shape());
                                 Ok(SchemaField {
                                     name: f.effective_name().to_string(),
-                                    ty: convert_shape(field_shape, structs, enums, wrappers)?,
+                                    ty: convert_shape(
+                                        field_shape,
+                                        structs,
+                                        enums,
+                                        wrappers,
+                                        opaques,
+                                    )?,
+                                    is_proxy: f.proxy_shape().is_some(),
+                                    real_ty: f.proxy_shape().map(|_| {
+                                        let real = f.shape();
+                                        (
+                                            real.effective_name().to_string(),
+                                            real.module_path.map(|p| p.to_owned()),
+                                        )
+                                    }),
                                 })
                             })
                             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -421,7 +502,13 @@ fn convert_shape(
                                         )
                                     })?,
                                     is_struct_variant: v.data.kind == facet::StructKind::Struct,
-                                    placements: project_variant_fields(v, structs, enums, wrappers)?,
+                                    placements: project_variant_fields(
+                                        v,
+                                        structs,
+                                        enums,
+                                        wrappers,
+                                        opaques,
+                                    )?,
                                 };
                                 Ok(variant)
                             })
@@ -449,10 +536,44 @@ fn convert_shape(
                         has_data: e.has_data,
                     })
                 }
+                facet::Type::User(facet::UserType::Opaque) => {
+                    let module_path = shape.module_path.map(|p| p.to_owned());
+                    let name = shape.effective_name().to_string();
+
+                    // Opaque values cross the ABI as handles; anything else
+                    // would need real layout knowledge the type refuses to
+                    // expose. 8/8 is pointer size on every supported host.
+                    let layout = shape.layout.sized_layout().map_err(|_| {
+                        anyhow::anyhow!(
+                            "koffi: unsized opaque types can't cross the FFI boundary (`{name}`)"
+                        )
+                    })?;
+                    if layout.size() != 8 || layout.align() != 8 {
+                        anyhow::bail!(
+                            "koffi: opaque type `{name}` is not pointer-sized \
+                             (size {} align {}); only pointer-sized opaque types can \
+                             cross the FFI boundary as handles",
+                            layout.size(),
+                            layout.align()
+                        );
+                    }
+
+                    if !opaques
+                        .iter()
+                        .any(|o| o.name == name && o.module_path == module_path)
+                    {
+                        opaques.push(SchemaOpaque {
+                            name: name.clone(),
+                            module_path: module_path.clone(),
+                        });
+                    }
+
+                    Ok(SchemaTypeRef::Opaque { name, module_path })
+                }
                 _ => {
                     anyhow::bail!(
                         "koffi: only supports plain structs, fieldless #[repr(C)]/primitive-repr \
-                         enums, and scalars, got: {shape:?}"
+                         enums, opaque types, and scalars, got: {shape:?}"
                     )
                 }
             }
@@ -474,6 +595,7 @@ fn project_variant_fields(
     structs: &mut BTreeMap<(Option<String>, String), SchemaStruct>,
     enums: &mut BTreeMap<(Option<String>, String), SchemaEnum>,
     wrappers: &mut BTreeMap<String, SchemaWrapper>,
+    opaques: &mut Vec<SchemaOpaque>,
 ) -> anyhow::Result<Vec<FieldPlacement>> {
     variant
         .data
@@ -485,10 +607,19 @@ fn project_variant_fields(
             } else {
                 f.effective_name().to_string()
             };
+            let field_shape = f.proxy_shape().unwrap_or_else(|| f.shape());
             Ok(FieldPlacement {
                 name,
                 offset: f.offset as u64,
-                ty: convert_shape(f.shape(), structs, enums, wrappers)?,
+                ty: convert_shape(field_shape, structs, enums, wrappers, opaques)?,
+                is_proxy: f.proxy_shape().is_some(),
+                real_ty: f.proxy_shape().map(|_| {
+                    let real = f.shape();
+                    (
+                        real.effective_name().to_string(),
+                        real.module_path.map(|p| p.to_owned()),
+                    )
+                }),
             })
         })
         .collect()

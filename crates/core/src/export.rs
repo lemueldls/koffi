@@ -52,4 +52,9 @@ pub struct FnShapeParam {
     /// including every parameter of a `parent`-having associated fn like
     /// `Payload::new`.
     pub is_receiver: bool,
+    /// True for a `&mut self` receiver, false for `&self` (and for every
+    /// non-receiver param, where the field is meaningless). Drives the
+    /// `*mut`/`&mut *` wire handling for opaque handle types and the
+    /// `&mut`-vs-`&` call-site borrow in the glue.
+    pub is_mut_receiver: bool,
 }

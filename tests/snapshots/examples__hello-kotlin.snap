@@ -6,202 +6,15 @@ Schema {
     crate_name: "hello-kotlin",
     functions: [
         SchemaFn {
-            rust_name: "maybe_payload",
-            kotlin_name: "maybePayload",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "show",
-                    ty: Scalar(
-                        Bool,
-                    ),
-                    is_receiver: false,
-                },
-            ],
-            return_type: Option {
-                inner: Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            },
-        },
-        SchemaFn {
-            rust_name: "add_optional",
-            kotlin_name: "addOptional",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "a",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                },
-                SchemaParam {
-                    name: "b",
-                    ty: Option {
-                        inner: Scalar(
-                            U32,
-                        ),
-                    },
-                    is_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "divide",
-            kotlin_name: "divide",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "n",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                },
-                SchemaParam {
-                    name: "d",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                },
-            ],
-            return_type: Result {
-                ok: Scalar(
-                    U32,
-                ),
-                err: Scalar(
-                    U8,
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "nothing",
-            kotlin_name: "nothing",
+            rust_name: "make_holder",
+            kotlin_name: "makeHolder",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
             params: [],
-            return_type: Option {
-                inner: Scalar(
-                    U32,
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "c_status",
-            kotlin_name: "cStatus",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Enum {
-                name: "CStatus",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: U32,
-                has_data: false,
-            },
-        },
-        SchemaFn {
-            rust_name: "drink",
-            kotlin_name: "drink",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "x",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                },
-            ],
-            return_type: Result {
-                ok: Option {
-                    inner: Scalar(
-                        U32,
-                    ),
-                },
-                err: Scalar(
-                    U8,
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "holder_status",
-            kotlin_name: "holderStatus",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "h",
-                    ty: Struct {
-                        name: "StatusHolder",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                },
-            ],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
-            rust_name: "new",
-            kotlin_name: "new",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "data",
-                    ty: Scalar(
-                        U16,
-                    ),
-                    is_receiver: false,
-                },
-            ],
             return_type: Struct {
-                name: "Payload",
+                name: "StatusHolder",
                 module_path: Some(
                     "hello_kotlin",
                 ),
@@ -226,6 +39,7 @@ Schema {
                         has_data: false,
                     },
                     is_receiver: false,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Scalar(
@@ -233,51 +47,34 @@ Schema {
             ),
         },
         SchemaFn {
-            rust_name: "rect_area",
-            kotlin_name: "rectArea",
+            rust_name: "first_describe",
+            kotlin_name: "firstDescribe",
             module_path: Some(
                 "hello_kotlin",
             ),
-            parent: None,
+            parent: Some(
+                Struct {
+                    name: "WindowPair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
             params: [
                 SchemaParam {
-                    name: "r",
+                    name: "self",
                     ty: Struct {
-                        name: "Rect",
+                        name: "WindowPair",
                         module_path: Some(
                             "hello_kotlin",
                         ),
                     },
-                    is_receiver: false,
+                    is_receiver: true,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Scalar(
-                I32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "mood_is_flying",
-            kotlin_name: "moodIsFlying",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "m",
-                    ty: Enum {
-                        name: "Mood",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: I32,
-                        has_data: true,
-                    },
-                    is_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                Bool,
+                U64,
             ),
         },
         SchemaFn {
@@ -300,36 +97,6 @@ Schema {
             ),
         },
         SchemaFn {
-            rust_name: "ride",
-            kotlin_name: "ride",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "dance",
-                    ty: Option {
-                        inner: Struct {
-                            name: "Dancer",
-                            module_path: Some(
-                                "hello_kotlin",
-                            ),
-                        },
-                    },
-                    is_receiver: false,
-                },
-            ],
-            return_type: Option {
-                inner: Struct {
-                    name: "Dancer",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            },
-        },
-        SchemaFn {
             rust_name: "result_value",
             kotlin_name: "resultValue",
             module_path: Some(
@@ -348,6 +115,7 @@ Schema {
                         ),
                     },
                     is_receiver: false,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Scalar(
@@ -355,26 +123,172 @@ Schema {
             ),
         },
         SchemaFn {
-            rust_name: "paint",
-            kotlin_name: "paint",
+            rust_name: "make_rect",
+            kotlin_name: "makeRect",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "Rect",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "holder_status",
+            kotlin_name: "holderStatus",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
             params: [
                 SchemaParam {
-                    name: "color",
-                    ty: Option {
-                        inner: Scalar(
-                            Bool,
+                    name: "h",
+                    ty: Struct {
+                        name: "StatusHolder",
+                        module_path: Some(
+                            "hello_kotlin",
                         ),
                     },
                     is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "divide",
+            kotlin_name: "divide",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "n",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "d",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Scalar(
+                    U32,
+                ),
+                err: Scalar(
+                    U8,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "drink",
+            kotlin_name: "drink",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "x",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Option {
+                    inner: Scalar(
+                        U32,
+                    ),
+                },
+                err: Scalar(
+                    U8,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "make_status",
+            kotlin_name: "makeStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Opaque {
+                    name: "Window",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Opaque {
+                        name: "Window",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Scalar(
-                Bool,
+                U64,
             ),
+        },
+        SchemaFn {
+            rust_name: "nothing",
+            kotlin_name: "nothing",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Option {
+                inner: Scalar(
+                    U32,
+                ),
+            },
         },
         SchemaFn {
             rust_name: "describe",
@@ -404,6 +318,7 @@ Schema {
                         has_data: true,
                     },
                     is_receiver: true,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Scalar(
@@ -411,30 +326,267 @@ Schema {
             ),
         },
         SchemaFn {
-            rust_name: "rect_top_left",
-            kotlin_name: "rectTopLeft",
+            rust_name: "describe_window",
+            kotlin_name: "describeWindow",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
             params: [
                 SchemaParam {
-                    name: "r",
-                    ty: Struct {
-                        name: "Rect",
+                    name: "w",
+                    ty: Opaque {
+                        name: "Window",
                         module_path: Some(
                             "hello_kotlin",
                         ),
                     },
                     is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "ride",
+            kotlin_name: "ride",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "dance",
+                    ty: Option {
+                        inner: Struct {
+                            name: "Dancer",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Option {
+                inner: Struct {
+                    name: "Dancer",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            },
+        },
+        SchemaFn {
+            rust_name: "how_long",
+            kotlin_name: "howLong",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "seconds",
+                    ty: Option {
+                        inner: Scalar(
+                            F64,
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                F64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "c_status",
+            kotlin_name: "cStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "CStatus",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: U32,
+                has_data: false,
+            },
+        },
+        SchemaFn {
+            rust_name: "with_data",
+            kotlin_name: "withData",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "data",
+                    ty: Scalar(
+                        U16,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Struct {
-                name: "Point",
+                name: "Payload",
                 module_path: Some(
                     "hello_kotlin",
                 ),
             },
+        },
+        SchemaFn {
+            rust_name: "favorite",
+            kotlin_name: "favorite",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Option {
+                inner: Scalar(
+                    U32,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "WindowPair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "WindowPair",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "nominate",
+            kotlin_name: "nominate",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "x",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+                err: Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            },
+        },
+        SchemaFn {
+            rust_name: "retag",
+            kotlin_name: "retag",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Opaque {
+                    name: "Window",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Opaque {
+                        name: "Window",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: true,
+                },
+                SchemaParam {
+                    name: "id",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
         },
         SchemaFn {
             rust_name: "mood",
@@ -454,35 +606,150 @@ Schema {
             },
         },
         SchemaFn {
-            rust_name: "how_long",
-            kotlin_name: "howLong",
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "retag_a",
+            kotlin_name: "retagA",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "WindowPair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "WindowPair",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: true,
+                },
+                SchemaParam {
+                    name: "id",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "status_code",
+            kotlin_name: "statusCode",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
             params: [
                 SchemaParam {
-                    name: "seconds",
-                    ty: Option {
-                        inner: Scalar(
-                            F64,
+                    name: "s",
+                    ty: Enum {
+                        name: "Status",
+                        module_path: Some(
+                            "hello_kotlin",
                         ),
+                        discriminant: I32,
+                        has_data: true,
                     },
                     is_receiver: false,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Scalar(
-                F64,
+                U32,
             ),
         },
         SchemaFn {
-            rust_name: "make_status",
-            kotlin_name: "makeStatus",
+            rust_name: "paint",
+            kotlin_name: "paint",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
-            params: [],
+            params: [
+                SchemaParam {
+                    name: "color",
+                    ty: Option {
+                        inner: Scalar(
+                            Bool,
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "new_busy",
+            kotlin_name: "newBusy",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "code",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
             return_type: Enum {
                 name: "Status",
                 module_path: Some(
@@ -519,53 +786,200 @@ Schema {
             },
         },
         SchemaFn {
-            rust_name: "new_busy",
-            kotlin_name: "newBusy",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Enum {
-                    name: "Status",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: true,
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "code",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                },
-            ],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
-            rust_name: "make_rect",
-            kotlin_name: "makeRect",
+            rust_name: "rect_area",
+            kotlin_name: "rectArea",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
-            params: [],
+            params: [
+                SchemaParam {
+                    name: "r",
+                    ty: Struct {
+                        name: "Rect",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                I32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "mood_is_flying",
+            kotlin_name: "moodIsFlying",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "m",
+                    ty: Enum {
+                        name: "Mood",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "encrypt",
+            kotlin_name: "encrypt",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "secret",
+                    ty: Struct {
+                        name: "SafePacket",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
             return_type: Struct {
-                name: "Rect",
+                name: "SafePacket",
                 module_path: Some(
                     "hello_kotlin",
                 ),
             },
+        },
+        SchemaFn {
+            rust_name: "open",
+            kotlin_name: "open",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Opaque {
+                    name: "Window",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "id",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Opaque {
+                name: "Window",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "maybe_payload",
+            kotlin_name: "maybePayload",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "show",
+                    ty: Scalar(
+                        Bool,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Option {
+                inner: Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            },
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "data",
+                    ty: Scalar(
+                        U16,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "add_optional",
+            kotlin_name: "addOptional",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: Option {
+                        inner: Scalar(
+                            U32,
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
         },
         SchemaFn {
             rust_name: "hello",
@@ -583,161 +997,31 @@ Schema {
             },
         },
         SchemaFn {
-            rust_name: "nominate",
-            kotlin_name: "nominate",
+            rust_name: "rect_top_left",
+            kotlin_name: "rectTopLeft",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
             params: [
                 SchemaParam {
-                    name: "x",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                },
-            ],
-            return_type: Result {
-                ok: Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-                err: Enum {
-                    name: "Status",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: true,
-                },
-            },
-        },
-        SchemaFn {
-            rust_name: "with_data",
-            kotlin_name: "withData",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
+                    name: "r",
                     ty: Struct {
-                        name: "Payload",
+                        name: "Rect",
                         module_path: Some(
                             "hello_kotlin",
                         ),
                     },
-                    is_receiver: true,
-                },
-                SchemaParam {
-                    name: "data",
-                    ty: Scalar(
-                        U16,
-                    ),
                     is_receiver: false,
+                    is_mut_receiver: false,
                 },
             ],
             return_type: Struct {
-                name: "Payload",
+                name: "Point",
                 module_path: Some(
                     "hello_kotlin",
                 ),
             },
-        },
-        SchemaFn {
-            rust_name: "favorite",
-            kotlin_name: "favorite",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Option {
-                inner: Scalar(
-                    U32,
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "make_holder",
-            kotlin_name: "makeHolder",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Struct {
-                name: "StatusHolder",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "status_code",
-            kotlin_name: "statusCode",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "s",
-                    ty: Enum {
-                        name: "Status",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: I32,
-                        has_data: true,
-                    },
-                    is_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "describe",
-            kotlin_name: "describe",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Struct {
-                        name: "Payload",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
         },
     ],
     structs: [
@@ -752,6 +1036,8 @@ Schema {
                     ty: Scalar(
                         U32,
                     ),
+                    is_proxy: false,
+                    real_ty: None,
                 },
                 SchemaField {
                     name: "active",
@@ -760,6 +1046,8 @@ Schema {
                             Bool,
                         ),
                     },
+                    is_proxy: false,
+                    real_ty: None,
                 },
             ],
             layout: StructLayoutInfo {
@@ -783,6 +1071,8 @@ Schema {
                             U32,
                         ),
                         offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "active",
@@ -792,6 +1082,8 @@ Schema {
                             ),
                         },
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -811,6 +1103,8 @@ Schema {
                     ty: Scalar(
                         U16,
                     ),
+                    is_proxy: false,
+                    real_ty: None,
                 },
             ],
             layout: StructLayoutInfo {
@@ -827,6 +1121,8 @@ Schema {
                             U16,
                         ),
                         offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -846,12 +1142,16 @@ Schema {
                     ty: Scalar(
                         I32,
                     ),
+                    is_proxy: false,
+                    real_ty: None,
                 },
                 SchemaField {
                     name: "y",
                     ty: Scalar(
                         I32,
                     ),
+                    is_proxy: false,
+                    real_ty: None,
                 },
             ],
             layout: StructLayoutInfo {
@@ -872,6 +1172,8 @@ Schema {
                             I32,
                         ),
                         offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "y",
@@ -879,6 +1181,8 @@ Schema {
                             I32,
                         ),
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -901,6 +1205,8 @@ Schema {
                             "hello_kotlin",
                         ),
                     },
+                    is_proxy: false,
+                    real_ty: None,
                 },
                 SchemaField {
                     name: "bottom_right",
@@ -910,6 +1216,8 @@ Schema {
                             "hello_kotlin",
                         ),
                     },
+                    is_proxy: false,
+                    real_ty: None,
                 },
             ],
             layout: StructLayoutInfo {
@@ -933,6 +1241,8 @@ Schema {
                             ),
                         },
                         offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "bottom_right",
@@ -943,11 +1253,195 @@ Schema {
                             ),
                         },
                         offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
                     size: 16,
                     align: 4,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "SafePacket",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "secret",
+                    ty: Struct {
+                        name: "SecretWire",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_proxy: true,
+                    real_ty: Some(
+                        (
+                            "Secret",
+                            Some(
+                                "hello_kotlin",
+                            ),
+                        ),
+                    ),
+                },
+                SchemaField {
+                    name: "hop",
+                    ty: Scalar(
+                        U8,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_SecretWireLayout",
+                        name: "secret",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "hop",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "secret",
+                        ty: Struct {
+                            name: "SecretWire",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 0,
+                        is_proxy: true,
+                        real_ty: Some(
+                            (
+                                "Secret",
+                                Some(
+                                    "hello_kotlin",
+                                ),
+                            ),
+                        ),
+                    },
+                    FieldPlacement {
+                        name: "hop",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 5,
+                    align: 1,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "SecretWire",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "a",
+                    ty: Scalar(
+                        U8,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "b",
+                    ty: Scalar(
+                        U8,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "c",
+                    ty: Scalar(
+                        U8,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "d",
+                    ty: Scalar(
+                        U8,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "a",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "b",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "c",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "d",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "a",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "b",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 1,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "c",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 2,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "d",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 3,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 4,
+                    align: 1,
                 },
             },
         },
@@ -967,12 +1461,16 @@ Schema {
                         discriminant: I32,
                         has_data: true,
                     },
+                    is_proxy: false,
+                    real_ty: None,
                 },
                 SchemaField {
                     name: "tag",
                     ty: Scalar(
                         U8,
                     ),
+                    is_proxy: false,
+                    real_ty: None,
                 },
             ],
             layout: StructLayoutInfo {
@@ -1001,6 +1499,8 @@ Schema {
                             has_data: true,
                         },
                         offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "tag",
@@ -1008,11 +1508,109 @@ Schema {
                             U8,
                         ),
                         offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
                     size: 12,
                     align: 4,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "WindowPair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "a",
+                    ty: Opaque {
+                        name: "Window",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "b",
+                    ty: Opaque {
+                        name: "Window",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "tag",
+                    ty: Scalar(
+                        U8,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.ADDRESS",
+                        name: "a",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.ADDRESS",
+                        name: "b",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_BYTE",
+                        name: "tag",
+                    },
+                    Padding {
+                        bytes: 7,
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "a",
+                        ty: Opaque {
+                            name: "Window",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "b",
+                        ty: Opaque {
+                            name: "Window",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "tag",
+                        ty: Scalar(
+                            U8,
+                        ),
+                        offset: 16,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 24,
+                    align: 8,
                 },
             },
         },
@@ -1079,6 +1677,8 @@ Schema {
                                 ),
                             },
                             offset: 4,
+                            is_proxy: false,
+                            real_ty: None,
                         },
                     ],
                     is_struct_variant: false,
@@ -1107,6 +1707,8 @@ Schema {
                             ),
                         },
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1139,6 +1741,8 @@ Schema {
                                 U32,
                             ),
                             offset: 4,
+                            is_proxy: false,
+                            real_ty: None,
                         },
                     ],
                     is_struct_variant: false,
@@ -1153,6 +1757,8 @@ Schema {
                                 U32,
                             ),
                             offset: 4,
+                            is_proxy: false,
+                            real_ty: None,
                         },
                     ],
                     is_struct_variant: true,
@@ -1182,6 +1788,8 @@ Schema {
                             U32,
                         ),
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "code",
@@ -1189,6 +1797,8 @@ Schema {
                             U32,
                         ),
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1237,6 +1847,8 @@ Schema {
                             ),
                         },
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1283,6 +1895,8 @@ Schema {
                             ),
                         },
                         offset: 2,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1320,6 +1934,8 @@ Schema {
                             Bool,
                         ),
                         offset: 1,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1360,6 +1976,8 @@ Schema {
                             F64,
                         ),
                         offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1400,6 +2018,8 @@ Schema {
                             U32,
                         ),
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1450,6 +2070,8 @@ Schema {
                             ),
                         },
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "err",
@@ -1457,6 +2079,8 @@ Schema {
                             U8,
                         ),
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1514,6 +2138,8 @@ Schema {
                             ),
                         },
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "err",
@@ -1526,6 +2152,8 @@ Schema {
                             has_data: true,
                         },
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1572,6 +2200,8 @@ Schema {
                             U32,
                         ),
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                     FieldPlacement {
                         name: "err",
@@ -1579,6 +2209,8 @@ Schema {
                             U8,
                         ),
                         offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
                     },
                 ],
                 total: Layout {
@@ -1586,6 +2218,14 @@ Schema {
                     align: 4,
                 },
             },
+        },
+    ],
+    opaques: [
+        SchemaOpaque {
+            name: "Window",
+            module_path: Some(
+                "hello_kotlin",
+            ),
         },
     ],
 }

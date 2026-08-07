@@ -12,6 +12,8 @@ sealed class KoffiResult<out Ok, out Err> {
 }
 
 
+typealias Window = Long
+
 data class Dancer(
     val id: UInt,
     val active: Boolean?
@@ -25,10 +27,10 @@ data class Payload(
         HelloKotlinFfi.helloKotlinPayloadDescribe(this)
 
     companion object {
-        fun new(data: UShort): Payload =
-            HelloKotlinFfi.helloKotlinPayloadNew(data)
         fun describeFormat(): UInt =
             HelloKotlinFfi.helloKotlinPayloadDescribeFormat()
+        fun new(data: UShort): Payload =
+            HelloKotlinFfi.helloKotlinPayloadNew(data)
     }
 }
 data class Point(
@@ -39,10 +41,37 @@ data class Rect(
     val topLeft: Point,
     val bottomRight: Point
 )
+data class SafePacket(
+    val secret: SecretWire,
+    val hop: UByte
+)
+data class SecretWire(
+    val a: UByte,
+    val b: UByte,
+    val c: UByte,
+    val d: UByte
+)
 data class StatusHolder(
     val status: Status,
     val tag: UByte
 )
+data class WindowPair(
+    val a: Window,
+    val b: Window,
+    val tag: UByte
+) {
+    fun firstDescribe(): ULong =
+        HelloKotlinFfi.helloKotlinWindowPairFirstDescribe(this)
+    fun retagA(id: ULong): ULong =
+        HelloKotlinFfi.helloKotlinWindowPairRetagA(this, id)
+
+    companion object {
+        operator fun invoke(a: ULong, b: ULong): WindowPair =
+            HelloKotlinFfi.helloKotlinWindowPairNew(a, b)
+        fun new(a: ULong, b: ULong): WindowPair =
+            HelloKotlinFfi.helloKotlinWindowPairNew(a, b)
+    }
+}
 
 
 enum class CStatus(val discriminant: UInt) {
@@ -80,48 +109,56 @@ sealed class Status(val discriminant: Int) {
         HelloKotlinFfi.helloKotlinStatusDescribe(this)
 
     companion object {
-        operator fun invoke(): Status =
-            HelloKotlinFfi.helloKotlinStatusIdle()
-        fun idle(): Status =
-            HelloKotlinFfi.helloKotlinStatusIdle()
         operator fun invoke(code: UInt): Status =
             HelloKotlinFfi.helloKotlinStatusNewBusy(code)
         fun newBusy(code: UInt): Status =
             HelloKotlinFfi.helloKotlinStatusNewBusy(code)
+        operator fun invoke(): Status =
+            HelloKotlinFfi.helloKotlinStatusIdle()
+        fun idle(): Status =
+            HelloKotlinFfi.helloKotlinStatusIdle()
     }
 }
 
 
-expect fun maybePayload(show: Boolean): Payload?
-expect fun addOptional(a: UInt, b: UInt?): UInt
-expect fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte>
-expect fun nothing(): UInt?
-expect fun cStatus(): CStatus
-expect fun drink(x: UInt): KoffiResult<UInt?, UByte>
-expect fun holderStatus(h: StatusHolder): Status
+expect fun makeHolder(): StatusHolder
 expect fun cStatusIsErr(s: CStatus): Boolean
+expect fun resultValue(r: KoffiResult<UInt, UByte>): UInt
+expect fun makeRect(): Rect
+expect fun holderStatus(h: StatusHolder): Status
+expect fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte>
+expect fun drink(x: UInt): KoffiResult<UInt?, UByte>
+expect fun makeStatus(): Status
+expect fun nothing(): UInt?
+expect fun describeWindow(w: Window): ULong
+expect fun ride(dance: Dancer?): Dancer?
+expect fun howLong(seconds: Double?): Double
+expect fun cStatus(): CStatus
+expect fun favorite(): UInt?
+expect fun nominate(x: UInt): KoffiResult<Payload, Status>
+expect fun mood(): Mood
+expect fun statusCode(s: Status): UInt
+expect fun paint(color: Boolean?): Boolean
 expect fun rectArea(r: Rect): Int
 expect fun moodIsFlying(m: Mood): Boolean
-expect fun ride(dance: Dancer?): Dancer?
-expect fun resultValue(r: KoffiResult<UInt, UByte>): UInt
-expect fun paint(color: Boolean?): Boolean
-expect fun rectTopLeft(r: Rect): Point
-expect fun mood(): Mood
-expect fun howLong(seconds: Double?): Double
-expect fun makeStatus(): Status
-expect fun makeRect(): Rect
+expect fun encrypt(secret: SafePacket): SafePacket
+expect fun maybePayload(show: Boolean): Payload?
+expect fun addOptional(a: UInt, b: UInt?): UInt
 expect fun hello(): Payload
-expect fun nominate(x: UInt): KoffiResult<Payload, Status>
-expect fun favorite(): UInt?
-expect fun makeHolder(): StatusHolder
-expect fun statusCode(s: Status): UInt
+expect fun rectTopLeft(r: Rect): Point
 
 expect object HelloKotlinFfi {
-    fun helloKotlinPayloadNew(data: UShort): Payload
+    fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong
     fun helloKotlinPayloadDescribeFormat(): UInt
+    fun helloKotlinWindowDescribe(self: Window): ULong
     fun helloKotlinStatusDescribe(self: Status): UInt
-    fun helloKotlinStatusIdle(): Status
-    fun helloKotlinStatusNewBusy(code: UInt): Status
     fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload
+    fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair
+    fun helloKotlinWindowRetag(self: Window, id: ULong): ULong
     fun helloKotlinPayloadDescribe(self: Payload): UInt
+    fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong
+    fun helloKotlinStatusNewBusy(code: UInt): Status
+    fun helloKotlinStatusIdle(): Status
+    fun helloKotlinWindowOpen(id: ULong): Window
+    fun helloKotlinPayloadNew(data: UShort): Payload
 }

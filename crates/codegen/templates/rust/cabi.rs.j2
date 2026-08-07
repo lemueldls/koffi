@@ -4,19 +4,45 @@
 
 use crate::types::*;
 
+{#~ Opaque handles cross the C ABI as raw pointers: a receiver turns into
+   `&*`/`&mut *` on the pointer, a by-value handle is read out with
+   `ptr::read`, and a handle return leaks a Box (see the opaque From impls
+   in types.rs - the leak is the ownership contract). Everything else rides
+   the `__koffi_*` wire types. -#}
 {%~ for f in schema.functions %}
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn {{ f.c_abi_symbol() }}(
     {%- for p in f.params %}
+    {%- if p.ty.is_opaque() %}
+    _p_{{ p.c_abi_symbol() }}: {% if p.is_receiver %}{% if p.is_mut_receiver %}*mut{% else %}*const{% endif %}{% else %}*const{% endif %} {{ p.ty.rust_absolute_path() }},
+    {%- else %}
     _p_{{ p.c_abi_symbol() }}: {{ p.ty.unique_ident() }},
+    {%- endif %}
     {%- endfor %}
-) -> {{ f.return_type.unique_ident() }} {
+) -> {% if f.return_type.is_opaque() %}*mut {{ f.return_type.rust_absolute_path() }}{% else %}{{ f.return_type.unique_ident() }}{% endif %} {
     guarded(|| {
+        {%- if f.return_type.is_opaque() %}
+        let __ret: {{ f.return_type.rust_absolute_path() }} = {{ f.rust_absolute_path() }}(
+            {%- for p in f.params %}
+            {%- if p.ty.is_opaque() %}
+            {% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *_p_{{ p.c_abi_symbol() }} }{% else %}unsafe { &*_p_{{ p.c_abi_symbol() }} }{% endif %}{% else %}unsafe { std::ptr::read(_p_{{ p.c_abi_symbol() }}) }{% endif %},
+            {%- else %}
+            {% if p.is_receiver %}&{% if p.is_mut_receiver %}mut {% endif %}{% endif %}_p_{{ p.c_abi_symbol() }}.into(),
+            {%- endif %}
+            {%- endfor %}
+        );
+        Box::leak(Box::new(__ret)) as *mut {{ f.return_type.rust_absolute_path() }}
+        {%- else %}
         {{ f.rust_absolute_path() }}(
             {%- for p in f.params %}
-            {% if p.is_receiver %}&{% endif %}_p_{{ p.c_abi_symbol() }}.into(),
+            {%- if p.ty.is_opaque() %}
+            {% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *_p_{{ p.c_abi_symbol() }} }{% else %}unsafe { &*_p_{{ p.c_abi_symbol() }} }{% endif %}{% else %}unsafe { std::ptr::read(_p_{{ p.c_abi_symbol() }}) }{% endif %},
+            {%- else %}
+            {% if p.is_receiver %}&{% if p.is_mut_receiver %}mut {% endif %}{% endif %}_p_{{ p.c_abi_symbol() }}.into(),
+            {%- endif %}
             {%- endfor %}
         ).into()
+        {%- endif %}
     })
 }
 {%- endfor %}

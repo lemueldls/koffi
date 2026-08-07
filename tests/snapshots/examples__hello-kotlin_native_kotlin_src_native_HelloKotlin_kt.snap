@@ -89,6 +89,30 @@ private fun rectFromC(w: CValue<__koffi_struct_hello_kotlin_Rect>): Rect = w.use
         topLeft = pointFromC(top_left.readValue()),
         bottomRight = pointFromC(bottom_right.readValue()))
 }
+private fun safe_packetToC(v: SafePacket): CValue<__koffi_struct_hello_kotlin_SafePacket> = cValue {
+    secret_wireToC(v.secret).place(secret.ptr)
+    hop = v.hop
+}
+
+private fun safe_packetFromC(w: CValue<__koffi_struct_hello_kotlin_SafePacket>): SafePacket = w.useContents {
+    SafePacket(
+        secret = secret_wireFromC(secret.readValue()),
+        hop = hop)
+}
+private fun secret_wireToC(v: SecretWire): CValue<__koffi_struct_hello_kotlin_SecretWire> = cValue {
+    a = v.a
+    b = v.b
+    c = v.c
+    d = v.d
+}
+
+private fun secret_wireFromC(w: CValue<__koffi_struct_hello_kotlin_SecretWire>): SecretWire = w.useContents {
+    SecretWire(
+        a = a,
+        b = b,
+        c = c,
+        d = d)
+}
 private fun status_holderToC(v: StatusHolder): CValue<__koffi_struct_hello_kotlin_StatusHolder> = cValue {
     statusToC(v.status).place(status.ptr)
     tag = v.tag
@@ -97,6 +121,18 @@ private fun status_holderToC(v: StatusHolder): CValue<__koffi_struct_hello_kotli
 private fun status_holderFromC(w: CValue<__koffi_struct_hello_kotlin_StatusHolder>): StatusHolder = w.useContents {
     StatusHolder(
         status = statusFromC(status.readValue()),
+        tag = tag)
+}
+private fun window_pairToC(v: WindowPair): CValue<__koffi_struct_hello_kotlin_WindowPair> = cValue {
+    a = v.a
+    b = v.b
+    tag = v.tag
+}
+
+private fun window_pairFromC(w: CValue<__koffi_struct_hello_kotlin_WindowPair>): WindowPair = w.useContents {
+    WindowPair(
+        a = a,
+        b = b,
         tag = tag)
 }
 
@@ -253,52 +289,100 @@ private fun __koffi_result_u32_u8FromC(c: CValue<__koffi_result_u32_u8>): KoffiR
 }
 actual object HelloKotlinFfi {
 
-    actual fun helloKotlinPayloadNew(data: UShort): Payload {
-        return __koffi_fn_hello_kotlin_Payload_new(data).let { payloadFromC(it) }
+    actual fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong {
+        return __koffi_fn_hello_kotlin_WindowPair_first_describe(window_pairToC(self))
     }
     actual fun helloKotlinPayloadDescribeFormat(): UInt {
         return __koffi_fn_hello_kotlin_Payload_describe_format()
     }
+    actual fun helloKotlinWindowDescribe(self: Window): ULong {
+        return __koffi_fn_hello_kotlin_Window_describe(self)
+    }
     actual fun helloKotlinStatusDescribe(self: Status): UInt {
         return __koffi_fn_hello_kotlin_Status_describe(statusToC(self))
-    }
-    actual fun helloKotlinStatusIdle(): Status {
-        return __koffi_fn_hello_kotlin_Status_idle().let { statusFromC(it) }
-    }
-    actual fun helloKotlinStatusNewBusy(code: UInt): Status {
-        return __koffi_fn_hello_kotlin_Status_new_busy(code).let { statusFromC(it) }
     }
     actual fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload {
         return __koffi_fn_hello_kotlin_Payload_with_data(payloadToC(self), data).let { payloadFromC(it) }
     }
+    actual fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair {
+        return __koffi_fn_hello_kotlin_WindowPair_new(a, b).let { window_pairFromC(it) }
+    }
+    actual fun helloKotlinWindowRetag(self: Window, id: ULong): ULong {
+        return __koffi_fn_hello_kotlin_Window_retag(self, id)
+    }
     actual fun helloKotlinPayloadDescribe(self: Payload): UInt {
         return __koffi_fn_hello_kotlin_Payload_describe(payloadToC(self))
     }
+    actual fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong {
+        return __koffi_fn_hello_kotlin_WindowPair_retag_a(window_pairToC(self), id)
+    }
+    actual fun helloKotlinStatusNewBusy(code: UInt): Status {
+        return __koffi_fn_hello_kotlin_Status_new_busy(code).let { statusFromC(it) }
+    }
+    actual fun helloKotlinStatusIdle(): Status {
+        return __koffi_fn_hello_kotlin_Status_idle().let { statusFromC(it) }
+    }
+    actual fun helloKotlinWindowOpen(id: ULong): Window {
+        return __koffi_fn_hello_kotlin_Window_open(id)
+    }
+    actual fun helloKotlinPayloadNew(data: UShort): Payload {
+        return __koffi_fn_hello_kotlin_Payload_new(data).let { payloadFromC(it) }
+    }
 }
 
-actual fun maybePayload(show: Boolean): Payload? {
-    return __koffi_fn_hello_kotlin_maybe_payload(show.let { if (it) 1u.toUByte() else 0u.toUByte() }).let { __koffi_option___koffi_struct_hello_kotlin_PayloadFromC(it) }
+actual fun makeHolder(): StatusHolder {
+    return __koffi_fn_hello_kotlin_make_holder().let { status_holderFromC(it) }
 }
-actual fun addOptional(a: UInt, b: UInt?): UInt {
-    return __koffi_fn_hello_kotlin_add_optional(a, __koffi_option_u32ToC(b))
+actual fun cStatusIsErr(s: CStatus): Boolean {
+    return __koffi_fn_hello_kotlin_c_status_is_err(s.discriminant) != 0u.toUByte()
 }
-actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
-    return __koffi_fn_hello_kotlin_divide(n, d).let { __koffi_result_u32_u8FromC(it) }
+actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt {
+    return __koffi_fn_hello_kotlin_result_value(__koffi_result_u32_u8ToC(r))
 }
-actual fun nothing(): UInt? {
-    return __koffi_fn_hello_kotlin_nothing().let { __koffi_option_u32FromC(it) }
-}
-actual fun cStatus(): CStatus {
-    return __koffi_fn_hello_kotlin_c_status().let { CStatus.fromDiscriminant(it) }
-}
-actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
-    return __koffi_fn_hello_kotlin_drink(x).let { __koffi_result___koffi_option_u32_u8FromC(it) }
+actual fun makeRect(): Rect {
+    return __koffi_fn_hello_kotlin_make_rect().let { rectFromC(it) }
 }
 actual fun holderStatus(h: StatusHolder): Status {
     return __koffi_fn_hello_kotlin_holder_status(status_holderToC(h)).let { statusFromC(it) }
 }
-actual fun cStatusIsErr(s: CStatus): Boolean {
-    return __koffi_fn_hello_kotlin_c_status_is_err(s.discriminant) != 0u.toUByte()
+actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
+    return __koffi_fn_hello_kotlin_divide(n, d).let { __koffi_result_u32_u8FromC(it) }
+}
+actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
+    return __koffi_fn_hello_kotlin_drink(x).let { __koffi_result___koffi_option_u32_u8FromC(it) }
+}
+actual fun makeStatus(): Status {
+    return __koffi_fn_hello_kotlin_make_status().let { statusFromC(it) }
+}
+actual fun nothing(): UInt? {
+    return __koffi_fn_hello_kotlin_nothing().let { __koffi_option_u32FromC(it) }
+}
+actual fun describeWindow(w: Window): ULong {
+    return __koffi_fn_hello_kotlin_describe_window(w)
+}
+actual fun ride(dance: Dancer?): Dancer? {
+    return __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_DancerToC(dance)).let { __koffi_option___koffi_struct_hello_kotlin_DancerFromC(it) }
+}
+actual fun howLong(seconds: Double?): Double {
+    return __koffi_fn_hello_kotlin_how_long(__koffi_option_f64ToC(seconds))
+}
+actual fun cStatus(): CStatus {
+    return __koffi_fn_hello_kotlin_c_status().let { CStatus.fromDiscriminant(it) }
+}
+actual fun favorite(): UInt? {
+    return __koffi_fn_hello_kotlin_favorite().let { __koffi_option_u32FromC(it) }
+}
+actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
+    return __koffi_fn_hello_kotlin_nominate(x).let { __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromC(it) }
+}
+actual fun mood(): Mood {
+    return __koffi_fn_hello_kotlin_mood().let { moodFromC(it) }
+}
+actual fun statusCode(s: Status): UInt {
+    return __koffi_fn_hello_kotlin_status_code(statusToC(s))
+}
+actual fun paint(color: Boolean?): Boolean {
+    return __koffi_fn_hello_kotlin_paint(__koffi_option_boolToC(color)) != 0u.toUByte()
 }
 actual fun rectArea(r: Rect): Int {
     return __koffi_fn_hello_kotlin_rect_area(rectToC(r))
@@ -306,42 +390,18 @@ actual fun rectArea(r: Rect): Int {
 actual fun moodIsFlying(m: Mood): Boolean {
     return __koffi_fn_hello_kotlin_mood_is_flying(moodToC(m)) != 0u.toUByte()
 }
-actual fun ride(dance: Dancer?): Dancer? {
-    return __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_DancerToC(dance)).let { __koffi_option___koffi_struct_hello_kotlin_DancerFromC(it) }
+actual fun encrypt(secret: SafePacket): SafePacket {
+    return __koffi_fn_hello_kotlin_encrypt(safe_packetToC(secret)).let { safe_packetFromC(it) }
 }
-actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt {
-    return __koffi_fn_hello_kotlin_result_value(__koffi_result_u32_u8ToC(r))
+actual fun maybePayload(show: Boolean): Payload? {
+    return __koffi_fn_hello_kotlin_maybe_payload(show.let { if (it) 1u.toUByte() else 0u.toUByte() }).let { __koffi_option___koffi_struct_hello_kotlin_PayloadFromC(it) }
 }
-actual fun paint(color: Boolean?): Boolean {
-    return __koffi_fn_hello_kotlin_paint(__koffi_option_boolToC(color)) != 0u.toUByte()
-}
-actual fun rectTopLeft(r: Rect): Point {
-    return __koffi_fn_hello_kotlin_rect_top_left(rectToC(r)).let { pointFromC(it) }
-}
-actual fun mood(): Mood {
-    return __koffi_fn_hello_kotlin_mood().let { moodFromC(it) }
-}
-actual fun howLong(seconds: Double?): Double {
-    return __koffi_fn_hello_kotlin_how_long(__koffi_option_f64ToC(seconds))
-}
-actual fun makeStatus(): Status {
-    return __koffi_fn_hello_kotlin_make_status().let { statusFromC(it) }
-}
-actual fun makeRect(): Rect {
-    return __koffi_fn_hello_kotlin_make_rect().let { rectFromC(it) }
+actual fun addOptional(a: UInt, b: UInt?): UInt {
+    return __koffi_fn_hello_kotlin_add_optional(a, __koffi_option_u32ToC(b))
 }
 actual fun hello(): Payload {
     return __koffi_fn_hello_kotlin_hello().let { payloadFromC(it) }
 }
-actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
-    return __koffi_fn_hello_kotlin_nominate(x).let { __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromC(it) }
-}
-actual fun favorite(): UInt? {
-    return __koffi_fn_hello_kotlin_favorite().let { __koffi_option_u32FromC(it) }
-}
-actual fun makeHolder(): StatusHolder {
-    return __koffi_fn_hello_kotlin_make_holder().let { status_holderFromC(it) }
-}
-actual fun statusCode(s: Status): UInt {
-    return __koffi_fn_hello_kotlin_status_code(statusToC(s))
+actual fun rectTopLeft(r: Rect): Point {
+    return __koffi_fn_hello_kotlin_rect_top_left(rectToC(r)).let { pointFromC(it) }
 }
