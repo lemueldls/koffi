@@ -182,15 +182,15 @@ private fun status_holderToBuf(v: StatusHolder): ByteBuffer {
     return buf
 }
 private fun window_pairToWire(v: WindowPair, buf: ByteBuffer) {
-    buf.putLong(0, v.a)
-    buf.putLong(8, v.b)
+    buf.putLong(0, v.a.handle)
+    buf.putLong(8, v.b.handle)
     buf.put(16, v.tag.toByte())
 }
 
 private fun window_pairFromWire(buf: ByteBuffer): WindowPair =
     WindowPair(
-        a = buf.getLong(0),
-        b = buf.getLong(8),
+        a = Window(buf.getLong(0)),
+        b = Window(buf.getLong(8)),
         tag = buf.get(16).toUByte())
 
 private fun window_pairToBuf(v: WindowPair): ByteBuffer {
@@ -494,7 +494,7 @@ actual object HelloKotlinFfi {
 
 
     actual fun helloKotlinWindowDescribe(self: Window): ULong =
-        helloKotlinWindowDescribeImpl(self).toULong()
+        helloKotlinWindowDescribeImpl(self.handle).toULong()
 
     external fun helloKotlinWindowDescribeImpl(
         self: Long,
@@ -578,7 +578,7 @@ actual object HelloKotlinFfi {
 
 
     actual fun helloKotlinWindowRetag(self: Window, id: ULong): ULong =
-        helloKotlinWindowRetagImpl(self, id.toLong()).toULong()
+        helloKotlinWindowRetagImpl(self.handle, id.toLong()).toULong()
 
     external fun helloKotlinWindowRetagImpl(
         self: Long,
@@ -664,7 +664,7 @@ actual object HelloKotlinFfi {
 
 
     actual fun helloKotlinWindowOpen(id: ULong): Window =
-        helloKotlinWindowOpenImpl(id.toLong())
+        helloKotlinWindowOpenImpl(id.toLong()).let { Window(it) }
 
     external fun helloKotlinWindowOpenImpl(
         id: Long,
@@ -751,7 +751,7 @@ actual fun nothing(): UInt? {
     return __koffi_option_u32FromWire(out)
 }
 actual fun describeWindow(w: Window): ULong =
-    HelloKotlinFfi.describeWindowImpl(w).toULong()
+    HelloKotlinFfi.describeWindowImpl(w.handle).toULong()
 actual fun ride(dance: Dancer?): Dancer? {
     val out = allocateWire(12)
     HelloKotlinFfi.rideImpl(__koffi_option___koffi_struct_hello_kotlin_DancerToBuf(dance), out)

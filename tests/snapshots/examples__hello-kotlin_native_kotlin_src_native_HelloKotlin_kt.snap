@@ -124,15 +124,15 @@ private fun status_holderFromC(w: CValue<__koffi_struct_hello_kotlin_StatusHolde
         tag = tag)
 }
 private fun window_pairToC(v: WindowPair): CValue<__koffi_struct_hello_kotlin_WindowPair> = cValue {
-    a = v.a
-    b = v.b
+    a = v.a.handle
+    b = v.b.handle
     tag = v.tag
 }
 
 private fun window_pairFromC(w: CValue<__koffi_struct_hello_kotlin_WindowPair>): WindowPair = w.useContents {
     WindowPair(
-        a = a,
-        b = b,
+        a = a.let { Window(it) },
+        b = b.let { Window(it) },
         tag = tag)
 }
 
@@ -296,7 +296,7 @@ actual object HelloKotlinFfi {
         return __koffi_fn_hello_kotlin_Payload_describe_format()
     }
     actual fun helloKotlinWindowDescribe(self: Window): ULong {
-        return __koffi_fn_hello_kotlin_Window_describe(self)
+        return __koffi_fn_hello_kotlin_Window_describe(self.handle)
     }
     actual fun helloKotlinStatusDescribe(self: Status): UInt {
         return __koffi_fn_hello_kotlin_Status_describe(statusToC(self))
@@ -308,7 +308,7 @@ actual object HelloKotlinFfi {
         return __koffi_fn_hello_kotlin_WindowPair_new(a, b).let { window_pairFromC(it) }
     }
     actual fun helloKotlinWindowRetag(self: Window, id: ULong): ULong {
-        return __koffi_fn_hello_kotlin_Window_retag(self, id)
+        return __koffi_fn_hello_kotlin_Window_retag(self.handle, id)
     }
     actual fun helloKotlinPayloadDescribe(self: Payload): UInt {
         return __koffi_fn_hello_kotlin_Payload_describe(payloadToC(self))
@@ -323,7 +323,7 @@ actual object HelloKotlinFfi {
         return __koffi_fn_hello_kotlin_Status_idle().let { statusFromC(it) }
     }
     actual fun helloKotlinWindowOpen(id: ULong): Window {
-        return __koffi_fn_hello_kotlin_Window_open(id)
+        return __koffi_fn_hello_kotlin_Window_open(id).let { Window(it) }
     }
     actual fun helloKotlinPayloadNew(data: UShort): Payload {
         return __koffi_fn_hello_kotlin_Payload_new(data).let { payloadFromC(it) }
@@ -358,7 +358,7 @@ actual fun nothing(): UInt? {
     return __koffi_fn_hello_kotlin_nothing().let { __koffi_option_u32FromC(it) }
 }
 actual fun describeWindow(w: Window): ULong {
-    return __koffi_fn_hello_kotlin_describe_window(w)
+    return __koffi_fn_hello_kotlin_describe_window(w.handle)
 }
 actual fun ride(dance: Dancer?): Dancer? {
     return __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_DancerToC(dance)).let { __koffi_option___koffi_struct_hello_kotlin_DancerFromC(it) }

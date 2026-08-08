@@ -242,16 +242,16 @@ private fun status_holderFromFfm(segment: MemorySegment): StatusHolder {
 }
 private fun window_pairToFfm(value: WindowPair, arena: Arena): MemorySegment {
     val segment = arena.allocate(__koffi_struct_hello_kotlin_WindowPairLayout)
-    segment.set(ValueLayout.ADDRESS, 0L, MemorySegment.ofAddress(value.a))
-    segment.set(ValueLayout.ADDRESS, 8L, MemorySegment.ofAddress(value.b))
+    segment.set(ValueLayout.ADDRESS, 0L, MemorySegment.ofAddress(value.a.handle))
+    segment.set(ValueLayout.ADDRESS, 8L, MemorySegment.ofAddress(value.b.handle))
     segment.set(ValueLayout.JAVA_BYTE, 16L, value.tag.toByte())
     return segment
 }
 
 private fun window_pairFromFfm(segment: MemorySegment): WindowPair {
     return WindowPair(
-        a = segment.get(ValueLayout.ADDRESS, 0L).address(),
-        b = segment.get(ValueLayout.ADDRESS, 8L).address(),
+        a = Window(segment.get(ValueLayout.ADDRESS, 0L).address()),
+        b = Window(segment.get(ValueLayout.ADDRESS, 8L).address()),
         tag = segment.get(ValueLayout.JAVA_BYTE, 16L).toUByte())
 }
 
@@ -581,7 +581,7 @@ actual object HelloKotlinFfi {
     }
     actual fun helloKotlinWindowDescribe(self: Window): ULong {
         Arena.ofConfined().use { callArena ->
-            val __r = __koffi_fn_hello_kotlin_Window_describe.invokeWithArguments(MemorySegment.ofAddress(self))
+            val __r = __koffi_fn_hello_kotlin_Window_describe.invokeWithArguments(MemorySegment.ofAddress(self.handle))
             return (__r as Long).toULong()
         }
     }
@@ -607,7 +607,7 @@ actual object HelloKotlinFfi {
     }
     actual fun helloKotlinWindowRetag(self: Window, id: ULong): ULong {
         Arena.ofConfined().use { callArena ->
-            val __r = __koffi_fn_hello_kotlin_Window_retag.invokeWithArguments(MemorySegment.ofAddress(self), id.toLong())
+            val __r = __koffi_fn_hello_kotlin_Window_retag.invokeWithArguments(MemorySegment.ofAddress(self.handle), id.toLong())
             return (__r as Long).toULong()
         }
     }
@@ -640,7 +640,7 @@ actual object HelloKotlinFfi {
     actual fun helloKotlinWindowOpen(id: ULong): Window {
         Arena.ofConfined().use { callArena ->
             val __r = __koffi_fn_hello_kotlin_Window_open.invokeWithArguments(id.toLong())
-            return (__r as MemorySegment).address()
+            return Window((__r as MemorySegment).address())
         }
     }
     actual fun helloKotlinPayloadNew(data: UShort): Payload {
@@ -709,7 +709,7 @@ actual fun nothing(): UInt? {
 }
 actual fun describeWindow(w: Window): ULong {
     Arena.ofConfined().use { callArena ->
-        val __r = __koffi_fn_hello_kotlin_describe_window.invokeWithArguments(MemorySegment.ofAddress(w))
+        val __r = __koffi_fn_hello_kotlin_describe_window.invokeWithArguments(MemorySegment.ofAddress(w.handle))
         return (__r as Long).toULong()
     }
 }

@@ -54,7 +54,7 @@ private fun {{ e.to_wire_ident() }}(v: {{ e.name }}, buf: ByteBuffer) {
             {%- when SchemaTypeRef::Enum { discriminant, .. } %}
             buf.{{ discriminant.wire_putter() }}({{ f.offset }}, v.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
             {%- when SchemaTypeRef::Opaque { .. } %}
-            buf.putLong({{ f.offset }}, v.{{ f.kotlin_name() }})
+buf.putLong({{ f.offset }}, v.{{ f.kotlin_name() }}.handle)
             {%- else %}unreachable!()
             {%- endmatch %}
             {%- endif %}
@@ -69,7 +69,7 @@ private fun {{ e.from_wire_ident() }}(buf: ByteBuffer): {{ e.name }} {
     val d = buf.{{ e.discriminant.wire_getter() }}(0){{ e.discriminant.from_ffm_suffix() }}
     return when (d) {
         {%- for v2 in e.variants %}
-        {{ e.discriminant.kotlin_discriminant_literal(v2.discriminant) }} -> {% if v2.placements.is_empty() %}{{ e.name }}.{{ v2.name }}{% else %}{{ e.name }}.{{ v2.name }}({% for f in v2.placements %}{{ f.kotlin_name() }} = {% if f.ty.is_memory_backed() %}{{ f.ty.from_wire_ident() }}(buf.section({{ f.offset }})){% else %}{% match f.ty %}{% when SchemaTypeRef::Scalar(kind) %}{% match kind %}{% when ScalarKind::Bool %}buf.get({{ f.offset }}) != 0.toByte(){% when _ %}buf.{{ kind.wire_getter() }}({{ f.offset }}){{ kind.from_ffm_suffix() }}{% endmatch %}{% when SchemaTypeRef::Enum { discriminant, .. } %}buf.{{ discriminant.wire_getter() }}({{ f.offset }}){{ f.ty.from_ffm_suffix() }}{% when SchemaTypeRef::Opaque { .. } %}buf.getLong({{ f.offset }}){% else %}unreachable!(){% endmatch %}{% endif %}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
+        {{ e.discriminant.kotlin_discriminant_literal(v2.discriminant) }} -> {% if v2.placements.is_empty() %}{{ e.name }}.{{ v2.name }}{% else %}{{ e.name }}.{{ v2.name }}({% for f in v2.placements %}{{ f.kotlin_name() }} = {% if f.ty.is_memory_backed() %}{{ f.ty.from_wire_ident() }}(buf.section({{ f.offset }})){% else %}{% match f.ty %}{% when SchemaTypeRef::Scalar(kind) %}{% match kind %}{% when ScalarKind::Bool %}buf.get({{ f.offset }}) != 0.toByte(){% when _ %}buf.{{ kind.wire_getter() }}({{ f.offset }}){{ kind.from_ffm_suffix() }}{% endmatch %}{% when SchemaTypeRef::Enum { discriminant, .. } %}buf.{{ discriminant.wire_getter() }}({{ f.offset }}){{ f.ty.from_ffm_suffix() }}{% when SchemaTypeRef::Opaque { name, .. } %}{{ name }}(buf.getLong({{ f.offset }})){% else %}unreachable!(){% endmatch %}{% endif %}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
         {%- endfor %}
         else -> error("koffi: invalid {{ e.name }} discriminant $d")
     }
@@ -101,7 +101,7 @@ private fun {{ s.to_wire_ident() }}(v: {{ s.name }}, buf: ByteBuffer) {
     {%- when SchemaTypeRef::Enum { discriminant, .. } %}
     buf.{{ discriminant.wire_putter() }}({{ f.offset }}, v.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
     {%- when SchemaTypeRef::Opaque { .. } %}
-    buf.putLong({{ f.offset }}, v.{{ f.kotlin_name() }})
+    buf.putLong({{ f.offset }}, v.{{ f.kotlin_name() }}.handle)
     {%- else %}unreachable!()
     {%- endmatch %}
     {%- endif %}
@@ -124,8 +124,8 @@ private fun {{ s.from_wire_ident() }}(buf: ByteBuffer): {{ s.name }} =
         {%- endmatch %}
         {%- when SchemaTypeRef::Enum { discriminant, .. } %}
         {{ f.kotlin_name() }} = buf.{{ discriminant.wire_getter() }}({{ f.offset }}){{ f.ty.from_ffm_suffix() }}{% if !loop.last %},{% endif %}
-        {%- when SchemaTypeRef::Opaque { .. } %}
-        {{ f.kotlin_name() }} = buf.getLong({{ f.offset }}){% if !loop.last %},{% endif %}
+        {%- when SchemaTypeRef::Opaque { name, .. } %}
+        {{ f.kotlin_name() }} = {{ name }}(buf.getLong({{ f.offset }})){% if !loop.last %},{% endif %}
         {%- else %}unreachable!()
         {%- endmatch %}
         {%- endif %}
@@ -157,7 +157,7 @@ buf.{{ kind.wire_putter() }}({{ offset }}, {{ expr }}{{ kind.to_ffm_suffix() }})
 {%- when SchemaTypeRef::Enum { discriminant, .. } %}
 buf.{{ discriminant.wire_putter() }}({{ offset }}, {{ expr }}{{ ty.to_ffm_suffix() }})
 {%- when SchemaTypeRef::Opaque { .. } %}
-buf.putLong({{ offset }}, {{ expr }})
+buf.putLong({{ offset }}, {{ expr }}.handle)
 {%- else %}unreachable!()
 {%- endmatch %}
 {%- endif %}
@@ -178,8 +178,8 @@ buf.{{ kind.wire_getter() }}({{ offset }}){{ kind.from_ffm_suffix() }}
 {%- endmatch %}
 {%- when SchemaTypeRef::Enum { discriminant, .. } %}
 buf.{{ discriminant.wire_getter() }}({{ offset }}){{ ty.from_ffm_suffix() }}
-{%- when SchemaTypeRef::Opaque { .. } %}
-buf.getLong({{ offset }})
+{%- when SchemaTypeRef::Opaque { name, .. } %}
+{{ name }}(buf.getLong({{ offset }}))
 {%- else %}unreachable!()
 {%- endmatch %}
 {%- endif %}

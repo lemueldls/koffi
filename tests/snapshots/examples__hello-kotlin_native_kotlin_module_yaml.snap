@@ -6,4 +6,4 @@ expression: "fs::read_to_string(&file)?"
 
 product:
   type: kmp/lib
-  platforms: [jvm, linuxX64]
+  platforms: [jvm, linuxX64, mingwX64]

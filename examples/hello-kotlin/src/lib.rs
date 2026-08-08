@@ -233,10 +233,9 @@ pub fn mood_is_flying(m: Mood) -> bool {
 }
 
 // Opaque handle: `#[facet(opaque)]` keeps the real layout (one `u64`,
-// pointer-sized) but exposes no fields, so koffi marshals it as a Long
-// address. Its methods have no data class to live on, so they stay on the
-// generated Ffi object as `helloKotlinWindowDescribe`,
-// `helloKotlinWindowRetag`, ...
+// pointer-sized) but exposes no fields, so koffi marshals it as an address.
+// The impl block's fns surface on a Kotlin handle class - `Window.open(42)`,
+// `w.describe()`, `w.retag(...)` - instead of the raw Ffi object members.
 #[derive(Facet)]
 #[facet(opaque)]
 pub struct Window {

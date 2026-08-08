@@ -272,7 +272,7 @@ fn is_bare_self(ty: &Type) -> bool {
     matches!(ty, Type::Path(TypePath { qself: None, path, .. }) if path.is_ident("Self"))
 }
 
-/// A span-carrying witness if `sig` could only have compiled inside an///
+/// A span-carrying witness if `sig` could only have compiled inside an
 /// `impl`/`trait` block: it takes a `self` receiver, or `Self` shows up in
 /// a param or the return type. Used by `parse_function` to reject
 /// `#[koffi::export]` applied directly to a method or associated fn. Both

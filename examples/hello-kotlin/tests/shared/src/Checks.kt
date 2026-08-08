@@ -58,7 +58,10 @@ fun runChecks() {
     check("makeHolder().status == Error(42)", holder.status == Status.Error(code = 42u))
     check("makeHolder().tag == 9", holder.tag == 9u.toUByte())
     check("holderStatus(makeHolder()) == Error(42)", holderStatus(holder) == Status.Error(code = 42u))
-    check("holderStatus(StatusHolder(Busy(5), 1u)) == Busy(5)", holderStatus(StatusHolder(Status.Busy(5u), 1u.toUByte())) == Status.Busy(5u))
+    check(
+        "holderStatus(StatusHolder(Busy(5), 1u)) == Busy(5)",
+        holderStatus(StatusHolder(Status.Busy(5u), 1u.toUByte())) == Status.Busy(5u)
+    )
 
     // Struct-typed struct fields: Rect contains two Points.
     val rect = makeRect()
@@ -112,19 +115,20 @@ fun runChecks() {
     check("moodIsFlying(Flying(null)) == false", !moodIsFlying(Mood.Flying(null)))
     check("moodIsFlying(Fine) == false", !moodIsFlying(Mood.Fine))
 
-    // Opaque handle (Window is a Long typealias; its methods live on the
-    // Ffi object, there's no data class for an opaque type).
-    val w = HelloKotlinFfi.helloKotlinWindowOpen(42uL)
-    check("windowOpen(42).describe() == 42", HelloKotlinFfi.helloKotlinWindowDescribe(w) == 42uL)
-    check("windowRetag(w, 99) == 99", HelloKotlinFfi.helloKotlinWindowRetag(w, 99uL) == 99uL)
-    check("description reflects the retag", HelloKotlinFfi.helloKotlinWindowDescribe(w) == 99uL)
+    // Opaque handle: Window is a handle class wrapping the native
+    // address; the impl block's fns surface as instance methods and
+    // companion fns on it.
+    val w = Window.open(42uL)
+    check("Window.open(42).describe() == 42", w.describe() == 42uL)
+    check("Window.retag(w, 99) == 99", w.retag(99uL) == 99uL)
+    check("description reflects the retag", w.describe() == 99uL)
     check("describeWindow(w) == 99", describeWindow(w) == 99uL)
 
     // Opaque nested inside a plain struct: WindowPair carries two handles.
     val pair = WindowPair.new(1uL, 2uL)
     check("WindowPair.new(1,2).tag == 7", pair.tag == 7u.toUByte())
-    check("WindowPair.new(1,2).a.describe() == 1", HelloKotlinFfi.helloKotlinWindowDescribe(pair.a) == 1uL)
-    check("WindowPair.new(1,2).b.describe() == 2", HelloKotlinFfi.helloKotlinWindowDescribe(pair.b) == 2uL)
+    check("WindowPair.new(1,2).a.describe() == 1", pair.a.describe() == 1uL)
+    check("WindowPair.new(1,2).b.describe() == 2", pair.b.describe() == 2uL)
     check("pair.firstDescribe() == 1", pair.firstDescribe() == 1uL)
     check("pair.retagA(w, 42) == 42", pair.retagA(42uL) == 42uL)
 

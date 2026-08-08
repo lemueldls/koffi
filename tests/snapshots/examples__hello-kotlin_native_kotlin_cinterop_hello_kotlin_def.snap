@@ -9,4 +9,7 @@ package = hello_kotlin.cinterop
 staticLibraries = libhello_kotlin_glue.a
 linkerOpts.mingw = -lws2_32 -lntdll -ladvapi32 -lbcrypt -luserenv -lkernel32
 
-libraryPaths = __KOFFI_LIBS__/linuxX64
+
+libraryPaths.linux_x64 = __KOFFI_LIBS__/linuxX64
+
+libraryPaths.mingw_x64 = __KOFFI_LIBS__/mingwX64

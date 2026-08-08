@@ -27,7 +27,7 @@ import java.nio.file.StandardCopyOption
             {%- if f.return_type.is_memory_backed() %}callArena{% if !f.params.is_empty() %}, {% endif %}{%- endif -%}
             {%- for p in f.params -%}
             {%- if !loop.first %}, {% endif -%}
-            {%- if p.ty.is_memory_backed() %}{{ p.name }}Segment{% elif p.ty.is_opaque() %}MemorySegment.ofAddress({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif -%}
+            {%- if p.ty.is_memory_backed() %}{{ p.name }}Segment{% elif p.ty.is_opaque() %}MemorySegment.ofAddress({{ p.name }}.handle){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif -%}
             {%- endfor -%}
         )
         {%- if f.return_type.is_memory_backed() %}
@@ -38,8 +38,8 @@ import java.nio.file.StandardCopyOption
 {{ indent }}        return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
         {%- when SchemaTypeRef::Enum { name, discriminant, .. } %}
 {{ indent }}        return {{ name }}.fromDiscriminant((__r as {{ discriminant.jvm_boxed_type() }}){{ discriminant.from_ffm_suffix() }})
-        {%- when SchemaTypeRef::Opaque { .. } %}
-{{ indent }}        return (__r as MemorySegment).address()
+        {%- when SchemaTypeRef::Opaque { name, .. } %}
+{{ indent }}        return {{ name }}((__r as MemorySegment).address())
         {%- when SchemaTypeRef::Struct { .. } %}
         {# unreachable: is_memory_backed covers structs #}
         {%- when SchemaTypeRef::Option { .. } %}
@@ -60,19 +60,21 @@ import java.nio.file.StandardCopyOption
 {%- if ty.is_memory_backed() -%}
 segment.asSlice({{ offset }}L, {{ ty.kotlin_ffm_value_layout() }}.byteSize()).copyFrom({{ ty.to_ffm_ident() }}({{ expr }}, arena))
 {%- elif ty.is_opaque() -%}
-segment.set({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L, MemorySegment.ofAddress({{ expr }}))
+segment.set({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L, MemorySegment.ofAddress({{ expr }}.handle))
 {%- else -%}
 segment.set({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L, {{ expr }}{{ ty.to_ffm_suffix() }})
 {%- endif -%}
 {%- endmacro -%}
 
 {#~ The read side: `.address()` unwraps the segment the ADDRESS layout
-   hands back into the caller's Long. -#}
+   hands back into the caller's Long, re-wrapped into the handle class. -#}
 {%- macro segment_read_value(ty, offset) -%}
 {%- if ty.is_memory_backed() -%}
 {{ ty.from_ffm_ident() }}(segment.asSlice({{ offset }}L, {{ ty.kotlin_ffm_value_layout() }}.byteSize()))
 {%- elif ty.is_opaque() -%}
-segment.get({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L).address()
+{%- match ty %}
+{%- when SchemaTypeRef::Opaque { name, .. } %}{{ name }}(segment.get({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L).address())
+{%- else %}{% endmatch -%}
 {%- else -%}
 segment.get({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L){{ ty.from_ffm_suffix() }}
 {%- endif -%}

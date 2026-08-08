@@ -29,10 +29,37 @@ sealed class KoffiResult<out Ok, out Err> {
 {%- endmacro -%}
 
 {#~ Opaque Rust types cross the boundary as pointer-sized handles, so the
-   Kotlin side sees a plain `Long` address. The handle own the lifecycle on
-   the native side; copying the Long copies the handle, not the target. -#}
+   Kotlin side wraps the address in a handle class. The constructor is
+   internal: only the marshallers (and this module's code) may mint a
+   handle from a raw address; users get handles from constructor fns and
+   method returns. The class hosts the impl block's methods and companion
+   fns exactly like struct data classes do. The native side owns the
+   lifecycle; copying a handle copies the address, not the target. -#}
 {%- for o in schema.opaques %}
-typealias {{ o.name }} = Long
+class {{ o.name }} internal constructor(
+    internal val handle: Long,
+){% if !schema.functions_of_opaque(o).is_empty() %} {
+{%- for f in schema.functions_of_opaque(o) %}
+{%- if f.has_receiver() %}
+    fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+        {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}(this{% for p in f.params %}{% if !p.is_receiver %}, {{ p.name }}{% endif %}{% endfor %})
+{%- endif %}
+{%- endfor %}
+{%- if schema.has_companion_functions_opaque(o) %}
+
+    companion object {
+{%- for f in schema.functions_of_opaque(o) %}
+{%- if f.is_constructor() || f.is_companion_function() %}
+        operator fun invoke({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
+        fun {{ f.kotlin_name }}({{ kt_params(&f.params) }}): {{ f.return_type.kotlin_type() }} =
+            {{ schema.ffi_object_name() }}.{{ f.ffi_member_name() }}({{ kt_args(&f.params) }})
+{%- endif %}
+{%- endfor %}
+    }
+{%- endif %}
+}
+{%- endif %}
 {%- endfor %}
 
 {%~ for s in schema.structs %}

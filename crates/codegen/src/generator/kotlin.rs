@@ -3,8 +3,8 @@ use heck::{ToLowerCamelCase, ToSnakeCase, ToUpperCamelCase};
 use crate::{
     layout::FieldPlacement,
     schema::{
-        ScalarKind, Schema, SchemaEnum, SchemaField, SchemaFn, SchemaParam, SchemaStruct,
-        SchemaTypeRef, SchemaWrapper, WrapperKind, WrapperMember,
+        ScalarKind, Schema, SchemaEnum, SchemaField, SchemaFn, SchemaOpaque, SchemaParam,
+        SchemaStruct, SchemaTypeRef, SchemaWrapper, WrapperKind, WrapperMember,
     },
 };
 
@@ -101,6 +101,29 @@ impl Schema {
     #[must_use]
     pub fn has_companion_functions(&self, s: &SchemaStruct) -> bool {
         self.functions_of(s).iter().any(|f| !f.has_receiver())
+    }
+
+    /// Every fn whose `parent` is an opaque handle type (methods,
+    /// constructors and companion fns of an `impl o { .. }` block), in
+    /// Rust declaration order. Drives the members of the generated Kotlin
+    /// handle class in common.kt.j2.
+    #[must_use]
+    pub fn functions_of_opaque<'a>(&'a self, o: &'a SchemaOpaque) -> Vec<&'a SchemaFn> {
+        self.functions
+            .iter()
+            .filter(|f| f.parent.as_ref().is_some_and(|p| p.same_opaque(o)))
+            .collect()
+    }
+
+    /// Does `o` have at least one associated fn that isn't an instance
+    /// method (a constructor or an ordinary companion fn)? Drives whether
+    /// common.kt.j2 opens a `companion object { .. }` block at all;
+    /// companion-less classes stay a bare handle wrapper.
+    #[must_use]
+    pub fn has_companion_functions_opaque(&self, o: &SchemaOpaque) -> bool {
+        self.functions_of_opaque(o)
+            .iter()
+            .any(|f| !f.has_receiver())
     }
 
     /// Same as [`Self::has_companion_functions`], for enum impls.
@@ -447,6 +470,7 @@ impl SchemaTypeRef {
     /// fieldless enum contributes its discriminant value, which is the
     /// exact C type of its typedef. Structs, data-carrying enums and
     /// wrappers never use this - they marshal through `toC` `CValue`s.
+    /// Opaque handles unwrap their class to the raw address.
     #[must_use]
     pub fn to_c_suffix(&self) -> String {
         match self {
@@ -457,15 +481,16 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. }
-            | SchemaTypeRef::Opaque { .. } => String::new(),
+            | SchemaTypeRef::Result { .. } => String::new(),
+            SchemaTypeRef::Opaque { .. } => ".handle".to_string(),
         }
     }
 
     /// Suffix turning a C scalar back into a Kotlin value, for the
     /// field-read and return spots in native.kt.j2. Fieldless enums
     /// roundtrip through `fromDiscriminant`; bool narrows back from the
-    /// `uint8_t` it crossed the ABI as.
+    /// `uint8_t` it crossed the ABI as. Opaque handles rewrap the raw
+    /// address into the handle class.
     #[must_use]
     pub fn from_c_suffix(&self) -> String {
         match self {
@@ -478,8 +503,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. }
-            | SchemaTypeRef::Opaque { .. } => String::new(),
+            | SchemaTypeRef::Result { .. } => String::new(),
+            SchemaTypeRef::Opaque { name, .. } => format!(".let {{ {name}(it) }}"),
         }
     }
 
@@ -578,7 +603,8 @@ impl SchemaTypeRef {
     /// parameter-arg spot in ffm.kt.j2. A fieldless enum contributes its
     /// discriminant value (`status.discriminant.toUInt()`-shaped); a
     /// data-carrying enum, a struct, or a wrapper never uses this (they
-    /// go through a segment and `toFfm`).
+    /// go through a segment and `toFfm`). Opaque handles pass their raw
+    /// address.
     #[must_use]
     pub fn to_ffm_suffix(&self) -> String {
         match self {
@@ -593,15 +619,16 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. }
-            | SchemaTypeRef::Opaque { .. } => String::new(),
+            | SchemaTypeRef::Result { .. } => String::new(),
+            SchemaTypeRef::Opaque { .. } => ".handle".to_string(),
         }
     }
 
     /// Suffix turning the boxed FFI scalar back into a Kotlin value, for
-    /// the field-read spot in ffm.kt.j2. Fieldless enums roundtrip through
-    /// `fromDiscriminant`; data-carrying enums, structs and wrappers use
-    /// `fromFfm` on a segment and never hit this.
+    /// the field-read spot in native/ffm.kt.j2. Fieldless enums roundtrip
+    /// through `fromDiscriminant`; data-carrying enums, structs and
+    /// wrappers use `fromFfm` on a segment and never hit this. Opaque
+    /// handles rewrap into the class.
     #[must_use]
     pub fn from_ffm_suffix(&self) -> String {
         match self {
@@ -622,8 +649,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. }
-            | SchemaTypeRef::Opaque { .. } => String::new(),
+            | SchemaTypeRef::Result { .. } => String::new(),
+            SchemaTypeRef::Opaque { name, .. } => format!(".let {{ {name}(it) }}"),
         }
     }
 }

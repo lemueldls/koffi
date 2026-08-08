@@ -12,7 +12,21 @@ sealed class KoffiResult<out Ok, out Err> {
 }
 
 
-typealias Window = Long
+class Window internal constructor(
+    internal val handle: Long,
+) {
+    fun describe(): ULong =
+        HelloKotlinFfi.helloKotlinWindowDescribe(this)
+    fun retag(id: ULong): ULong =
+        HelloKotlinFfi.helloKotlinWindowRetag(this, id)
+
+    companion object {
+        operator fun invoke(id: ULong): Window =
+            HelloKotlinFfi.helloKotlinWindowOpen(id)
+        fun open(id: ULong): Window =
+            HelloKotlinFfi.helloKotlinWindowOpen(id)
+    }
+}
 
 data class Dancer(
     val id: UInt,
