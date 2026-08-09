@@ -11,11 +11,55 @@ package hello_kotlin
 import hello_kotlin.cinterop.*
 import kotlinx.cinterop.*
 
-private fun moodToC(v: Mood): CValue<__koffi_enum_hello_kotlin_Mood> = cValue {
+
+private fun koffiStringToC(v: String, scope: MemScope): CValue<__koffi_string> = cValue {
+    val bytes = v.encodeToByteArray()
+    val content = scope.allocArray<ByteVar>(bytes.size)
+    for (i in bytes.indices) content[i] = bytes[i]
+    ptr = content.reinterpret()
+    len = bytes.size.toULong()
+}
+
+private fun koffiBytesToC(v: ByteArray, scope: MemScope): CValue<__koffi_string> = cValue {
+    val content = scope.allocArray<ByteVar>(v.size)
+    for (i in v.indices) content[i] = v[i]
+    ptr = content.reinterpret()
+    len = v.size.toULong()
+}
+
+private fun koffiStringFromC(w: CValue<__koffi_string>): String = w.useContents {
+    val bytes = ptr!!.readBytes(len.toInt())
+    koffi_free_bytes(ptr, len)
+    bytes.decodeToString()
+}
+
+private fun koffiBytesFromC(w: CValue<__koffi_string>): ByteArray = w.useContents {
+    val bytes = ptr!!.readBytes(len.toInt())
+    koffi_free_bytes(ptr, len)
+    bytes
+}
+
+private fun __koffi_string.fillFromString(s: String, scope: MemScope) {
+    val bytes = s.encodeToByteArray()
+    val content = scope.allocArray<ByteVar>(bytes.size)
+    for (i in bytes.indices) content[i] = bytes[i]
+    ptr = content.reinterpret()
+    len = bytes.size.toULong()
+}
+
+private fun __koffi_string.fillFromBytes(v: ByteArray, scope: MemScope) {
+    val content = scope.allocArray<ByteVar>(v.size)
+    for (i in v.indices) content[i] = v[i]
+    ptr = content.reinterpret()
+    len = v.size.toULong()
+}
+
+
+private fun moodToC(v: Mood, scope: MemScope): CValue<__koffi_enum_hello_kotlin_Mood> = cValue {
     _d = v.discriminant
     when (v) {
         is Mood.Flying -> {
-            __koffi_option_boolToC(v.field0).place(_u.flying.field0.ptr)
+            __koffi_option_boolToC(v.field0, scope).place(_u.flying.field0.ptr)
         }
         else -> {}
     }
@@ -28,7 +72,7 @@ private fun moodFromC(w: CValue<__koffi_enum_hello_kotlin_Mood>): Mood = w.useCo
         else -> error("koffi: invalid Mood discriminant $_d")
     }
 }
-private fun statusToC(v: Status): CValue<__koffi_enum_hello_kotlin_Status> = cValue {
+private fun statusToC(v: Status, scope: MemScope): CValue<__koffi_enum_hello_kotlin_Status> = cValue {
     _d = v.discriminant
     when (v) {
         is Status.Busy -> {
@@ -51,9 +95,9 @@ private fun statusFromC(w: CValue<__koffi_enum_hello_kotlin_Status>): Status = w
     }
 }
 
-private fun dancerToC(v: Dancer): CValue<__koffi_struct_hello_kotlin_Dancer> = cValue {
+private fun dancerToC(v: Dancer, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Dancer> = cValue {
     id = v.id
-    __koffi_option_boolToC(v.active).place(active.ptr)
+    __koffi_option_boolToC(v.active, scope).place(active.ptr)
 }
 
 private fun dancerFromC(w: CValue<__koffi_struct_hello_kotlin_Dancer>): Dancer = w.useContents {
@@ -61,7 +105,27 @@ private fun dancerFromC(w: CValue<__koffi_struct_hello_kotlin_Dancer>): Dancer =
         id = id,
         active = __koffi_option_boolFromC(active.readValue()))
 }
-private fun payloadToC(v: Payload): CValue<__koffi_struct_hello_kotlin_Payload> = cValue {
+private fun greetingToC(v: Greeting, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Greeting> = cValue {
+    name.fillFromString(v.name, scope)
+    blob.fillFromBytes(v.blob, scope)
+}
+
+private fun greetingFromC(w: CValue<__koffi_struct_hello_kotlin_Greeting>): Greeting = w.useContents {
+    Greeting(
+        name = koffiStringFromC(name.readValue()),
+        blob = koffiBytesFromC(blob.readValue()))
+}
+private fun mailToC(v: Mail, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Mail> = cValue {
+    greetingToC(v.greeting, scope).place(greeting.ptr)
+    hops = v.hops
+}
+
+private fun mailFromC(w: CValue<__koffi_struct_hello_kotlin_Mail>): Mail = w.useContents {
+    Mail(
+        greeting = greetingFromC(greeting.readValue()),
+        hops = hops)
+}
+private fun payloadToC(v: Payload, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Payload> = cValue {
     data = v.data
 }
 
@@ -69,7 +133,7 @@ private fun payloadFromC(w: CValue<__koffi_struct_hello_kotlin_Payload>): Payloa
     Payload(
         data = data)
 }
-private fun pointToC(v: Point): CValue<__koffi_struct_hello_kotlin_Point> = cValue {
+private fun pointToC(v: Point, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Point> = cValue {
     x = v.x
     y = v.y
 }
@@ -79,9 +143,9 @@ private fun pointFromC(w: CValue<__koffi_struct_hello_kotlin_Point>): Point = w.
         x = x,
         y = y)
 }
-private fun rectToC(v: Rect): CValue<__koffi_struct_hello_kotlin_Rect> = cValue {
-    pointToC(v.topLeft).place(top_left.ptr)
-    pointToC(v.bottomRight).place(bottom_right.ptr)
+private fun rectToC(v: Rect, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Rect> = cValue {
+    pointToC(v.topLeft, scope).place(top_left.ptr)
+    pointToC(v.bottomRight, scope).place(bottom_right.ptr)
 }
 
 private fun rectFromC(w: CValue<__koffi_struct_hello_kotlin_Rect>): Rect = w.useContents {
@@ -89,8 +153,8 @@ private fun rectFromC(w: CValue<__koffi_struct_hello_kotlin_Rect>): Rect = w.use
         topLeft = pointFromC(top_left.readValue()),
         bottomRight = pointFromC(bottom_right.readValue()))
 }
-private fun safe_packetToC(v: SafePacket): CValue<__koffi_struct_hello_kotlin_SafePacket> = cValue {
-    secret_wireToC(v.secret).place(secret.ptr)
+private fun safe_packetToC(v: SafePacket, scope: MemScope): CValue<__koffi_struct_hello_kotlin_SafePacket> = cValue {
+    secret_wireToC(v.secret, scope).place(secret.ptr)
     hop = v.hop
 }
 
@@ -99,7 +163,7 @@ private fun safe_packetFromC(w: CValue<__koffi_struct_hello_kotlin_SafePacket>):
         secret = secret_wireFromC(secret.readValue()),
         hop = hop)
 }
-private fun secret_wireToC(v: SecretWire): CValue<__koffi_struct_hello_kotlin_SecretWire> = cValue {
+private fun secret_wireToC(v: SecretWire, scope: MemScope): CValue<__koffi_struct_hello_kotlin_SecretWire> = cValue {
     a = v.a
     b = v.b
     c = v.c
@@ -113,8 +177,8 @@ private fun secret_wireFromC(w: CValue<__koffi_struct_hello_kotlin_SecretWire>):
         c = c,
         d = d)
 }
-private fun status_holderToC(v: StatusHolder): CValue<__koffi_struct_hello_kotlin_StatusHolder> = cValue {
-    statusToC(v.status).place(status.ptr)
+private fun status_holderToC(v: StatusHolder, scope: MemScope): CValue<__koffi_struct_hello_kotlin_StatusHolder> = cValue {
+    statusToC(v.status, scope).place(status.ptr)
     tag = v.tag
 }
 
@@ -123,7 +187,7 @@ private fun status_holderFromC(w: CValue<__koffi_struct_hello_kotlin_StatusHolde
         status = statusFromC(status.readValue()),
         tag = tag)
 }
-private fun window_pairToC(v: WindowPair): CValue<__koffi_struct_hello_kotlin_WindowPair> = cValue {
+private fun window_pairToC(v: WindowPair, scope: MemScope): CValue<__koffi_struct_hello_kotlin_WindowPair> = cValue {
     a = v.a.handle
     b = v.b.handle
     tag = v.tag
@@ -136,11 +200,11 @@ private fun window_pairFromC(w: CValue<__koffi_struct_hello_kotlin_WindowPair>):
         tag = tag)
 }
 
-private fun __koffi_option___koffi_struct_hello_kotlin_DancerToC(v: Dancer?): CValue<__koffi_option___koffi_struct_hello_kotlin_Dancer> = cValue {
+private fun __koffi_option___koffi_struct_hello_kotlin_DancerToC(v: Dancer?, scope: MemScope): CValue<__koffi_option___koffi_struct_hello_kotlin_Dancer> = cValue {
     if (v != null) {
         _d = 1.toUByte()
         val inner = v
-        dancerToC(inner).place(_u.some.ptr)
+        dancerToC(inner, scope).place(_u.some.ptr)
     } else {
         _d = 0.toUByte()
     }
@@ -153,11 +217,11 @@ private fun __koffi_option___koffi_struct_hello_kotlin_DancerFromC(c: CValue<__k
         null
     }
 }
-private fun __koffi_option___koffi_struct_hello_kotlin_PayloadToC(v: Payload?): CValue<__koffi_option___koffi_struct_hello_kotlin_Payload> = cValue {
+private fun __koffi_option___koffi_struct_hello_kotlin_PayloadToC(v: Payload?, scope: MemScope): CValue<__koffi_option___koffi_struct_hello_kotlin_Payload> = cValue {
     if (v != null) {
         _d = 1.toUByte()
         val inner = v
-        payloadToC(inner).place(_u.some.ptr)
+        payloadToC(inner, scope).place(_u.some.ptr)
     } else {
         _d = 0.toUByte()
     }
@@ -170,7 +234,7 @@ private fun __koffi_option___koffi_struct_hello_kotlin_PayloadFromC(c: CValue<__
         null
     }
 }
-private fun __koffi_option_boolToC(v: Boolean?): CValue<__koffi_option_bool> = cValue {
+private fun __koffi_option_boolToC(v: Boolean?, scope: MemScope): CValue<__koffi_option_bool> = cValue {
     if (v != null) {
         _d = 1.toUByte()
         val inner = v
@@ -187,7 +251,7 @@ private fun __koffi_option_boolFromC(c: CValue<__koffi_option_bool>): Boolean? =
         null
     }
 }
-private fun __koffi_option_f64ToC(v: Double?): CValue<__koffi_option_f64> = cValue {
+private fun __koffi_option_f64ToC(v: Double?, scope: MemScope): CValue<__koffi_option_f64> = cValue {
     if (v != null) {
         _d = 1.toUByte()
         val inner = v
@@ -204,7 +268,7 @@ private fun __koffi_option_f64FromC(c: CValue<__koffi_option_f64>): Double? = c.
         null
     }
 }
-private fun __koffi_option_u32ToC(v: UInt?): CValue<__koffi_option_u32> = cValue {
+private fun __koffi_option_u32ToC(v: UInt?, scope: MemScope): CValue<__koffi_option_u32> = cValue {
     if (v != null) {
         _d = 1.toUByte()
         val inner = v
@@ -221,12 +285,12 @@ private fun __koffi_option_u32FromC(c: CValue<__koffi_option_u32>): UInt? = c.us
         null
     }
 }
-private fun __koffi_result___koffi_option_u32_u8ToC(v: KoffiResult<UInt?, UByte>): CValue<__koffi_result___koffi_option_u32_u8> = cValue {
+private fun __koffi_result___koffi_option_u32_u8ToC(v: KoffiResult<UInt?, UByte>, scope: MemScope): CValue<__koffi_result___koffi_option_u32_u8> = cValue {
     when (v) {
         is KoffiResult.Ok<*> -> {
             _d = 1.toUByte()
             val inner = (v as KoffiResult.Ok<UInt?>).value
-            __koffi_option_u32ToC(inner).place(_u.ok.ptr)
+            __koffi_option_u32ToC(inner, scope).place(_u.ok.ptr)
         }
         is KoffiResult.Err<*> -> {
             _d = 0.toUByte()
@@ -243,17 +307,17 @@ private fun __koffi_result___koffi_option_u32_u8FromC(c: CValue<__koffi_result__
         KoffiResult.Err(_u.err)
     }
 }
-private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusToC(v: KoffiResult<Payload, Status>): CValue<__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status> = cValue {
+private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusToC(v: KoffiResult<Payload, Status>, scope: MemScope): CValue<__koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status> = cValue {
     when (v) {
         is KoffiResult.Ok<*> -> {
             _d = 1.toUByte()
             val inner = (v as KoffiResult.Ok<Payload>).value
-            payloadToC(inner).place(_u.ok.ptr)
+            payloadToC(inner, scope).place(_u.ok.ptr)
         }
         is KoffiResult.Err<*> -> {
             _d = 0.toUByte()
             val inner = (v as KoffiResult.Err<Status>).error
-            statusToC(inner).place(_u.err.ptr)
+            statusToC(inner, scope).place(_u.err.ptr)
         }
     }
 }
@@ -265,7 +329,7 @@ private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hell
         KoffiResult.Err(statusFromC(_u.err.readValue()))
     }
 }
-private fun __koffi_result_u32_u8ToC(v: KoffiResult<UInt, UByte>): CValue<__koffi_result_u32_u8> = cValue {
+private fun __koffi_result_u32_u8ToC(v: KoffiResult<UInt, UByte>, scope: MemScope): CValue<__koffi_result_u32_u8> = cValue {
     when (v) {
         is KoffiResult.Ok<*> -> {
             _d = 1.toUByte()
@@ -290,118 +354,234 @@ private fun __koffi_result_u32_u8FromC(c: CValue<__koffi_result_u32_u8>): KoffiR
 actual object HelloKotlinFfi {
 
     actual fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong {
-        return __koffi_fn_hello_kotlin_WindowPair_first_describe(window_pairToC(self))
+        return memScoped {
+            __koffi_fn_hello_kotlin_WindowPair_first_describe(window_pairToC(self, this))
+        }
     }
     actual fun helloKotlinPayloadDescribeFormat(): UInt {
-        return __koffi_fn_hello_kotlin_Payload_describe_format()
+        return memScoped {
+            __koffi_fn_hello_kotlin_Payload_describe_format()
+        }
     }
     actual fun helloKotlinWindowDescribe(self: Window): ULong {
-        return __koffi_fn_hello_kotlin_Window_describe(self.handle)
+        return memScoped {
+            __koffi_fn_hello_kotlin_Window_describe(self.handle)
+        }
     }
     actual fun helloKotlinStatusDescribe(self: Status): UInt {
-        return __koffi_fn_hello_kotlin_Status_describe(statusToC(self))
+        return memScoped {
+            __koffi_fn_hello_kotlin_Status_describe(statusToC(self, this))
+        }
     }
     actual fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload {
-        return __koffi_fn_hello_kotlin_Payload_with_data(payloadToC(self), data).let { payloadFromC(it) }
+        return memScoped {
+            __koffi_fn_hello_kotlin_Payload_with_data(payloadToC(self, this), data).let { payloadFromC(it) }
+        }
     }
     actual fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair {
-        return __koffi_fn_hello_kotlin_WindowPair_new(a, b).let { window_pairFromC(it) }
+        return memScoped {
+            __koffi_fn_hello_kotlin_WindowPair_new(a, b).let { window_pairFromC(it) }
+        }
     }
     actual fun helloKotlinWindowRetag(self: Window, id: ULong): ULong {
-        return __koffi_fn_hello_kotlin_Window_retag(self.handle, id)
+        return memScoped {
+            __koffi_fn_hello_kotlin_Window_retag(self.handle, id)
+        }
     }
     actual fun helloKotlinPayloadDescribe(self: Payload): UInt {
-        return __koffi_fn_hello_kotlin_Payload_describe(payloadToC(self))
+        return memScoped {
+            __koffi_fn_hello_kotlin_Payload_describe(payloadToC(self, this))
+        }
     }
     actual fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong {
-        return __koffi_fn_hello_kotlin_WindowPair_retag_a(window_pairToC(self), id)
+        return memScoped {
+            __koffi_fn_hello_kotlin_WindowPair_retag_a(window_pairToC(self, this), id)
+        }
     }
     actual fun helloKotlinStatusNewBusy(code: UInt): Status {
-        return __koffi_fn_hello_kotlin_Status_new_busy(code).let { statusFromC(it) }
+        return memScoped {
+            __koffi_fn_hello_kotlin_Status_new_busy(code).let { statusFromC(it) }
+        }
     }
     actual fun helloKotlinStatusIdle(): Status {
-        return __koffi_fn_hello_kotlin_Status_idle().let { statusFromC(it) }
+        return memScoped {
+            __koffi_fn_hello_kotlin_Status_idle().let { statusFromC(it) }
+        }
     }
     actual fun helloKotlinWindowOpen(id: ULong): Window {
-        return __koffi_fn_hello_kotlin_Window_open(id).let { Window(it) }
+        return memScoped {
+            __koffi_fn_hello_kotlin_Window_open(id).let { Window(it) }
+        }
     }
     actual fun helloKotlinPayloadNew(data: UShort): Payload {
-        return __koffi_fn_hello_kotlin_Payload_new(data).let { payloadFromC(it) }
+        return memScoped {
+            __koffi_fn_hello_kotlin_Payload_new(data).let { payloadFromC(it) }
+        }
     }
 }
 
 actual fun makeHolder(): StatusHolder {
-    return __koffi_fn_hello_kotlin_make_holder().let { status_holderFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_make_holder().let { status_holderFromC(it) }
+    }
 }
 actual fun cStatusIsErr(s: CStatus): Boolean {
-    return __koffi_fn_hello_kotlin_c_status_is_err(s.discriminant) != 0u.toUByte()
+    return memScoped {
+        __koffi_fn_hello_kotlin_c_status_is_err(s.discriminant) != 0u.toUByte()
+    }
+}
+actual fun greet(g: Greeting): String {
+    return memScoped {
+        __koffi_fn_hello_kotlin_greet(greetingToC(g, this)).let { koffiStringFromC(it) }
+    }
+}
+actual fun spanLength(s: String): UInt {
+    return memScoped {
+        __koffi_fn_hello_kotlin_span_length(koffiStringToC(s, this))
+    }
 }
 actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt {
-    return __koffi_fn_hello_kotlin_result_value(__koffi_result_u32_u8ToC(r))
+    return memScoped {
+        __koffi_fn_hello_kotlin_result_value(__koffi_result_u32_u8ToC(r, this))
+    }
 }
 actual fun makeRect(): Rect {
-    return __koffi_fn_hello_kotlin_make_rect().let { rectFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_make_rect().let { rectFromC(it) }
+    }
 }
 actual fun holderStatus(h: StatusHolder): Status {
-    return __koffi_fn_hello_kotlin_holder_status(status_holderToC(h)).let { statusFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_holder_status(status_holderToC(h, this)).let { statusFromC(it) }
+    }
 }
 actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
-    return __koffi_fn_hello_kotlin_divide(n, d).let { __koffi_result_u32_u8FromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_divide(n, d).let { __koffi_result_u32_u8FromC(it) }
+    }
 }
 actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
-    return __koffi_fn_hello_kotlin_drink(x).let { __koffi_result___koffi_option_u32_u8FromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_drink(x).let { __koffi_result___koffi_option_u32_u8FromC(it) }
+    }
 }
 actual fun makeStatus(): Status {
-    return __koffi_fn_hello_kotlin_make_status().let { statusFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_make_status().let { statusFromC(it) }
+    }
+}
+actual fun upgrade(m: Mail): Mail {
+    return memScoped {
+        __koffi_fn_hello_kotlin_upgrade(mailToC(m, this)).let { mailFromC(it) }
+    }
 }
 actual fun nothing(): UInt? {
-    return __koffi_fn_hello_kotlin_nothing().let { __koffi_option_u32FromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_nothing().let { __koffi_option_u32FromC(it) }
+    }
+}
+actual fun echoBytes(b: ByteArray): ByteArray {
+    return memScoped {
+        __koffi_fn_hello_kotlin_echo_bytes(koffiBytesToC(b, this)).let { koffiBytesFromC(it) }
+    }
 }
 actual fun describeWindow(w: Window): ULong {
-    return __koffi_fn_hello_kotlin_describe_window(w.handle)
+    return memScoped {
+        __koffi_fn_hello_kotlin_describe_window(w.handle)
+    }
 }
 actual fun ride(dance: Dancer?): Dancer? {
-    return __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_DancerToC(dance)).let { __koffi_option___koffi_struct_hello_kotlin_DancerFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_DancerToC(dance, this)).let { __koffi_option___koffi_struct_hello_kotlin_DancerFromC(it) }
+    }
 }
 actual fun howLong(seconds: Double?): Double {
-    return __koffi_fn_hello_kotlin_how_long(__koffi_option_f64ToC(seconds))
+    return memScoped {
+        __koffi_fn_hello_kotlin_how_long(__koffi_option_f64ToC(seconds, this))
+    }
 }
 actual fun cStatus(): CStatus {
-    return __koffi_fn_hello_kotlin_c_status().let { CStatus.fromDiscriminant(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_c_status().let { CStatus.fromDiscriminant(it) }
+    }
 }
 actual fun favorite(): UInt? {
-    return __koffi_fn_hello_kotlin_favorite().let { __koffi_option_u32FromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_favorite().let { __koffi_option_u32FromC(it) }
+    }
 }
 actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
-    return __koffi_fn_hello_kotlin_nominate(x).let { __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_nominate(x).let { __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromC(it) }
+    }
 }
 actual fun mood(): Mood {
-    return __koffi_fn_hello_kotlin_mood().let { moodFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_mood().let { moodFromC(it) }
+    }
 }
 actual fun statusCode(s: Status): UInt {
-    return __koffi_fn_hello_kotlin_status_code(statusToC(s))
+    return memScoped {
+        __koffi_fn_hello_kotlin_status_code(statusToC(s, this))
+    }
 }
 actual fun paint(color: Boolean?): Boolean {
-    return __koffi_fn_hello_kotlin_paint(__koffi_option_boolToC(color)) != 0u.toUByte()
+    return memScoped {
+        __koffi_fn_hello_kotlin_paint(__koffi_option_boolToC(color, this)) != 0u.toUByte()
+    }
 }
 actual fun rectArea(r: Rect): Int {
-    return __koffi_fn_hello_kotlin_rect_area(rectToC(r))
+    return memScoped {
+        __koffi_fn_hello_kotlin_rect_area(rectToC(r, this))
+    }
 }
 actual fun moodIsFlying(m: Mood): Boolean {
-    return __koffi_fn_hello_kotlin_mood_is_flying(moodToC(m)) != 0u.toUByte()
+    return memScoped {
+        __koffi_fn_hello_kotlin_mood_is_flying(moodToC(m, this)) != 0u.toUByte()
+    }
 }
 actual fun encrypt(secret: SafePacket): SafePacket {
-    return __koffi_fn_hello_kotlin_encrypt(safe_packetToC(secret)).let { safe_packetFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_encrypt(safe_packetToC(secret, this)).let { safe_packetFromC(it) }
+    }
+}
+actual fun emptyString(): String {
+    return memScoped {
+        __koffi_fn_hello_kotlin_empty_string().let { koffiStringFromC(it) }
+    }
 }
 actual fun maybePayload(show: Boolean): Payload? {
-    return __koffi_fn_hello_kotlin_maybe_payload(show.let { if (it) 1u.toUByte() else 0u.toUByte() }).let { __koffi_option___koffi_struct_hello_kotlin_PayloadFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_maybe_payload(show.let { if (it) 1u.toUByte() else 0u.toUByte() }).let { __koffi_option___koffi_struct_hello_kotlin_PayloadFromC(it) }
+    }
+}
+actual fun takeString(s: String): Boolean {
+    return memScoped {
+        __koffi_fn_hello_kotlin_take_string(koffiStringToC(s, this)) != 0u.toUByte()
+    }
 }
 actual fun addOptional(a: UInt, b: UInt?): UInt {
-    return __koffi_fn_hello_kotlin_add_optional(a, __koffi_option_u32ToC(b))
+    return memScoped {
+        __koffi_fn_hello_kotlin_add_optional(a, __koffi_option_u32ToC(b, this))
+    }
 }
 actual fun hello(): Payload {
-    return __koffi_fn_hello_kotlin_hello().let { payloadFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_hello().let { payloadFromC(it) }
+    }
 }
 actual fun rectTopLeft(r: Rect): Point {
-    return __koffi_fn_hello_kotlin_rect_top_left(rectToC(r)).let { pointFromC(it) }
+    return memScoped {
+        __koffi_fn_hello_kotlin_rect_top_left(rectToC(r, this)).let { pointFromC(it) }
+    }
+}
+actual fun stringPair(a: String, b: String): Boolean {
+    return memScoped {
+        __koffi_fn_hello_kotlin_string_pair(koffiStringToC(a, this), koffiStringToC(b, this)) != 0u.toUByte()
+    }
+}
+actual fun bytesPair(a: ByteArray, b: ByteArray): Boolean {
+    return memScoped {
+        __koffi_fn_hello_kotlin_bytes_pair(koffiBytesToC(a, this), koffiBytesToC(b, this)) != 0u.toUByte()
+    }
 }

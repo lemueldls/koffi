@@ -7,19 +7,72 @@ package {{ schema.kotlin_package() }}
 import {{ schema.kotlin_package() }}.cinterop.*
 import kotlinx.cinterop.*
 
+{% if schema.has_spans() %}
+{#~ Span marshallers (only when the schema uses spans). Args allocate
+   their content in the call's `memScoped` scope, so the pointers stay
+   valid for the call duration; the Rust side copies out of them. Returns
+   read the leaked Rust box, copy out, and release it with the
+   `koffi_free_bytes` export declared in the header. -#}
+private fun koffiStringToC(v: String, scope: MemScope): CValue<__koffi_string> = cValue {
+    val bytes = v.encodeToByteArray()
+    val content = scope.allocArray<ByteVar>(bytes.size)
+    for (i in bytes.indices) content[i] = bytes[i]
+    ptr = content.reinterpret()
+    len = bytes.size.toULong()
+}
+
+private fun koffiBytesToC(v: ByteArray, scope: MemScope): CValue<__koffi_string> = cValue {
+    val content = scope.allocArray<ByteVar>(v.size)
+    for (i in v.indices) content[i] = v[i]
+    ptr = content.reinterpret()
+    len = v.size.toULong()
+}
+
+private fun koffiStringFromC(w: CValue<__koffi_string>): String = w.useContents {
+    val bytes = ptr!!.readBytes(len.toInt())
+    koffi_free_bytes(ptr, len)
+    bytes.decodeToString()
+}
+
+private fun koffiBytesFromC(w: CValue<__koffi_string>): ByteArray = w.useContents {
+    val bytes = ptr!!.readBytes(len.toInt())
+    koffi_free_bytes(ptr, len)
+    bytes
+}
+
+private fun __koffi_string.fillFromString(s: String, scope: MemScope) {
+    val bytes = s.encodeToByteArray()
+    val content = scope.allocArray<ByteVar>(bytes.size)
+    for (i in bytes.indices) content[i] = bytes[i]
+    ptr = content.reinterpret()
+    len = bytes.size.toULong()
+}
+
+private fun __koffi_string.fillFromBytes(v: ByteArray, scope: MemScope) {
+    val content = scope.allocArray<ByteVar>(v.size)
+    for (i in v.indices) content[i] = v[i]
+    ptr = content.reinterpret()
+    len = v.size.toULong()
+}
+{% endif %}
+
 {#~ The `actual fun` for one exported fn, rendered both inside the object
    (parent-having fns) and at top level (free fns); the body is identical,
    only the name differs, and `indent` carries the call site's indentation.
    Top-level actuals still reach the marshallers below: they're top-level
    `private`, and file-private is the only visibility that reaches both
-   call sites. -#}
+   call sites. The call runs inside `memScoped`: span args allocate their
+   content there so it stays alive for the call and is released when the
+   scope closes. -#}
 {%- macro native_fn(f, member_name, indent) -%}
 {{ indent }}actual fun {{ member_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
-{{ indent }}    return {{ f.c_abi_symbol() }}(
+{{ indent }}    return memScoped {
+{{ indent }}        {{ f.c_abi_symbol() }}(
         {%- for p in f.params %}
-        {%- if p.ty.is_memory_backed() %}{{ p.ty.to_c_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_c_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}
+        {%- if p.ty.is_memory_backed() %}{{ p.ty.to_c_ident() }}({{ p.name }}, this){% else %}{{ p.name }}{{ p.ty.to_c_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}
         {%- endfor -%}
-    ){% if f.return_type.is_memory_backed() %}.let { {{ f.return_type.from_c_ident() }}(it) }{% else %}{{ f.return_type.from_c_suffix() }}{% endif %}
+        ){% if f.return_type.is_memory_backed() %}.let { {{ f.return_type.from_c_ident() }}(it) }{% else %}{{ f.return_type.from_c_suffix() }}{% endif %}
+{{ indent }}    }
 {{ indent }}}
 {%- endmacro -%}
 
@@ -29,14 +82,14 @@ import kotlinx.cinterop.*
    fieldless ones cross the ABI as their plain discriminant scalar,
    identity with the C typedef. -#}
 {%~ for e in schema.enums %}{% if e.has_data %}
-private fun {{ e.to_c_ident() }}(v: {{ e.name }}): CValue<{{ e.unique_ident() }}> = cValue {
+private fun {{ e.to_c_ident() }}(v: {{ e.name }}, scope: MemScope): CValue<{{ e.unique_ident() }}> = cValue {
     _d = v.discriminant
     when (v) {
         {%- for v2 in e.variants %}{% if !v2.placements.is_empty() %}
         is {{ e.name }}.{{ v2.name }} -> {
             {%- for f in v2.placements %}
             {%- if f.ty.is_memory_backed() %}
-            {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}).place(_u.{{ e.variant_wire_name(v2) }}.{{ f.name }}.ptr)
+            {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}, scope).place(_u.{{ e.variant_wire_name(v2) }}.{{ f.name }}.ptr)
             {%- else %}
             _u.{{ e.variant_wire_name(v2) }}.{{ f.name }} = v.{{ f.kotlin_name() }}{{ f.ty.to_c_suffix() }}
             {%- endif %}
@@ -62,10 +115,12 @@ private fun {{ e.from_c_ident() }}(w: CValue<{{ e.unique_ident() }}>): {{ e.name
    declarations don't have the declaration-order constraint that `val`
    properties do, so the iteration order here doesn't matter. -#}
 {%~ for s in schema.structs %}
-private fun {{ s.to_c_ident() }}(v: {{ s.name }}): CValue<{{ s.unique_ident() }}> = cValue {
+private fun {{ s.to_c_ident() }}(v: {{ s.name }}, scope: MemScope): CValue<{{ s.unique_ident() }}> = cValue {
     {%- for f in s.fields %}
-    {%- if f.ty.is_memory_backed() %}
-    {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}).place({{ f.name }}.ptr)
+    {%- if f.ty.is_span() %}
+    {{ f.name }}.{{ f.ty.span_member_name() }}(v.{{ f.kotlin_name() }}, scope)
+    {%- elif f.ty.is_memory_backed() %}
+    {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}, scope).place({{ f.name }}.ptr)
     {%- else %}
     {{ f.name }} = v.{{ f.kotlin_name() }}{{ f.ty.to_c_suffix() }}
     {%- endif %}
@@ -89,13 +144,13 @@ private fun {{ s.from_c_ident() }}(w: CValue<{{ s.unique_ident() }}>): {{ s.name
    under `_u`. Memory-backed inners recurse through their own `toC`/`fromC`
    helpers into the union member. -#}
 {%~ for w in schema.wrappers %}
-private fun {{ w.to_c_ident() }}(v: {{ w.kotlin_type() }}): CValue<{{ w.unique_ident }}> = cValue {
+private fun {{ w.to_c_ident() }}(v: {{ w.kotlin_type() }}, scope: MemScope): CValue<{{ w.unique_ident }}> = cValue {
     {%- if w.is_option() %}
     if (v != null) {
         _d = 1.toUByte()
         val inner = v
         {%- if w.some().ty.is_memory_backed() %}
-        {{ w.some().ty.to_c_ident() }}(inner).place(_u.some.ptr)
+        {{ w.some().ty.to_c_ident() }}(inner, scope).place(_u.some.ptr)
         {%- else %}
         _u.some = inner{{ w.some().ty.to_c_suffix() }}
         {%- endif %}
@@ -108,7 +163,7 @@ private fun {{ w.to_c_ident() }}(v: {{ w.kotlin_type() }}): CValue<{{ w.unique_i
             _d = 1.toUByte()
             val inner = (v as KoffiResult.Ok<{{ w.ok().ty.kotlin_type() }}>).value
             {%- if w.ok().ty.is_memory_backed() %}
-            {{ w.ok().ty.to_c_ident() }}(inner).place(_u.ok.ptr)
+            {{ w.ok().ty.to_c_ident() }}(inner, scope).place(_u.ok.ptr)
             {%- else %}
             _u.ok = inner{{ w.ok().ty.to_c_suffix() }}
             {%- endif %}
@@ -117,7 +172,7 @@ private fun {{ w.to_c_ident() }}(v: {{ w.kotlin_type() }}): CValue<{{ w.unique_i
             _d = 0.toUByte()
             val inner = (v as KoffiResult.Err<{{ w.err().ty.kotlin_type() }}>).error
             {%- if w.err().ty.is_memory_backed() %}
-            {{ w.err().ty.to_c_ident() }}(inner).place(_u.err.ptr)
+            {{ w.err().ty.to_c_ident() }}(inner, scope).place(_u.err.ptr)
             {%- else %}
             _u.err = inner{{ w.err().ty.to_c_suffix() }}
             {%- endif %}

@@ -5,18 +5,67 @@
 use crate::types::*;
 
 use jni::objects::{JByteBuffer, JObject};
-use jni::sys::{jboolean, jbyte, jdouble, jfloat, jint, jlong, jshort};
+use jni::sys::{jboolean, jbyte, jbyteArray, jdouble, jfloat, jint, jlong, jshort, jstring};
 
-{#~ One call argument. Opaque handles arrive as jlongs: a receiver is
-   dereferenced and reborrowed (the `&`/`&mut` is taken inside the unsafe
-   block, since the wrapper below would otherwise move the non-Copy value
-   out of the raw pointer) and a by-value handle is read out with
-   `ptr::read`. -#}
+{#~ One call argument. Memory-backed params are read off the direct buffer,
+   opaque handles re-borrow the leaked pointer, spans reference the prelude
+   locals below (`__call_<param>`): owned ones are moved in, borrowed ones
+   re-borrow the recovered copy. -#}
 {%- macro call_args(f) -%}
 {%- for p in f.params %}
-{% if p.is_receiver %}{% if !p.ty.is_opaque() %}&{% if p.is_mut_receiver %}mut {% endif %}({% endif %}{% endif %}{% if p.ty.is_memory_backed() %}unsafe { (env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *const {{ p.ty.unique_ident() }}).read() }.into(){% else %}{% match p.ty %}{% when SchemaTypeRef::Scalar(kind) %}(p_{{ p.c_abi_symbol() }} as {{ kind.rust_type_name() }}).into(){% when SchemaTypeRef::Enum { discriminant, .. } %}unsafe { std::mem::transmute::<{{ discriminant.jni_type() }}, {{ p.ty.unique_ident() }}>(p_{{ p.c_abi_symbol() }}) }.into(){% when SchemaTypeRef::Opaque { .. } %}{% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *(p_{{ p.c_abi_symbol() }} as usize as *mut {{ p.ty.rust_absolute_path() }}) }{% else %}unsafe { &*(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unsafe { std::ptr::read(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unreachable!(){% endmatch %}{% endif %}{% if p.is_receiver %}{% if !p.ty.is_opaque() %}){% endif %}{% endif %}{% if !loop.last %},{% endif %}
+{% if p.is_receiver %}{% if !p.ty.is_opaque() %}&{% if p.is_mut_receiver %}mut {% endif %}({% endif %}{% endif %}{% if p.ty.is_span() %}{% match p.ty %}{% when SchemaTypeRef::String %}__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::Str %}&__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::Bytes %}__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::ByteSlice %}&__call_{{ p.c_abi_symbol() }}[..]{% else %}unreachable!(){% endmatch %}{% elif p.ty.is_memory_backed() %}unsafe { (env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *const {{ p.ty.unique_ident() }}).read() }.into(){% else %}{% match p.ty %}{% when SchemaTypeRef::Scalar(kind) %}(p_{{ p.c_abi_symbol() }} as {{ kind.rust_type_name() }}).into(){% when SchemaTypeRef::Enum { discriminant, .. } %}unsafe { std::mem::transmute::<{{ discriminant.jni_type() }}, {{ p.ty.unique_ident() }}>(p_{{ p.c_abi_symbol() }}) }.into(){% when SchemaTypeRef::Opaque { .. } %}{% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *(p_{{ p.c_abi_symbol() }} as usize as *mut {{ p.ty.rust_absolute_path() }}) }{% else %}unsafe { &*(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unsafe { std::ptr::read(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unreachable!(){% endmatch %}{% endif %}{% if p.is_receiver %}{% if !p.ty.is_opaque() %}){% endif %}{% endif %}{% if !loop.last %},{% endif %}
 {%- endfor -%}
 {%- endmacro -%}
+
+{#~ Recover an owned copy of a Java byte array: the JVM owns the payload,
+   nobody else may touch the JNI memory it points into. -#}
+{%- if schema.has_spans() %}
+fn recover_bytes<'c>(
+    env: &jni::Env<'c>,
+    array: &jni::objects::JByteArray<'c>,
+) -> jni::errors::Result<std::vec::Vec<u8>> {
+    let len = array.len(env)?;
+    let mut region: Vec<jni::sys::jbyte> = vec![0; len];
+    array.get_region(env, 0, &mut region)?;
+    Ok(region.into_iter().map(|b| b as u8).collect())
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn {{ schema.jni_symbol_for("koffiReadBytes") }}<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    ptr: jlong,
+    len: jlong,
+    out: jni::objects::JByteArray<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let src = ptr as usize as *const u8;
+        let mut buf: Vec<jni::sys::jbyte> = vec![0; len as usize];
+        // SAFETY: `ptr` comes from the leaked span Rust produced for exactly
+        // `len` bytes; `koffiFreeBytes` releases it right after this call.
+        unsafe { std::ptr::copy_nonoverlapping(src, buf.as_mut_ptr() as *mut u8, len as usize) };
+        out.set_region(&env, 0, &buf)?;
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn {{ schema.jni_symbol_for("koffiFreeBytes") }}<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    ptr: jlong,
+    len: jlong,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        crate::cabi::koffi_free_bytes(ptr as *mut u8, len as usize);
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+{%- endif %}
 
 {%~ for f in schema.functions %}
 #[unsafe(no_mangle)]
@@ -24,17 +73,42 @@ pub unsafe extern "system" fn {{ f.jni_symbol(schema) }}<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
     {%- for p in f.params %}
-    {%- if p.ty.is_memory_backed() %}
+    {%- if p.ty.is_span() %}
+    p_{{ p.c_abi_symbol() }}: {% if p.ty.is_string() %}jni::objects::JString<'c>{% else %}jni::objects::JByteArray<'c>{% endif %},
+    {%- elif p.ty.is_memory_backed() %}
     p_{{ p.c_abi_symbol() }}: JByteBuffer<'c>,
     {%- else %}
     p_{{ p.c_abi_symbol() }}: {{ p.ty.jni_type() }},
     {%- endif %}
     {%- endfor %}
-    {%- if f.return_type.is_memory_backed() %}
+    {%- if !f.return_type.is_span() && f.return_type.is_memory_backed() %}
     out: JByteBuffer<'c>,
     {%- endif %}
-) -> {% if f.return_type.is_memory_backed() %}jint{% else %}{{ f.return_type.jni_type() }}{% endif %} {
+) -> {% if f.return_type.is_span() %}{{ f.return_type.jni_type() }}{% elif f.return_type.is_memory_backed() %}jint{% else %}{{ f.return_type.jni_type() }}{% endif %} {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        {%- for p in f.params %}
+        {%- if p.ty.is_span() %}
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_{{ p.c_abi_symbol() }} = {% if p.ty.is_string() %}p_{{ p.c_abi_symbol() }}.try_to_string(env)?{% else %}recover_bytes(env, &p_{{ p.c_abi_symbol() }})?{% endif %};
+        {%- endif %}
+        {%- endfor %}
+        {%- for p in f.params %}
+        {%- if !p.ty.is_span() && p.ty.is_memory_backed() %}
+        {%- let slots = schema.span_slot_offsets(&p.ty) %}
+        {%- if !slots.is_empty() %}
+        // Kotlin wrote each embedded span's pointer slot as a byte offset
+        // into the wire blob; re-point them at the direct buffer so the
+        // `.into()`s below read the right spans.
+        unsafe {
+            let base = env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *mut u8;
+            {%- for off in slots %}
+            *(base.add({{ off }}) as *mut usize) = base as usize + *(base.add({{ off }}) as *const usize);
+            {%- endfor %}
+        }
+        {%- endif %}
+        {%- endif %}
+        {%- endfor %}
         {%- if f.return_type.is_opaque() %}
         // The returned handle is leaked on purpose, same contract as the
         // opaque From impls in types.rs: the caller owns it.
@@ -44,6 +118,16 @@ pub unsafe extern "system" fn {{ f.jni_symbol(schema) }}<'c>(
             ))) as *mut {{ f.return_type.rust_absolute_path() }};
 
         Ok(v as usize as jlong)
+        {%- elif f.return_type.is_span() %}
+        let v: {{ f.return_type.rust_absolute_path() }} = {{ f.rust_absolute_path() }}(
+            {{- call_args(&f) }}
+        );
+
+        {%- if f.return_type.is_string() %}
+        Ok(env.new_string(&v)?.into_raw())
+        {%- else %}
+        Ok(env.byte_array_from_slice(&v)?.into_raw())
+        {%- endif %}
         {%- elif f.return_type.is_memory_backed() %}
         let v: {{ f.return_type.unique_ident() }} = {{ f.rust_absolute_path() }}(
             {{- call_args(&f) }}

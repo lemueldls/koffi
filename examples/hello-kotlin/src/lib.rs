@@ -346,3 +346,64 @@ pub fn encrypt(secret: SafePacket) -> SafePacket {
         hop: secret.hop + 1,
     }
 }
+
+// Spans: String/Vec<u8> cross as owned byte buffers, &str/&[u8] as
+// borrows (params only). Structs hold owned spans; the owned/borrowed
+// split only shapes the marshallers, never the Kotlin types.
+#[derive(Facet)]
+pub struct Greeting {
+    pub name: String,
+    pub blob: Vec<u8>,
+}
+
+#[derive(Facet)]
+pub struct Mail {
+    pub greeting: Greeting,
+    pub hops: u32,
+}
+
+#[koffi::export]
+pub fn greet(g: Greeting) -> String {
+    g.name
+}
+
+#[koffi::export]
+pub fn echo_bytes(b: Vec<u8>) -> Vec<u8> {
+    b
+}
+
+#[koffi::export]
+pub fn string_pair(a: String, b: &str) -> bool {
+    a == b
+}
+
+#[koffi::export]
+pub fn bytes_pair(a: Vec<u8>, b: &[u8]) -> bool {
+    a == b
+}
+
+#[koffi::export]
+pub fn span_length(s: String) -> u32 {
+    s.len() as u32
+}
+
+#[koffi::export]
+pub fn empty_string() -> String {
+    String::new()
+}
+
+#[koffi::export]
+pub fn take_string(s: String) -> bool {
+    s == "koffi"
+}
+
+#[koffi::export]
+pub fn upgrade(m: Mail) -> Mail {
+    Mail {
+        greeting: Greeting {
+            name: format!("{}!", m.greeting.name),
+            blob: m.greeting.blob,
+        },
+        hops: m.hops + 1,
+    }
+}

@@ -168,6 +168,11 @@ impl SchemaTypeRef {
                     err.unique_ident()
                 )
             }
+            // All four span flavors share one wire struct, `__koffi_string`.
+            SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => "__koffi_string".to_string(),
         }
     }
 
@@ -197,6 +202,11 @@ impl SchemaTypeRef {
                     err.rust_absolute_path()
                 )
             }
+            // The real Rust type each span wire struct converts into.
+            SchemaTypeRef::String => "::std::string::String".to_string(),
+            SchemaTypeRef::Str => "&str".to_string(),
+            SchemaTypeRef::Bytes => "::std::vec::Vec<u8>".to_string(),
+            SchemaTypeRef::ByteSlice => "&[u8]".to_string(),
         }
     }
 }

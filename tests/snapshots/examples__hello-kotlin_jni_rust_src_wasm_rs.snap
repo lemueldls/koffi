@@ -19,6 +19,14 @@ pub fn cStatusIsErr(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
+pub fn greet(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn spanLength(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
 pub fn firstDescribe(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
@@ -55,7 +63,15 @@ pub fn describe(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
+pub fn upgrade(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
 pub fn nothing(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn echoBytes(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
@@ -139,6 +155,10 @@ pub fn encrypt(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
+pub fn emptyString(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
 pub fn open(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
@@ -151,6 +171,10 @@ pub fn new(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 #[wasm_bindgen]
+pub fn takeString(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
 pub fn addOptional(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
@@ -160,5 +184,13 @@ pub fn hello(/* TODO: wasm-bindgen-compatible params */) -> ! {
 }
 #[wasm_bindgen]
 pub fn rectTopLeft(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn stringPair(/* TODO: wasm-bindgen-compatible params */) -> ! {
+    todo!("wasm-bindgen marshaling: see the scope note above")
+}
+#[wasm_bindgen]
+pub fn bytesPair(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }

@@ -8,6 +8,44 @@ expression: "fs::read_to_string(&file)?"
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct __koffi_string {
+    pub ptr: *mut u8,
+    pub len: usize,
+}
+
+impl From<__koffi_string> for ::std::string::String {
+    fn from(w: __koffi_string) -> Self {
+        // The bytes are UTF-8 by contract (both sides agree), so skip the
+        // validity check. The copy is the point: the caller keeps owning
+        // the span storage.
+        unsafe { ::std::string::String::from_utf8_unchecked(::std::slice::from_raw_parts(w.ptr, w.len).to_vec()) }
+    }
+}
+
+impl From<__koffi_string> for std::vec::Vec<u8> {
+    fn from(w: __koffi_string) -> Self {
+        unsafe { ::std::slice::from_raw_parts(w.ptr, w.len).to_vec() }
+    }
+}
+
+impl From<::std::string::String> for __koffi_string {
+    fn from(v: ::std::string::String) -> Self {
+        let boxed = v.into_bytes().into_boxed_slice();
+        let len = boxed.len();
+        Self { ptr: ::std::boxed::Box::into_raw(boxed) as *mut u8, len }
+    }
+}
+
+impl From<std::vec::Vec<u8>> for __koffi_string {
+    fn from(v: std::vec::Vec<u8>) -> Self {
+        let boxed = v.into_boxed_slice();
+        let len = boxed.len();
+        Self { ptr: ::std::boxed::Box::into_raw(boxed) as *mut u8, len }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct __koffi_opaque_hello_kotlin_Window {
     pub addr: *mut (),
 }
@@ -47,6 +85,54 @@ impl From<::hello_kotlin::Dancer> for __koffi_struct_hello_kotlin_Dancer {
         Self {
             id: v.id.into(),
             active: v.active.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_Greeting {
+    pub name: __koffi_string,
+    pub blob: __koffi_string,
+}
+
+impl From<__koffi_struct_hello_kotlin_Greeting> for ::hello_kotlin::Greeting {
+    fn from(c: __koffi_struct_hello_kotlin_Greeting) -> Self {
+        Self {
+            name: c.name.into(),
+            blob: c.blob.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::Greeting> for __koffi_struct_hello_kotlin_Greeting {
+    fn from(v: ::hello_kotlin::Greeting) -> Self {
+        Self {
+            name: v.name.into(),
+            blob: v.blob.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_Mail {
+    pub greeting: __koffi_struct_hello_kotlin_Greeting,
+    pub hops: u32,
+}
+
+impl From<__koffi_struct_hello_kotlin_Mail> for ::hello_kotlin::Mail {
+    fn from(c: __koffi_struct_hello_kotlin_Mail) -> Self {
+        Self {
+            greeting: c.greeting.into(),
+            hops: c.hops.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::Mail> for __koffi_struct_hello_kotlin_Mail {
+    fn from(v: ::hello_kotlin::Mail) -> Self {
+        Self {
+            greeting: v.greeting.into(),
+            hops: v.hops.into(),
         }
     }
 }

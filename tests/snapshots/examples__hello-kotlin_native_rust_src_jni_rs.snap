@@ -9,7 +9,53 @@ expression: "fs::read_to_string(&file)?"
 use crate::types::*;
 
 use jni::objects::{JByteBuffer, JObject};
-use jni::sys::{jboolean, jbyte, jdouble, jfloat, jint, jlong, jshort};
+use jni::sys::{jboolean, jbyte, jbyteArray, jdouble, jfloat, jint, jlong, jshort, jstring};
+
+fn recover_bytes<'c>(
+    env: &jni::Env<'c>,
+    array: &jni::objects::JByteArray<'c>,
+) -> jni::errors::Result<std::vec::Vec<u8>> {
+    let len = array.len(env)?;
+    let mut region: Vec<jni::sys::jbyte> = vec![0; len];
+    array.get_region(env, 0, &mut region)?;
+    Ok(region.into_iter().map(|b| b as u8).collect())
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiReadBytes<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    ptr: jlong,
+    len: jlong,
+    out: jni::objects::JByteArray<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let src = ptr as usize as *const u8;
+        let mut buf: Vec<jni::sys::jbyte> = vec![0; len as usize];
+        // SAFETY: `ptr` comes from the leaked span Rust produced for exactly
+        // `len` bytes; `koffiFreeBytes` releases it right after this call.
+        unsafe { std::ptr::copy_nonoverlapping(src, buf.as_mut_ptr() as *mut u8, len as usize) };
+        out.set_region(&env, 0, &buf)?;
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiFreeBytes<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    ptr: jlong,
+    len: jlong,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        crate::cabi::koffi_free_bytes(ptr as *mut u8, len as usize);
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeHolderImpl<'c>(
@@ -40,6 +86,48 @@ unsafe { std::mem::transmute::<jint, __koffi_enum_hello_kotlin_CStatus>(p_s) }.i
         ).into();
 
         Ok(v as jboolean)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_greetImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_g: JByteBuffer<'c>,
+) -> jstring {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Kotlin wrote each embedded span's pointer slot as a byte offset
+        // into the wire blob; re-point them at the direct buffer so the
+        // `.into()`s below read the right spans.
+        unsafe {
+            let base = env.get_direct_buffer_address(&p_g)? as *mut u8;
+            *(base.add(0) as *mut usize) = base as usize + *(base.add(0) as *const usize);
+            *(base.add(16) as *mut usize) = base as usize + *(base.add(16) as *const usize);
+        }
+        let v: ::std::string::String = ::hello_kotlin::greet(
+unsafe { (env.get_direct_buffer_address(&p_g)? as *const __koffi_struct_hello_kotlin_Greeting).read() }.into()
+        );
+        Ok(env.new_string(&v)?.into_raw())
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_spanLengthImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_s: jni::objects::JString<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_s = p_s.try_to_string(env)?;
+        let v: u32 = ::hello_kotlin::span_length(
+__call_s
+        ).into();
+
+        Ok(v as jint)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -200,6 +288,33 @@ unsafe { &*(p_self as usize as *const ::hello_kotlin::Window) }
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_upgradeImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_m: JByteBuffer<'c>,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Kotlin wrote each embedded span's pointer slot as a byte offset
+        // into the wire blob; re-point them at the direct buffer so the
+        // `.into()`s below read the right spans.
+        unsafe {
+            let base = env.get_direct_buffer_address(&p_m)? as *mut u8;
+            *(base.add(0) as *mut usize) = base as usize + *(base.add(0) as *const usize);
+            *(base.add(16) as *mut usize) = base as usize + *(base.add(16) as *const usize);
+        }
+        let v: __koffi_struct_hello_kotlin_Mail = ::hello_kotlin::upgrade(
+unsafe { (env.get_direct_buffer_address(&p_m)? as *const __koffi_struct_hello_kotlin_Mail).read() }.into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Mail;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_nothingImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
@@ -212,6 +327,24 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_nothingImpl<'c>(
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option_u32;
         unsafe { ptr.write(v) };
         Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_echoBytesImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_b: jni::objects::JByteArray<'c>,
+) -> jbyteArray {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_b = recover_bytes(env, &p_b)?;
+        let v: ::std::vec::Vec<u8> = ::hello_kotlin::echo_bytes(
+__call_b
+        );
+        Ok(env.byte_array_from_slice(&v)?.into_raw())
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -564,6 +697,19 @@ unsafe { (env.get_direct_buffer_address(&p_secret)? as *const __koffi_struct_hel
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_emptyStringImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+) -> jstring {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: ::std::string::String = ::hello_kotlin::empty_string(
+        );
+        Ok(env.new_string(&v)?.into_raw())
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindowOpenImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
@@ -621,6 +767,25 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPaylo
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_takeStringImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_s: jni::objects::JString<'c>,
+) -> jboolean {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_s = p_s.try_to_string(env)?;
+        let v: bool = ::hello_kotlin::take_string(
+__call_s
+        ).into();
+
+        Ok(v as jboolean)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_addOptionalImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
@@ -670,6 +835,54 @@ unsafe { (env.get_direct_buffer_address(&p_r)? as *const __koffi_struct_hello_ko
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Point;
         unsafe { ptr.write(v) };
         Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_stringPairImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_a: jni::objects::JString<'c>,
+    p_b: jni::objects::JString<'c>,
+) -> jboolean {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_a = p_a.try_to_string(env)?;
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_b = p_b.try_to_string(env)?;
+        let v: bool = ::hello_kotlin::string_pair(
+__call_a,
+&__call_b
+        ).into();
+
+        Ok(v as jboolean)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_bytesPairImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_a: jni::objects::JByteArray<'c>,
+    p_b: jni::objects::JByteArray<'c>,
+) -> jboolean {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_a = recover_bytes(env, &p_a)?;
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_b = recover_bytes(env, &p_b)?;
+        let v: bool = ::hello_kotlin::bytes_pair(
+__call_a,
+&__call_b[..]
+        ).into();
+
+        Ok(v as jboolean)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()

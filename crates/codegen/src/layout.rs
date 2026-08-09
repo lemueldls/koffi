@@ -87,6 +87,12 @@ pub fn layout_of(
         // Opaque handles are exactly pointer-sized (enforced when the schema
         // is built), so the layout is a constant.
         SchemaTypeRef::Opaque { .. } => Ok(Layout { size: 8, align: 8 }),
+        // All four span flavors share one repr(C) wire struct: a pointer
+        // and a u64 length, 16 bytes aligned to 8.
+        SchemaTypeRef::String
+        | SchemaTypeRef::Str
+        | SchemaTypeRef::Bytes
+        | SchemaTypeRef::ByteSlice => Ok(Layout { size: 16, align: 8 }),
     }
 }
 
@@ -294,6 +300,12 @@ fn kotlin_value_layout_name(
         }
         // Opaque handles cross as raw addresses.
         SchemaTypeRef::Opaque { .. } => Ok("ValueLayout.ADDRESS".to_string()),
+        // Spans use the shared `__koffi_stringLayout` constant that
+        // ffm.kt.j2 emits exactly once when the schema uses any span type.
+        SchemaTypeRef::String
+        | SchemaTypeRef::Str
+        | SchemaTypeRef::Bytes
+        | SchemaTypeRef::ByteSlice => Ok("__koffi_stringLayout".to_string()),
     }
 }
 

@@ -9,6 +9,22 @@ use crate::types::*;
    `ptr::read`, and a handle return leaks a Box (see the opaque From impls
    in types.rs - the leak is the ownership contract). Everything else rides
    the `__koffi_*` wire types. -#}
+{#~ One call argument. Owned spans convert wire->real through the `.into()`
+   chain (From<__koffi_string> copies; the Kotlin caller keeps the backing
+   memory for the call's duration). Borrowed spans are re-sliced off the
+   wire fields and only live for this call. -#}
+{%- macro cabi_arg(p) -%}
+{%- if p.is_receiver %}{% if p.is_mut_receiver %}&mut {% else %}& {% endif %}{% endif -%}
+{%- match p.ty %}
+{%- when SchemaTypeRef::Str %}
+unsafe { ::std::str::from_utf8_unchecked(::std::slice::from_raw_parts(_p_{{ p.c_abi_symbol() }}.ptr, _p_{{ p.c_abi_symbol() }}.len)) }
+{%- when SchemaTypeRef::ByteSlice %}
+unsafe { ::std::slice::from_raw_parts(_p_{{ p.c_abi_symbol() }}.ptr, _p_{{ p.c_abi_symbol() }}.len) }
+{%- when _ %}
+_p_{{ p.c_abi_symbol() }}.into()
+{%- endmatch -%}
+{%- endmacro -%}
+
 {%~ for f in schema.functions %}
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn {{ f.c_abi_symbol() }}(
@@ -27,7 +43,7 @@ pub unsafe extern "C" fn {{ f.c_abi_symbol() }}(
             {%- if p.ty.is_opaque() %}
             {% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *_p_{{ p.c_abi_symbol() }} }{% else %}unsafe { &*_p_{{ p.c_abi_symbol() }} }{% endif %}{% else %}unsafe { std::ptr::read(_p_{{ p.c_abi_symbol() }}) }{% endif %},
             {%- else %}
-            {% if p.is_receiver %}&{% if p.is_mut_receiver %}mut {% endif %}{% endif %}_p_{{ p.c_abi_symbol() }}.into(),
+            {{ cabi_arg(&p) }},
             {%- endif %}
             {%- endfor %}
         );
@@ -38,7 +54,7 @@ pub unsafe extern "C" fn {{ f.c_abi_symbol() }}(
             {%- if p.ty.is_opaque() %}
             {% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *_p_{{ p.c_abi_symbol() }} }{% else %}unsafe { &*_p_{{ p.c_abi_symbol() }} }{% endif %}{% else %}unsafe { std::ptr::read(_p_{{ p.c_abi_symbol() }}) }{% endif %},
             {%- else %}
-            {% if p.is_receiver %}&{% if p.is_mut_receiver %}mut {% endif %}{% endif %}_p_{{ p.c_abi_symbol() }}.into(),
+            {{ cabi_arg(&p) }},
             {%- endif %}
             {%- endfor %}
         ).into()
@@ -53,3 +69,18 @@ pub fn guarded<R>(f: impl FnOnce() -> R + std::panic::UnwindSafe) -> R {
         Err(_) => std::process::abort(),
     }
 }
+
+{% if schema.has_spans() -%}
+{#~ The owning side of the span handshake: every span Rust hands Kotlin was
+   leaked by an owned From impl, so this reconstructs the box and drops it.
+   Kotlin calls it exactly once per returned span. -#}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn koffi_free_bytes(ptr: *mut u8, len: usize) {
+    guarded(|| {
+        if !ptr.is_null() {
+            let _: ::std::boxed::Box<[u8]> =
+                unsafe { ::std::boxed::Box::from_raw(::std::slice::from_raw_parts_mut(ptr, len)) };
+        }
+    })
+}
+{%- endif %}

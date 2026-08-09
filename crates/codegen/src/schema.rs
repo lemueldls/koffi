@@ -186,6 +186,14 @@ pub enum SchemaTypeRef {
         name: String,
         module_path: Option<String>,
     },
+    /// Owned UTF-8 (`String`).
+    String,
+    /// Borrowed UTF-8 (`&str`); params only.
+    Str,
+    /// Owned bytes (`Vec<u8>`).
+    Bytes,
+    /// Borrowed bytes (`&[u8]`); params only.
+    ByteSlice,
 }
 
 impl SchemaTypeRef {
@@ -201,10 +209,17 @@ impl SchemaTypeRef {
                 format!("{mod_infix}_{name}")
             }
             SchemaTypeRef::Scalar(k) => k.rust_type_name().to_string(),
-            // Wrappers are only ever fn params/returns/fields, never an
-            // `impl` block's Self type, so they can't be a `parent`.
-            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
-                unreachable!("an Option/Result can't be an impl-block parent")
+            // Spans (String/&str/Vec<u8>/&[u8]) are never impl-block parents
+            // or payloads, same as the wrappers below.
+            SchemaTypeRef::Option { .. }
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => {
+                unreachable!(
+                    "an Option/Result/String/str/Vec<u8>/[u8] can't be an impl-block parent"
+                )
             }
         }
     }
@@ -240,6 +255,66 @@ impl SchemaTypeRef {
     pub fn same_opaque(&self, o: &SchemaOpaque) -> bool {
         matches!(self, SchemaTypeRef::Opaque { name, module_path }
             if name == &o.name && module_path == &o.module_path)
+    }
+
+    /// True when this type (recursively) involves a span type: `String`,
+    /// `&str`, `Vec<u8>` or `&[u8]`. Used by the position guards that ban
+    /// spans from enum payloads and Option/Result inners.
+    #[must_use]
+    pub fn contains_span(&self) -> bool {
+        match self {
+            SchemaTypeRef::Option { inner } => inner.contains_span(),
+            SchemaTypeRef::Result { ok, err } => ok.contains_span() || err.contains_span(),
+            SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => true,
+            SchemaTypeRef::Scalar(_)
+            | SchemaTypeRef::Struct { .. }
+            | SchemaTypeRef::Enum { .. }
+            | SchemaTypeRef::Opaque { .. } => false,
+        }
+    }
+
+    /// Like `contains_span`, but also digs through struct fields. The
+    /// position guards use this: a span buried in a struct field still
+    /// forbids that struct from sitting in an enum payload or an
+    /// Option/Result inner, because the wire marshallers for those
+    /// positions can't thread the blob cursor.
+    fn structured_contains_span(
+        &self,
+        structs: &BTreeMap<(Option<String>, String), SchemaStruct>,
+    ) -> bool {
+        match self {
+            SchemaTypeRef::Option { inner } => inner.structured_contains_span(structs),
+            SchemaTypeRef::Result { ok, err } => {
+                ok.structured_contains_span(structs) || err.structured_contains_span(structs)
+            }
+            SchemaTypeRef::Struct { name, module_path } => {
+                structs
+                    .get(&(module_path.clone(), name.clone()))
+                    .is_some_and(|s| {
+                        s.fields
+                            .iter()
+                            .any(|f| f.ty.structured_contains_span(structs))
+                    })
+            }
+            SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => true,
+            SchemaTypeRef::Scalar(_)
+            | SchemaTypeRef::Enum { .. }
+            | SchemaTypeRef::Opaque { .. } => false,
+        }
+    }
+
+    /// True for a borrowed span (`&str` / `&[u8]`). Borrowed spans may only
+    /// be fn params: a return would outlive the caller's copy, and a struct
+    /// field would point into whoever passed the struct in.
+    #[must_use]
+    pub const fn is_borrowed_span(&self) -> bool {
+        matches!(self, SchemaTypeRef::Str | SchemaTypeRef::ByteSlice)
     }
 }
 
@@ -313,6 +388,14 @@ pub fn build_schema(crate_name: String, fn_entries: &[FnShapeRef]) -> anyhow::Re
             &mut opaques,
         )?;
 
+        if return_type.is_borrowed_span() {
+            anyhow::bail!(
+                "koffi: borrowed returns are not supported for `{rust_name}`: a `&str`/`&[u8]` \
+                 return would point into the callee's stack after the call; return an owned \
+                 `String`/`Vec<u8>` instead"
+            );
+        }
+
         functions.push(SchemaFn {
             rust_name,
             kotlin_name,
@@ -349,14 +432,83 @@ fn convert_shape(
     }
 
     match shape.def {
-        facet::Def::Scalar => Ok(SchemaTypeRef::Scalar(scalar_kind_of(shape)?)),
+        facet::Def::Scalar => {
+            // `String` is a Scalar in facet's eyes (no internal def). The
+            // name is the tell; everything else goes to scalar_kind_of,
+            // which rejects `char`, `usize`, and friends with a
+            // "unrecognized scalar" message.
+            if shape.effective_name() == "String" {
+                Ok(SchemaTypeRef::String)
+            } else {
+                Ok(SchemaTypeRef::Scalar(scalar_kind_of(shape)?))
+            }
+        }
+        facet::Def::Pointer(def) => {
+            // Only plain `&str`/`&[u8]` references cross as spans. Anything
+            // else smart-pointer-flavored (`Box<str>`, `&String`, `&mut [u8]`,
+            // raw pointers, fn pointers) has no matching wire format.
+            match shape.ty {
+                facet::Type::Pointer(facet::PointerType::Reference(vpt)) => {
+                    if vpt.mutable {
+                        anyhow::bail!(
+                            "koffi: `&mut {}` params are not supported yet",
+                            vpt.target().effective_name()
+                        );
+                    }
+                    match vpt.target().def {
+                        facet::Def::Scalar if vpt.target().effective_name() == "str" => {
+                            Ok(SchemaTypeRef::Str)
+                        }
+                        facet::Def::Slice(s) if s.t().effective_name() == "u8" => {
+                            Ok(SchemaTypeRef::ByteSlice)
+                        }
+                        _ => {
+                            anyhow::bail!(
+                                "koffi: only `&str` and `&[u8]` borrowed references cross the \
+                             boundary, got `&{}`",
+                                vpt.target().effective_name()
+                            )
+                        }
+                    }
+                }
+                _ => {
+                    anyhow::bail!(
+                        "koffi: only `&str` and `&[u8]` borrowed references cross the boundary; \
+                     smart pointers like `Box<{}>` and raw pointers aren't supported",
+                        def.pointee().map_or("_", facet::Shape::effective_name)
+                    )
+                }
+            }
+        }
+        facet::Def::List(def) => {
+            if def.t().effective_name() == "u8" {
+                Ok(SchemaTypeRef::Bytes)
+            } else {
+                anyhow::bail!(
+                    "koffi: only `Vec<u8>` crosses the boundary as bytes, got `Vec<{}>`",
+                    def.t().effective_name()
+                )
+            }
+        }
+        facet::Def::Slice(_) => {
+            anyhow::bail!(
+                "koffi: bare unsized slices can't cross the boundary; use `&[u8]` or `Vec<u8>`"
+            )
+        }
         facet::Def::Option(def) => {
             let inner = convert_shape(def.t, structs, enums, wrappers, opaques)?;
 
             if matches!(inner, SchemaTypeRef::Option { .. }) {
                 anyhow::bail!(
                     "koffi: unsupported Option<Option<T>>: double nullability has no \
-                     Kotlin equivalent"
+                 Kotlin equivalent"
+                );
+            }
+            if inner.structured_contains_span(structs) {
+                anyhow::bail!(
+                    "koffi: `Option<{}>` is not supported: spans (String/&str/Vec<u8>/&[u8]) \
+                     in Option need a wire format that can represent missing spans",
+                    inner.unique_ident()
                 );
             }
 
@@ -384,6 +536,15 @@ fn convert_shape(
         facet::Def::Result(def) => {
             let ok = convert_shape(def.t, structs, enums, wrappers, opaques)?;
             let err = convert_shape(def.e, structs, enums, wrappers, opaques)?;
+
+            if ok.structured_contains_span(structs) || err.structured_contains_span(structs) {
+                anyhow::bail!(
+                    "koffi: `Result<{}, {}>` is not supported: spans (String/&str/Vec<u8>/&[u8]) \
+                     in Result need a wire format that can represent missing spans",
+                    ok.unique_ident(),
+                    err.unique_ident()
+                );
+            }
 
             let ident = format!(
                 "__koffi_result_{}_{}",
@@ -431,15 +592,20 @@ fn convert_shape(
                                 // (the proxy shape) and converted through the
                                 // user's TryFrom pair in the generated glue.
                                 let field_shape = f.proxy_shape().unwrap_or_else(|| f.shape());
+                                let ty =
+                                    convert_shape(field_shape, structs, enums, wrappers, opaques)?;
+                                if ty.is_borrowed_span() {
+                                    anyhow::bail!(
+                                        "koffi: struct fields can't be `&str`/`&[u8]` (`{}::{}`): \
+                                         the struct would point into whoever passed it in; use an \
+                                         owned `String`/`Vec<u8>` field instead",
+                                        name,
+                                        f.effective_name()
+                                    );
+                                }
                                 Ok(SchemaField {
                                     name: f.effective_name().to_string(),
-                                    ty: convert_shape(
-                                        field_shape,
-                                        structs,
-                                        enums,
-                                        wrappers,
-                                        opaques,
-                                    )?,
+                                    ty,
                                     is_proxy: f.proxy_shape().is_some(),
                                     real_ty: f.proxy_shape().map(|_| {
                                         let real = f.shape();
@@ -608,10 +774,17 @@ fn project_variant_fields(
                 f.effective_name().to_string()
             };
             let field_shape = f.proxy_shape().unwrap_or_else(|| f.shape());
+            let ty = convert_shape(field_shape, structs, enums, wrappers, opaques)?;
+            if ty.structured_contains_span(structs) {
+                anyhow::bail!(
+                    "koffi: enum variant payloads can't carry spans (String/&str/Vec<u8>/&[u8]): \
+                     the payload union has no stable span representation"
+                );
+            }
             Ok(FieldPlacement {
                 name,
                 offset: f.offset as u64,
-                ty: convert_shape(field_shape, structs, enums, wrappers, opaques)?,
+                ty,
                 is_proxy: f.proxy_shape().is_some(),
                 real_ty: f.proxy_shape().map(|_| {
                     let real = f.shape();

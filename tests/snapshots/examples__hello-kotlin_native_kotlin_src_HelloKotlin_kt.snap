@@ -32,6 +32,14 @@ data class Dancer(
     val id: UInt,
     val active: Boolean?
 )
+data class Greeting(
+    val name: String,
+    val blob: ByteArray
+)
+data class Mail(
+    val greeting: Greeting,
+    val hops: UInt
+)
 data class Payload(
     val data: UShort
 ) {
@@ -137,13 +145,17 @@ sealed class Status(val discriminant: Int) {
 
 expect fun makeHolder(): StatusHolder
 expect fun cStatusIsErr(s: CStatus): Boolean
+expect fun greet(g: Greeting): String
+expect fun spanLength(s: String): UInt
 expect fun resultValue(r: KoffiResult<UInt, UByte>): UInt
 expect fun makeRect(): Rect
 expect fun holderStatus(h: StatusHolder): Status
 expect fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte>
 expect fun drink(x: UInt): KoffiResult<UInt?, UByte>
 expect fun makeStatus(): Status
+expect fun upgrade(m: Mail): Mail
 expect fun nothing(): UInt?
+expect fun echoBytes(b: ByteArray): ByteArray
 expect fun describeWindow(w: Window): ULong
 expect fun ride(dance: Dancer?): Dancer?
 expect fun howLong(seconds: Double?): Double
@@ -156,10 +168,14 @@ expect fun paint(color: Boolean?): Boolean
 expect fun rectArea(r: Rect): Int
 expect fun moodIsFlying(m: Mood): Boolean
 expect fun encrypt(secret: SafePacket): SafePacket
+expect fun emptyString(): String
 expect fun maybePayload(show: Boolean): Payload?
+expect fun takeString(s: String): Boolean
 expect fun addOptional(a: UInt, b: UInt?): UInt
 expect fun hello(): Payload
 expect fun rectTopLeft(r: Rect): Point
+expect fun stringPair(a: String, b: String): Boolean
+expect fun bytesPair(a: ByteArray, b: ByteArray): Boolean
 
 expect object HelloKotlinFfi {
     fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong

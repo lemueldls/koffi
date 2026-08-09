@@ -8,6 +8,7 @@ package {{ schema.kotlin_package() }}
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.charset.StandardCharsets
 {% if !android %}import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 {% endif %}
@@ -26,6 +27,54 @@ private fun allocateWire(size: Int): ByteBuffer =
    the caller's byte order (it comes back big-endian), so re-assert it. -#}
 private fun ByteBuffer.section(offset: Int): ByteBuffer =
     duplicate().position(offset).slice().order(ByteOrder.LITTLE_ENDIAN)
+
+{% if schema.has_spans() %}
+{#~ Span wire helpers (only when the schema uses spans). Top-level
+   String/ByteArray params and returns cross JNI directly as
+   jstring/jbyteArray - the VM copies the payload, no free handshake
+   needed. Spans *inside* structs can't: they ride the struct's wire
+   buffer, so the slot stores `{contentStart, len}` where contentStart is
+   the content's buffer-relative offset (written into the blob area after
+   the struct image), and the Rust glue re-points it to the absolute
+   address before building the value. The read side gets slots Rust wrote
+   as absolute heap pointers (leaked boxes); Kotlin copies out through
+   `koffiReadBytes` and releases them with `koffiFreeBytes`. -#}
+private fun koffiStringToWire(v: String, buf: ByteBuffer, blob: IntArray, slot: Int) {
+    val content = v.encodeToByteArray()
+    val start = blob[0]
+    buf.put(start, content)
+    buf.putLong(slot, start.toLong())
+    buf.putLong(slot + 8, content.size.toLong())
+    blob[0] = start + content.size
+}
+
+private fun koffiBytesToWire(v: ByteArray, buf: ByteBuffer, blob: IntArray, slot: Int) {
+    val content = v
+    val start = blob[0]
+    buf.put(start, content)
+    buf.putLong(slot, start.toLong())
+    buf.putLong(slot + 8, content.size.toLong())
+    blob[0] = start + content.size
+}
+
+private fun koffiStringFromWire(slot: ByteBuffer): String {
+    val ptr = slot.getLong(0)
+    val len = slot.getLong(8)
+    val out = ByteArray(len.toInt())
+    {{ schema.ffi_object_name() }}.koffiReadBytes(ptr, len, out)
+    {{ schema.ffi_object_name() }}.koffiFreeBytes(ptr, len)
+    return String(out, StandardCharsets.UTF_8)
+}
+
+private fun koffiBytesFromWire(slot: ByteBuffer): ByteArray {
+    val ptr = slot.getLong(0)
+    val len = slot.getLong(8)
+    val out = ByteArray(len.toInt())
+    {{ schema.ffi_object_name() }}.koffiReadBytes(ptr, len, out)
+    {{ schema.ffi_object_name() }}.koffiFreeBytes(ptr, len)
+    return out
+}
+{% endif %}
 
 {#~ Per-enum wire marshallers. `statusToWire` writes the wrapper's
    memory image (discriminant at 0, active variant's payload at its
@@ -81,10 +130,62 @@ private fun {{ e.to_buf_ident() }}(v: {{ e.name }}): ByteBuffer {
     return buf
 }{%- endif %}{%- endfor %}
 
-{#~ Per-struct wire marshallers, same three helpers as the enums.
-   Placements drive the offsets: the C wire type is `repr(C)`, so the
-   buffer layout must include the padding the Rust compiler inserts. -#}
+{#~ Per-struct wire marshallers. Span-bearing structs (any span slot
+   anywhere in the field tree) thread `base` + `blob`: `base` is this
+   struct's absolute position in the root wire buffer, `blob[0]` the
+   cursor into the buffer's trailing blob area. The blob is written into
+   the *root* buffer only, so nested span-bearing structs pass the same
+   `blob` down while bumping `base` by their own placement offset, and
+   the Rust glue's `span_slot_offsets` patch matches the absolute slot
+   positions. Plain structs keep the section-based form. -#}
 {%~ for s in schema.structs %}
+{%~ set s_has_spans = schema.type_contains_span(&s.type_ref()) %}
+{%~ if s_has_spans %}
+private fun {{ s.type_ref().blob_size_ident() }}(v: {{ s.name }}): Int =
+    {%- for f in s.layout.placements %}
+    {%- if f.ty.is_span() %}
+    v.{{ f.kotlin_name() }}{% if f.ty.is_string() %}.encodeToByteArray().size{% else %}.size{% endif %} +
+    {%- elif schema.type_contains_span(&f.ty) %}
+    {{ f.ty.blob_size_ident() }}(v.{{ f.kotlin_name() }}) +
+    {%- endif %}
+    {%- endfor %} 0
+{%- endif %}
+
+{%~ if s_has_spans %}
+private fun {{ s.to_wire_ident() }}(v: {{ s.name }}, buf: ByteBuffer, base: Int, blob: IntArray) {
+    {%- for f in s.layout.placements %}
+    {%- if f.ty.is_span() %}
+    {{ f.ty.to_wire_ident() }}(v.{{ f.kotlin_name() }}, buf, blob, base + {{ f.offset }})
+    {%- elif schema.type_contains_span(&f.ty) %}
+    {{ f.ty.to_wire_ident() }}(v.{{ f.kotlin_name() }}, buf, base + {{ f.offset }}, blob)
+    {%- elif f.ty.is_memory_backed() %}
+    {{ f.ty.to_wire_ident() }}(v.{{ f.kotlin_name() }}, buf.section(base + {{ f.offset }}))
+    {%- else %}
+    {%- match f.ty %}
+    {%- when SchemaTypeRef::Scalar(kind) %}
+    {%- match kind %}
+    {%- when ScalarKind::Bool %}
+    buf.put(base + {{ f.offset }}, if (v.{{ f.kotlin_name() }}) 1.toByte() else 0.toByte())
+    {%- when _ %}
+    buf.{{ kind.wire_putter() }}(base + {{ f.offset }}, v.{{ f.kotlin_name() }}{{ kind.to_ffm_suffix() }})
+    {%- endmatch %}
+    {%- when SchemaTypeRef::Enum { discriminant, .. } %}
+    buf.{{ discriminant.wire_putter() }}(base + {{ f.offset }}, v.{{ f.kotlin_name() }}{{ f.ty.to_ffm_suffix() }})
+    {%- when SchemaTypeRef::Opaque { .. } %}
+    buf.putLong(base + {{ f.offset }}, v.{{ f.kotlin_name() }}.handle)
+    {%- else %}unreachable!()
+    {%- endmatch %}
+    {%- endif %}
+    {%- endfor %}
+}
+
+private fun {{ s.to_buf_ident() }}(v: {{ s.name }}): ByteBuffer {
+    val blob = intArrayOf({{ s.layout.total.size }})
+    val buf = allocateWire({{ s.layout.total.size }} + {{ s.type_ref().blob_size_ident() }}(v))
+    {{ s.to_wire_ident() }}(v, buf, 0, blob)
+    return buf
+}
+{%- else %}
 private fun {{ s.to_wire_ident() }}(v: {{ s.name }}, buf: ByteBuffer) {
     {%- for f in s.layout.placements %}
     {%- if f.ty.is_memory_backed() %}
@@ -107,6 +208,13 @@ private fun {{ s.to_wire_ident() }}(v: {{ s.name }}, buf: ByteBuffer) {
     {%- endif %}
     {%- endfor %}
 }
+
+private fun {{ s.to_buf_ident() }}(v: {{ s.name }}): ByteBuffer {
+    val buf = allocateWire({{ s.layout.total.size }})
+    {{ s.to_wire_ident() }}(v, buf)
+    return buf
+}
+{%- endif %}
 
 private fun {{ s.from_wire_ident() }}(buf: ByteBuffer): {{ s.name }} =
     {{ s.name }}(
@@ -131,12 +239,6 @@ private fun {{ s.from_wire_ident() }}(buf: ByteBuffer): {{ s.name }} =
         {%- endif %}
         {%- endfor -%}
     )
-
-private fun {{ s.to_buf_ident() }}(v: {{ s.name }}): ByteBuffer {
-    val buf = allocateWire({{ s.layout.total.size }})
-    {{ s.to_wire_ident() }}(v, buf)
-    return buf
-}
 {%- endfor %}
 
 {#~ One inner payload write. `expr` is the Kotlin expression holding the
@@ -237,10 +339,33 @@ private fun {{ w.to_buf_ident() }}(v: {{ w.kotlin_type() }}): ByteBuffer {
 }
 {%- endfor %}
 
+{#~ One fn-call argument. Top-level spans pass straight through: JNI moves
+   them as `jstring`/`jbyteArray` (the VM copies the payload). Everything
+   memory-backed marshals a fresh wire buffer; scalars, fieldless enums
+   and opaque handles cross as plain values. -#}
+{%- macro call_arg(p) -%}
+{%- if p.ty.is_span() -%}
+{{ p.name }}
+{%- elif p.ty.is_memory_backed() -%}
+{{ p.ty.to_buf_ident() }}({{ p.name }})
+{%- else -%}
+{{ p.name }}{{ p.ty.to_ffm_suffix() }}
+{%- endif -%}
+{%- endmacro -%}
+
 actual object {{ schema.ffi_object_name() }} {
     init {
         {% if android %}System.loadLibrary("{{ schema.glue_crate_ident() }}"){%- else %}System.load({{ schema.loader_object_name() }}.extractLibrary()){%- endif %}
     }
+
+    {%- if schema.has_spans() %}
+    {#~ Copy a returned span's bytes out of the leaked Rust box and release
+       the box: the JNI return path leaks (the value must stay alive until
+       Kotlin has copied it), and `koffiFreeBytes` is the matching
+       destructor. The Rust glue exports both as regular JNI methods. -#}
+    external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
+    external fun koffiFreeBytes(ptr: Long, len: Long)
+    {%- endif %}
 
     {#~ The `actual fun` for parent-having fns and, for every fn, the
        `external fun` it calls. The externals stay object members so JNI
@@ -251,41 +376,53 @@ actual object {{ schema.ffi_object_name() }} {
        free-fn actuals below call them via
        `{{ schema.ffi_object_name() }}.<member>Impl`. -#}
     {%~ for f in schema.functions %}
-    {%~ if f.parent.is_some() %}{%~ if f.return_type.is_memory_backed() %}
+    {%~ if f.parent.is_some() %}
+    {%~ if f.return_type.is_span() %}
+    actual fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} =
+        {{ f.ffi_member_name() }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{{ call_arg(&p) }}{% endfor %})
+    {%- elif f.return_type.is_memory_backed() %}
     actual fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
         val out = allocateWire({{ schema.layout_size(&f.return_type) }})
-        {{ f.ffi_member_name() }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}{% if !f.params.is_empty() %}, {% endif %}out)
+        {{ f.ffi_member_name() }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{{ call_arg(&p) }}{% endfor %}{% if !f.params.is_empty() %}, {% endif %}out)
         return {{ f.return_type.from_wire_ident() }}(out)
     }
     {%- else %}
     actual fun {{ f.ffi_member_name() }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} =
-        {{ f.ffi_member_name() }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}){{ f.return_type.from_ffm_suffix() }}
+        {{ f.ffi_member_name() }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{{ call_arg(&p) }}{% endfor %}){{ f.return_type.from_ffm_suffix() }}
     {%- endif %}
 
     {%- endif %}
-    {%~ if f.params.is_empty() && !f.return_type.is_memory_backed() %}
+    {%~ if f.params.is_empty() && !f.return_type.is_memory_backed() && !f.return_type.is_span() %}
     external fun {{ f.ffi_member_name() }}Impl(): {{ f.return_type.jni_kotlin_type() }}
     {%- else %}
     external fun {{ f.ffi_member_name() }}Impl(
         {%- for p in f.params %}
-        {{ p.name }}: {% if p.ty.is_memory_backed() %}ByteBuffer{% else %}{{ p.ty.jni_kotlin_type() }}{% endif %},
+        {{ p.name }}: {% if p.ty.is_span() %}{{ p.ty.jni_kotlin_type() }}{% elif p.ty.is_memory_backed() %}ByteBuffer{% else %}{{ p.ty.jni_kotlin_type() }}{% endif %},
         {%- endfor %}
-        {%- if f.return_type.is_memory_backed() %}
-        out: ByteBuffer,{% endif %}
-    ){% if !f.return_type.is_memory_backed() %}: {{ f.return_type.jni_kotlin_type() }}{% endif %}
+        {%- if f.return_type.is_span() %}
+    ): {{ f.return_type.jni_kotlin_type() }}
+        {%- elif f.return_type.is_memory_backed() %}
+        out: ByteBuffer,
+    )
+        {%- else %}
+    ): {{ f.return_type.jni_kotlin_type() }}
+        {%- endif %}
     {%- endif %}
     {%~ endfor %}
 }
 
-{%~ for f in schema.functions %}{%- if f.parent.is_none() %}{%~ if f.return_type.is_memory_backed() %}
+{%~ for f in schema.functions %}{%- if f.parent.is_none() %}{%~ if f.return_type.is_span() %}
+actual fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} =
+    {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{{ call_arg(&p) }}{% endfor %})
+{%- elif f.return_type.is_memory_backed() %}
 actual fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
     val out = allocateWire({{ schema.layout_size(&f.return_type) }})
-    {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}{% if !f.params.is_empty() %}, {% endif %}out)
+    {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{{ call_arg(&p) }}{% endfor %}{% if !f.params.is_empty() %}, {% endif %}out)
     return {{ f.return_type.from_wire_ident() }}(out)
 }
 {%- else %}
 actual fun {{ f.kotlin_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} =
-    {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{% if p.ty.is_memory_backed() %}{{ p.ty.to_buf_ident() }}({{ p.name }}){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif %}{% endfor %}){{ f.return_type.from_ffm_suffix() }}
+    {{ schema.ffi_object_name() }}.{{ f.kotlin_name }}Impl({% for p in f.params %}{% if !loop.first %}, {% endif %}{{ call_arg(&p) }}{% endfor %}){{ f.return_type.from_ffm_suffix() }}
 {%- endif %}
 {%- endif %}{%~ endfor %}
 

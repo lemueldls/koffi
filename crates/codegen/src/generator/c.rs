@@ -20,12 +20,27 @@ impl SchemaFn {
     /// same lowerCamelCase names the expect object's functions use.
     #[must_use]
     pub fn jni_symbol(&self, schema: &Schema) -> String {
-        let package = self.module_path.as_deref().unwrap_or("").replace("::", ".");
+        schema.jni_symbol_for(&format!("{}Impl", self.ffi_member_name()))
+    }
+}
+
+impl Schema {
+    /// JNI symbol for a helper member on the `actual object` that isn't an
+    /// exported fn (`koffiReadBytes`, `koffiFreeBytes`): same mangling as
+    /// `SchemaFn::jni_symbol`, but the member name is given outright.
+    #[must_use]
+    pub fn jni_symbol_for(&self, member: &str) -> String {
+        let package = self
+            .functions
+            .first()
+            .and_then(|f| f.module_path.as_deref())
+            .unwrap_or("")
+            .replace("::", ".");
         format!(
-            "Java_{}_{}_{}Impl",
+            "Java_{}_{}_{}",
             jni_escape(&package),
-            jni_escape(&schema.ffi_object_name()),
-            jni_escape(&self.ffi_member_name()),
+            jni_escape(&self.ffi_object_name()),
+            jni_escape(member),
         )
     }
 }

@@ -8,6 +8,7 @@ package {{ schema.kotlin_package() }}
 
 import java.lang.foreign.*
 import java.lang.invoke.MethodHandle
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
@@ -46,6 +47,10 @@ import java.nio.file.StandardCopyOption
         {# unreachable: is_memory_backed covers wrappers #}
         {%- when SchemaTypeRef::Result { .. } %}
         {# unreachable: is_memory_backed covers wrappers #}
+        {%- when SchemaTypeRef::String | SchemaTypeRef::Str %}
+        {# unreachable: is_memory_backed covers spans #}
+        {%- when SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice %}
+        {# unreachable: is_memory_backed covers spans #}
         {%- endmatch %}
         {%- endif %}
 {{ indent }}    }
@@ -87,6 +92,68 @@ segment.get({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L){{ ty.from_ffm_suf
 private val arena: Arena = Arena.ofShared()
 private val lookup: SymbolLookup = {{ schema.loader_object_name() }}.load(arena)
 private val linker: Linker = Linker.nativeLinker()
+
+{% if schema.has_spans() %}
+{#~ The shared span wire layout and its marshallers. `{ptr, len}` is the
+   `__koffi_string` repr(C) struct; the layout is referenced by every
+   struct layout that embeds a span, so it must be declared before them
+   (the `val` declaration-order rule above). Args allocate their content
+   into the call arena - it's confined to the call, so the callee's view
+   stays valid. Returns read the leaked box, copy out, and release it
+   through the `koffi_free_bytes` export. -#}
+private val __koffi_stringLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.ADDRESS.withName("data"),
+    ValueLayout.JAVA_LONG.withName("len"),
+)
+
+private fun koffiStringToFfm(v: String, arena: Arena): MemorySegment {
+    val content = v.encodeToByteArray()
+    val data = arena.allocate(content.size.toLong()).copyFrom(MemorySegment.ofArray(content))
+    val slot = arena.allocate(__koffi_stringLayout)
+    slot.set(ValueLayout.ADDRESS, 0L, data)
+    slot.set(ValueLayout.JAVA_LONG, 8L, content.size.toLong())
+    return slot
+}
+
+private fun koffiBytesToFfm(v: ByteArray, arena: Arena): MemorySegment {
+    val data = arena.allocate(v.size.toLong()).copyFrom(MemorySegment.ofArray(v))
+    val slot = arena.allocate(__koffi_stringLayout)
+    slot.set(ValueLayout.ADDRESS, 0L, data)
+    slot.set(ValueLayout.JAVA_LONG, 8L, v.size.toLong())
+    return slot
+}
+
+private val __koffi_free_bytes: MethodHandle = linker.downcallHandle(
+    lookup.find("koffi_free_bytes").orElseThrow(),
+    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_LONG),
+)
+
+private fun koffiFreeBytes(ptr: Long, len: Long) {
+    __koffi_free_bytes.invokeWithArguments(MemorySegment.ofAddress(ptr), len)
+}
+
+private fun koffiBytesFromFfm(slot: MemorySegment): ByteArray {
+    val data: MemorySegment = slot.get(ValueLayout.ADDRESS, 0L) as MemorySegment
+    val len = slot.get(ValueLayout.JAVA_LONG, 8L).toInt()
+    val out = ByteArray(len)
+    if (len > 0) {
+        MemorySegment.copy(data.reinterpret(len.toLong()), 0L, MemorySegment.ofArray(out), 0L, len.toLong())
+        koffiFreeBytes(data.address(), len.toLong())
+    }
+    return out
+}
+
+private fun koffiStringFromFfm(slot: MemorySegment): String {
+    val data: MemorySegment = slot.get(ValueLayout.ADDRESS, 0L) as MemorySegment
+    val len = slot.get(ValueLayout.JAVA_LONG, 8L).toInt()
+    val out = ByteArray(len)
+    if (len > 0) {
+        MemorySegment.copy(data.reinterpret(len.toLong()), 0, MemorySegment.ofArray(out), 0L, len.toLong())
+        koffiFreeBytes(data.address(), len.toLong())
+    }
+    return String(out, StandardCharsets.UTF_8)
+}
+{% endif %}
 
 {#~ Layouts in dependency order: any type whose FFM layout (or C typedef)
    embeds another's must be declared after it - Kotlin initializes `val`

@@ -2,6 +2,53 @@
 
 #![allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
 
+{% if schema.has_spans() -%}
+{#~ Spans: String/&str/Vec<u8>/&[u8] all cross as one repr(C) struct: a raw
+   pointer and a length. Rust hands Kotlin heap-allocated spans through the
+   owned From impls below (the box leaks on purpose - Kotlin frees it with
+   `koffi_free_bytes`), and reads Kotlin-owned spans by copying out of them
+   (the callers' memory stays theirs for the whole call). Borrowed types
+   never construct a span - callers build `&str`/`&[u8]` straight off the
+   wire fields. -#}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_string {
+    pub ptr: *mut u8,
+    pub len: usize,
+}
+
+impl From<__koffi_string> for ::std::string::String {
+    fn from(w: __koffi_string) -> Self {
+        // The bytes are UTF-8 by contract (both sides agree), so skip the
+        // validity check. The copy is the point: the caller keeps owning
+        // the span storage.
+        unsafe { ::std::string::String::from_utf8_unchecked(::std::slice::from_raw_parts(w.ptr, w.len).to_vec()) }
+    }
+}
+
+impl From<__koffi_string> for std::vec::Vec<u8> {
+    fn from(w: __koffi_string) -> Self {
+        unsafe { ::std::slice::from_raw_parts(w.ptr, w.len).to_vec() }
+    }
+}
+
+impl From<::std::string::String> for __koffi_string {
+    fn from(v: ::std::string::String) -> Self {
+        let boxed = v.into_bytes().into_boxed_slice();
+        let len = boxed.len();
+        Self { ptr: ::std::boxed::Box::into_raw(boxed) as *mut u8, len }
+    }
+}
+
+impl From<std::vec::Vec<u8>> for __koffi_string {
+    fn from(v: std::vec::Vec<u8>) -> Self {
+        let boxed = v.into_boxed_slice();
+        let len = boxed.len();
+        Self { ptr: ::std::boxed::Box::into_raw(boxed) as *mut u8, len }
+    }
+}
+{% endif -%}
+
 {#~ Opaque handle wire types. The address is the whole value: koffi marshals
    opaque types as pointer-sized handles, so a handle crossing the boundary
    by value leaks a Box (its From impl leaks on purpose), and reading one

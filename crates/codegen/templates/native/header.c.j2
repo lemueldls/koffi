@@ -13,6 +13,18 @@
 typedef {{ e.discriminant.c_type() }} {{ e.unique_ident() }};
 {% endif %}{%- endfor %}
 
+{% if schema.has_spans() %}
+// The shared span wire struct: `{ptr, len}` mirroring Rust's
+// `__koffi_string`. Rust leaks returned spans on purpose; Kotlin copies
+// the bytes out and releases them with `koffi_free_bytes` (declared with
+// the exported fns below). `len` is `uint64_t` - a fixed width - so the
+// cinterop type is deterministic across the supported targets.
+typedef struct {
+    uint8_t* ptr;
+    uint64_t len;
+} __koffi_string;
+{% endif %}
+
 // All layout-bearing types in dependency order: a type used as a field of
 // another must have its typedef declared first. repr(C) in Rust means no
 // padding bookkeeping here: the header mirrors the field lists directly.
@@ -58,5 +70,9 @@ typedef struct {
 {%~ for f in schema.functions %}
 {{ f.return_type.c_type() }} {{ f.c_abi_symbol() }}({% for p in f.params %}{{ p.ty.c_type() }} {{ p.c_abi_symbol() }}{% if !loop.last %}, {% endif %}{% else %}void{% endfor %});
 {%- endfor %}
+
+{% if schema.has_spans() %}
+void koffi_free_bytes(void* ptr, uint64_t len);
+{% endif %}
 
 #endif

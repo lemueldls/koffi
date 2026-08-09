@@ -47,6 +47,47 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "greet",
+            kotlin_name: "greet",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "g",
+                    ty: Struct {
+                        name: "Greeting",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: String,
+        },
+        SchemaFn {
+            rust_name: "span_length",
+            kotlin_name: "spanLength",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "s",
+                    ty: String,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
             rust_name: "first_describe",
             kotlin_name: "firstDescribe",
             module_path: Some(
@@ -277,6 +318,33 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "upgrade",
+            kotlin_name: "upgrade",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "m",
+                    ty: Struct {
+                        name: "Mail",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Mail",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
             rust_name: "nothing",
             kotlin_name: "nothing",
             module_path: Some(
@@ -289,6 +357,23 @@ Schema {
                     U32,
                 ),
             },
+        },
+        SchemaFn {
+            rust_name: "echo_bytes",
+            kotlin_name: "echoBytes",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "b",
+                    ty: Bytes,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Bytes,
         },
         SchemaFn {
             rust_name: "describe",
@@ -863,6 +948,16 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "empty_string",
+            kotlin_name: "emptyString",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: String,
+        },
+        SchemaFn {
             rust_name: "open",
             kotlin_name: "open",
             module_path: Some(
@@ -951,6 +1046,25 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "take_string",
+            kotlin_name: "takeString",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "s",
+                    ty: String,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
             rust_name: "add_optional",
             kotlin_name: "addOptional",
             module_path: Some(
@@ -1023,6 +1137,56 @@ Schema {
                 ),
             },
         },
+        SchemaFn {
+            rust_name: "string_pair",
+            kotlin_name: "stringPair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: String,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: Str,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "bytes_pair",
+            kotlin_name: "bytesPair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Bytes,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: ByteSlice,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
     ],
     structs: [
         SchemaStruct {
@@ -1089,6 +1253,127 @@ Schema {
                 total: Layout {
                     size: 8,
                     align: 4,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "Greeting",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "name",
+                    ty: String,
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "blob",
+                    ty: Bytes,
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "__koffi_stringLayout",
+                        name: "name",
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_stringLayout",
+                        name: "blob",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "name",
+                        ty: String,
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "blob",
+                        ty: Bytes,
+                        offset: 16,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 32,
+                    align: 8,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "Mail",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "greeting",
+                    ty: Struct {
+                        name: "Greeting",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "hops",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_GreetingLayout",
+                        name: "greeting",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "hops",
+                    },
+                    Padding {
+                        bytes: 4,
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "greeting",
+                        ty: Struct {
+                            name: "Greeting",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "hops",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 32,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 40,
+                    align: 8,
                 },
             },
         },

@@ -43,6 +43,14 @@ impl Schema {
             }
             // Opaque handles cross as plain addresses, never as buffers.
             SchemaTypeRef::Opaque { .. } => 0,
+            // Spans cross as 16-byte wire structs; on JNI they top out as
+            // jstring/jbyteArray directly (no out buffer), and inside a
+            // struct they add to the struct's blobs, so this exact size
+            // only matters when a span is somehow the buffer target.
+            SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => 16,
         }
     }
 
@@ -155,6 +163,64 @@ impl Schema {
     pub fn has_result_wrappers(&self) -> bool {
         self.wrappers.iter().any(|w| w.kind == WrapperKind::Result)
     }
+
+    /// Does the schema use any span type (String/&str/Vec<u8>/&[u8])?
+    /// Drives the `__koffi_string` wire struct, the `koffi_free_bytes`
+    /// export, and the span marshallers in every backend template.
+    #[must_use]
+    pub fn has_spans(&self) -> bool {
+        let any = |t: &SchemaTypeRef| t.contains_span();
+        self.functions.iter().any(|f| {
+            any(&f.return_type)
+                || f.parent.as_ref().is_some_and(any)
+                || f.params.iter().any(|p| any(&p.ty))
+        }) || self
+            .structs
+            .iter()
+            .any(|s| s.fields.iter().any(|f| any(&f.ty)))
+    }
+
+    /// Does the type have any span slot somewhere in it (directly, or in
+    /// a nested struct field)? Template shorthand for
+    /// `!self.span_slot_offsets(ty).is_empty()`: jni.kt.j2 branches between
+    /// the blob-threading and the plain struct marshaller form on this.
+    #[must_use]
+    pub fn type_contains_span(&self, ty: &SchemaTypeRef) -> bool {
+        !self.span_slot_offsets(ty).is_empty()
+    }
+
+    /// Absolute byte offsets (from this type's own memory base) of every
+    /// span slot embedded in it, depth-first. Only structs carry spans
+    /// (wrappers and data enums reject them at conversion time), so the
+    /// walk only recurses into struct fields. Drives the JNI blob patch:
+    /// each slot's `ptr` is written by Kotlin as a buffer-relative offset,
+    /// and the glue re-points it to the absolute address before building
+    /// the Rust value.
+    #[must_use]
+    pub fn span_slot_offsets(&self, ty: &SchemaTypeRef) -> Vec<u64> {
+        fn walk(ty: &SchemaTypeRef, base: u64, schema: &Schema, out: &mut Vec<u64>) {
+            if ty.is_span() {
+                out.push(base);
+                return;
+            }
+            let SchemaTypeRef::Struct { name, module_path } = ty else {
+                return;
+            };
+            let Some(s) = schema
+                .structs
+                .iter()
+                .find(|s| &s.name == name && &s.module_path == module_path)
+            else {
+                return;
+            };
+            for f in &s.layout.placements {
+                walk(&f.ty, base + f.offset, schema, out);
+            }
+        }
+        let mut out = Vec::new();
+        walk(ty, 0, self, &mut out);
+        out
+    }
 }
 
 /// One entry of `Schema::types_in_layout_order`: a type whose FFM layout
@@ -232,12 +298,16 @@ impl Schema {
                         out.push(LayoutOrderItem::Wrapper(w));
                     }
                 }
-                // Fieldless enums, scalars and opaque handles embed nothing.
+                // Fieldless enums, scalars, opaque handles and spans embed nothing.
                 SchemaTypeRef::Enum {
                     has_data: false, ..
                 }
                 | SchemaTypeRef::Scalar(_)
-                | SchemaTypeRef::Opaque { .. } => {}
+                | SchemaTypeRef::Opaque { .. }
+                | SchemaTypeRef::String
+                | SchemaTypeRef::Str
+                | SchemaTypeRef::Bytes
+                | SchemaTypeRef::ByteSlice => {}
             }
         }
 
@@ -308,6 +378,11 @@ impl SchemaTypeRef {
             SchemaTypeRef::Result { ok, err } => {
                 format!("KoffiResult<{}, {}>", ok.kotlin_type(), err.kotlin_type())
             }
+            // Both string flavors surface as `String`, both byte flavors as
+            // `ByteArray`; the owned/borrowed distinction only shapes the
+            // marshallers, never the Kotlin type.
+            SchemaTypeRef::String | SchemaTypeRef::Str => "String".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "ByteArray".to_string(),
         }
     }
 
@@ -323,6 +398,11 @@ impl SchemaTypeRef {
             // Opaque handles cross as addresses; `intptr_t` maps to Kotlin
             // `Long` in cinterop.
             SchemaTypeRef::Opaque { .. } => "intptr_t".to_string(),
+            // All four span flavors share the `__koffi_string` wire struct.
+            SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => "__koffi_string".to_string(),
         }
     }
 
@@ -345,6 +425,11 @@ impl SchemaTypeRef {
             | SchemaTypeRef::Result { .. } => "JByteBuffer".to_string(),
             // Opaque handles are pointer-sized values crossing as jlong.
             SchemaTypeRef::Opaque { .. } => "jlong".to_string(),
+            // Strings cross JNI as `jstring`, bytes as `jbyteArray`: the VM
+            // copies the payload itself, which is why no span/free
+            // machinery is needed on the JNI path.
+            SchemaTypeRef::String | SchemaTypeRef::Str => "jstring".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "jbyteArray".to_string(),
         }
     }
 
@@ -367,6 +452,8 @@ impl SchemaTypeRef {
             | SchemaTypeRef::Option { .. }
             | SchemaTypeRef::Result { .. } => "ByteBuffer".to_string(),
             SchemaTypeRef::Opaque { .. } => "Long".to_string(),
+            SchemaTypeRef::String | SchemaTypeRef::Str => "String".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "ByteArray".to_string(),
         }
     }
 
@@ -389,7 +476,38 @@ impl SchemaTypeRef {
                 | SchemaTypeRef::Enum { has_data: true, .. }
                 | SchemaTypeRef::Option { .. }
                 | SchemaTypeRef::Result { .. }
+                | SchemaTypeRef::String
+                | SchemaTypeRef::Str
+                | SchemaTypeRef::Bytes
+                | SchemaTypeRef::ByteSlice
         )
+    }
+
+    /// True for a span type (String/&str/Vec<u8>/&[u8]). The templates
+    /// must special-case spans *before* `is_memory_backed`: on FFM/cinterop
+    /// they ride the same segment/CValue machinery as structs, but on JNI
+    /// they cross as `jstring`/`jbyteArray`, never as a `ByteBuffer`.
+    #[must_use]
+    pub const fn is_span(&self) -> bool {
+        matches!(
+            self,
+            SchemaTypeRef::String
+                | SchemaTypeRef::Str
+                | SchemaTypeRef::Bytes
+                | SchemaTypeRef::ByteSlice
+        )
+    }
+
+    /// True for a string-flavored span (`String` / `&str`).
+    #[must_use]
+    pub const fn is_string(&self) -> bool {
+        matches!(self, SchemaTypeRef::String | SchemaTypeRef::Str)
+    }
+
+    /// True for a bytes-flavored span (`Vec<u8>` / `&[u8]`).
+    #[must_use]
+    pub const fn is_bytes(&self) -> bool {
+        matches!(self, SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice)
     }
 
     #[must_use]
@@ -413,6 +531,12 @@ impl SchemaTypeRef {
             }
             // Opaque handles cross as raw addresses, no struct layout.
             SchemaTypeRef::Opaque { .. } => "ValueLayout.ADDRESS".to_string(),
+            // The shared span layout constant, emitted by ffm.kt.j2 exactly
+            // once when the schema uses any span type.
+            SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => "__koffi_stringLayout".to_string(),
         }
     }
 
@@ -440,6 +564,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}ToFfm", self.unique_ident())
             }
+            SchemaTypeRef::String | SchemaTypeRef::Str => "koffiStringToFfm".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "koffiBytesToFfm".to_string(),
             _ => String::new(),
         }
     }
@@ -460,6 +586,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}FromFfm", self.unique_ident())
             }
+            SchemaTypeRef::String | SchemaTypeRef::Str => "koffiStringFromFfm".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "koffiBytesFromFfm".to_string(),
             _ => String::new(),
         }
     }
@@ -481,7 +609,11 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => String::new(),
             SchemaTypeRef::Opaque { .. } => ".handle".to_string(),
         }
     }
@@ -503,7 +635,11 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => String::new(),
             SchemaTypeRef::Opaque { name, .. } => format!(".let {{ {name}(it) }}"),
         }
     }
@@ -525,7 +661,23 @@ impl SchemaTypeRef {
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}ToC", self.unique_ident())
             }
+            SchemaTypeRef::String | SchemaTypeRef::Str => "koffiStringToC".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "koffiBytesToC".to_string(),
             _ => String::new(),
+        }
+    }
+
+    /// Member-fill helper for span struct fields in native.kt.j2. Unlike a
+    /// `place(...)` the write goes through the nested `__koffi_string`
+    /// struct directly, because cinterop gives struct members a synthetic
+    /// `ptr` accessor that a field literally named `ptr` (the span's first
+    /// member) shadows.
+    #[must_use]
+    pub const fn span_member_name(&self) -> &'static str {
+        match self {
+            SchemaTypeRef::String | SchemaTypeRef::Str => "fillFromString",
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "fillFromBytes",
+            _ => "unreachable_span_member",
         }
     }
 
@@ -541,6 +693,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}FromC", self.unique_ident())
             }
+            SchemaTypeRef::String | SchemaTypeRef::Str => "koffiStringFromC".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "koffiBytesFromC".to_string(),
             _ => String::new(),
         }
     }
@@ -563,6 +717,11 @@ impl SchemaTypeRef {
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}ToWire", self.unique_ident())
             }
+            // JNI struct-field spans write through a cursor: the content is
+            // appended to the wire buffer's blob region and the slot gets
+            // `{cursor, len}` (see jni.kt.j2).
+            SchemaTypeRef::String | SchemaTypeRef::Str => "koffiStringToWire".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "koffiBytesToWire".to_string(),
             _ => String::new(),
         }
     }
@@ -579,6 +738,8 @@ impl SchemaTypeRef {
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}FromWire", self.unique_ident())
             }
+            SchemaTypeRef::String | SchemaTypeRef::Str => "koffiStringFromWire".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "koffiBytesFromWire".to_string(),
             _ => String::new(),
         }
     }
@@ -594,6 +755,22 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { name, .. } => format!("{}ToBuf", name.to_snake_case()),
             SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. } => {
                 format!("{}ToBuf", self.unique_ident())
+            }
+            SchemaTypeRef::String | SchemaTypeRef::Str => "koffiStringToBuf".to_string(),
+            SchemaTypeRef::Bytes | SchemaTypeRef::ByteSlice => "koffiBytesToBuf".to_string(),
+            _ => String::new(),
+        }
+    }
+
+    /// Generated fn computing a span-bearing struct's blob size: the bytes
+    /// its string/bytes fields (plus nested span-bearing structs') append
+    /// after the wire image. Only structs get one; other types return an
+    /// empty name and never call it.
+    #[must_use]
+    pub fn blob_size_ident(&self) -> String {
+        match self {
+            SchemaTypeRef::Struct { name, .. } => {
+                format!("{}BlobSize", name.to_snake_case())
             }
             _ => String::new(),
         }
@@ -619,7 +796,11 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => String::new(),
             SchemaTypeRef::Opaque { .. } => ".handle".to_string(),
         }
     }
@@ -649,7 +830,11 @@ impl SchemaTypeRef {
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => String::new(),
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => String::new(),
             SchemaTypeRef::Opaque { name, .. } => format!(".let {{ {name}(it) }}"),
         }
     }
@@ -676,7 +861,11 @@ impl SchemaFn {
             | SchemaTypeRef::Opaque { name, module_path } => (name, module_path),
             SchemaTypeRef::Scalar(_)
             | SchemaTypeRef::Option { .. }
-            | SchemaTypeRef::Result { .. } => {
+            | SchemaTypeRef::Result { .. }
+            | SchemaTypeRef::String
+            | SchemaTypeRef::Str
+            | SchemaTypeRef::Bytes
+            | SchemaTypeRef::ByteSlice => {
                 unreachable!("impl-block parents are always structs, enums or opaque types")
             }
         };
@@ -959,6 +1148,16 @@ impl SchemaStruct {
     #[must_use]
     pub fn to_buf_ident(&self) -> String {
         format!("{}ToBuf", self.name.to_snake_case())
+    }
+
+    /// A `SchemaTypeRef` pointing at this struct, for the schema lookups
+    /// that walk struct fields (`span_slot_offsets`, `type_contains_span`).
+    #[must_use]
+    pub fn type_ref(&self) -> SchemaTypeRef {
+        SchemaTypeRef::Struct {
+            name: self.name.clone(),
+            module_path: self.module_path.clone(),
+        }
     }
 }
 

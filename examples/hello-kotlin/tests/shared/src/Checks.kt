@@ -138,6 +138,25 @@ fun runChecks() {
     check("encrypt reverses secret bytes", enc.secret == SecretWire(4u, 3u, 2u, 1u))
     check("encrypt bumps hop", enc.hop == 10u.toUByte())
 
+    // Spans: String/Vec<u8> params, returns and struct fields, plus the
+    // &str/&[u8] borrowed params.
+    check("greet(Greeting(\"Ada\", [1,2])) == \"Ada\"", greet(Greeting("Ada", byteArrayOf(1, 2))) == "Ada")
+    check("echoBytes roundtrips", echoBytes(byteArrayOf(9, 8, 7)).contentEquals(byteArrayOf(9, 8, 7)))
+    check("echoBytes(empty) roundtrips", echoBytes(byteArrayOf()).isEmpty())
+    check("stringPair(\"koffi\", \"koffi\")", stringPair("koffi", "koffi"))
+    check("stringPair(\"koffi\", \"nope\") == false", !stringPair("koffi", "nope"))
+    check("bytesPair([1,2,3], [1,2,3])", bytesPair(byteArrayOf(1, 2, 3), byteArrayOf(1, 2, 3)))
+    check("bytesPair([1], [2]) == false", !bytesPair(byteArrayOf(1), byteArrayOf(2)))
+    check("spanLength(\"koffi\") == 5", spanLength("koffi") == 5u)
+    check("emptyString() == \"\"", emptyString() == "")
+    check("takeString(\"koffi\")", takeString("koffi"))
+
+    // Nested span-bearing struct roundtrip.
+    val mail = upgrade(Mail(Greeting("Hi", byteArrayOf(9, 9)), 3u))
+    check("upgrade hops == 4", mail.hops == 4u)
+    check("upgrade name gains '!'", mail.greeting.name == "Hi!")
+    check("upgrade blob roundtrips", mail.greeting.blob.contentEquals(byteArrayOf(9, 9)))
+
     if (failures > 0) {
         println("\n$failures test(s) FAILED")
         exitProcess(1)
