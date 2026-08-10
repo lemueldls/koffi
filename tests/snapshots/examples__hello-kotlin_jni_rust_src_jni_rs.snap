@@ -16,13 +16,15 @@ fn recover_bytes<'c>(
     array: &jni::objects::JByteArray<'c>,
 ) -> jni::errors::Result<std::vec::Vec<u8>> {
     let len = array.len(env)?;
-    let mut region: Vec<jni::sys::jbyte> = vec![0; len];
-    array.get_region(env, 0, &mut region)?;
-    Ok(region.into_iter().map(|b| b as u8).collect())
+    let mut region: Vec<u8> = vec![0; len];
+    let bytes =
+        unsafe { std::slice::from_raw_parts_mut(region.as_mut_ptr() as *mut jni::sys::jbyte, len) };
+    array.get_region(env, 0, bytes)?;
+    Ok(region)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiReadBytes<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiTakeBytes<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
     ptr: jlong,
@@ -32,24 +34,11 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiReadBytes<'
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
         let src = ptr as usize as *const u8;
         let mut buf: Vec<jni::sys::jbyte> = vec![0; len as usize];
-        // SAFETY: `ptr` comes from the leaked span Rust produced for exactly
-        // `len` bytes; `koffiFreeBytes` releases it right after this call.
+        // SAFETY: `ptr` is the leaked span Rust produced for exactly `len`
+        // bytes; this copy is its only reader, and the call below hands the
+        // box back to `koffi_free_bytes` so nobody else sees it.
         unsafe { std::ptr::copy_nonoverlapping(src, buf.as_mut_ptr() as *mut u8, len as usize) };
         out.set_region(&env, 0, &buf)?;
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiFreeBytes<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    ptr: jlong,
-    len: jlong,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
         crate::cabi::koffi_free_bytes(ptr as *mut u8, len as usize);
         Ok(0 as jint)
     });
@@ -97,16 +86,19 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_greetImpl<'c>(
     p_g: JByteBuffer<'c>,
 ) -> jstring {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_g = env.get_direct_buffer_address(&p_g)? as *mut u8;
         // Kotlin wrote each embedded span's pointer slot as a byte offset
         // into the wire blob; re-point them at the direct buffer so the
-        // `.into()`s below read the right spans.
+        // `.into()`s in `call_args` read the right spans.
         unsafe {
-            let base = env.get_direct_buffer_address(&p_g)? as *mut u8;
-            *(base.add(0) as *mut usize) = base as usize + *(base.add(0) as *const usize);
-            *(base.add(16) as *mut usize) = base as usize + *(base.add(16) as *const usize);
+            *(__base_g.add(0) as *mut usize) = __base_g as usize + *(__base_g.add(0) as *const usize);
+            *(__base_g.add(16) as *mut usize) = __base_g as usize + *(__base_g.add(16) as *const usize);
         }
         let v: ::std::string::String = ::hello_kotlin::greet(
-unsafe { (env.get_direct_buffer_address(&p_g)? as *const __koffi_struct_hello_kotlin_Greeting).read() }.into()
+unsafe { (__base_g as *const __koffi_struct_hello_kotlin_Greeting).read() }.into()
         );
         Ok(env.new_string(&v)?.into_raw())
     });
@@ -139,8 +131,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindo
     p_self: JByteBuffer<'c>,
 ) -> jlong {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
         let v: u64 = ::hello_kotlin::WindowPair::first_describe(
-&(unsafe { (env.get_direct_buffer_address(&p_self)? as *const __koffi_struct_hello_kotlin_WindowPair).read() }.into())
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_WindowPair).read() }.into())
         ).into();
 
         Ok(v as jlong)
@@ -169,8 +165,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_resultValueImpl<
     p_r: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_r = env.get_direct_buffer_address(&p_r)? as *mut u8;
         let v: u32 = ::hello_kotlin::result_value(
-unsafe { (env.get_direct_buffer_address(&p_r)? as *const __koffi_result_u32_u8).read() }.into()
+unsafe { (__base_r as *const __koffi_result_u32_u8).read() }.into()
         ).into();
 
         Ok(v as jint)
@@ -203,8 +203,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_holderStatusImpl
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_h = env.get_direct_buffer_address(&p_h)? as *mut u8;
         let v: __koffi_enum_hello_kotlin_Status = ::hello_kotlin::holder_status(
-unsafe { (env.get_direct_buffer_address(&p_h)? as *const __koffi_struct_hello_kotlin_StatusHolder).read() }.into()
+unsafe { (__base_h as *const __koffi_struct_hello_kotlin_StatusHolder).read() }.into()
         ).into();
 
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_enum_hello_kotlin_Status;
@@ -295,16 +299,19 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_upgradeImpl<'c>(
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_m = env.get_direct_buffer_address(&p_m)? as *mut u8;
         // Kotlin wrote each embedded span's pointer slot as a byte offset
         // into the wire blob; re-point them at the direct buffer so the
-        // `.into()`s below read the right spans.
+        // `.into()`s in `call_args` read the right spans.
         unsafe {
-            let base = env.get_direct_buffer_address(&p_m)? as *mut u8;
-            *(base.add(0) as *mut usize) = base as usize + *(base.add(0) as *const usize);
-            *(base.add(16) as *mut usize) = base as usize + *(base.add(16) as *const usize);
+            *(__base_m.add(0) as *mut usize) = __base_m as usize + *(__base_m.add(0) as *const usize);
+            *(__base_m.add(16) as *mut usize) = __base_m as usize + *(__base_m.add(16) as *const usize);
         }
         let v: __koffi_struct_hello_kotlin_Mail = ::hello_kotlin::upgrade(
-unsafe { (env.get_direct_buffer_address(&p_m)? as *const __koffi_struct_hello_kotlin_Mail).read() }.into()
+unsafe { (__base_m as *const __koffi_struct_hello_kotlin_Mail).read() }.into()
         ).into();
 
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Mail;
@@ -356,8 +363,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinStatu
     p_self: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
         let v: u32 = ::hello_kotlin::Status::describe(
-&(unsafe { (env.get_direct_buffer_address(&p_self)? as *const __koffi_enum_hello_kotlin_Status).read() }.into())
+&(unsafe { (__base_self as *const __koffi_enum_hello_kotlin_Status).read() }.into())
         ).into();
 
         Ok(v as jint)
@@ -389,8 +400,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rideImpl<'c>(
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_dance = env.get_direct_buffer_address(&p_dance)? as *mut u8;
         let v: __koffi_option___koffi_struct_hello_kotlin_Dancer = ::hello_kotlin::ride(
-unsafe { (env.get_direct_buffer_address(&p_dance)? as *const __koffi_option___koffi_struct_hello_kotlin_Dancer).read() }.into()
+unsafe { (__base_dance as *const __koffi_option___koffi_struct_hello_kotlin_Dancer).read() }.into()
         ).into();
 
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option___koffi_struct_hello_kotlin_Dancer;
@@ -407,8 +422,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_howLongImpl<'c>(
     p_seconds: JByteBuffer<'c>,
 ) -> jdouble {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_seconds = env.get_direct_buffer_address(&p_seconds)? as *mut u8;
         let v: f64 = ::hello_kotlin::how_long(
-unsafe { (env.get_direct_buffer_address(&p_seconds)? as *const __koffi_option_f64).read() }.into()
+unsafe { (__base_seconds as *const __koffi_option_f64).read() }.into()
         ).into();
 
         Ok(v as jdouble)
@@ -439,8 +458,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPaylo
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
         let v: __koffi_struct_hello_kotlin_Payload = ::hello_kotlin::Payload::with_data(
-&(unsafe { (env.get_direct_buffer_address(&p_self)? as *const __koffi_struct_hello_kotlin_Payload).read() }.into()),
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Payload).read() }.into()),
 (p_data as u16).into()
         ).into();
 
@@ -550,8 +573,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPaylo
     p_self: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
         let v: u32 = ::hello_kotlin::Payload::describe(
-&(unsafe { (env.get_direct_buffer_address(&p_self)? as *const __koffi_struct_hello_kotlin_Payload).read() }.into())
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Payload).read() }.into())
         ).into();
 
         Ok(v as jint)
@@ -567,8 +594,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindo
     p_id: jlong,
 ) -> jlong {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
         let v: u64 = ::hello_kotlin::WindowPair::retag_a(
-&mut (unsafe { (env.get_direct_buffer_address(&p_self)? as *const __koffi_struct_hello_kotlin_WindowPair).read() }.into()),
+&mut (unsafe { (__base_self as *const __koffi_struct_hello_kotlin_WindowPair).read() }.into()),
 (p_id as u64).into()
         ).into();
 
@@ -584,8 +615,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_statusCodeImpl<'
     p_s: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_s = env.get_direct_buffer_address(&p_s)? as *mut u8;
         let v: u32 = ::hello_kotlin::status_code(
-unsafe { (env.get_direct_buffer_address(&p_s)? as *const __koffi_enum_hello_kotlin_Status).read() }.into()
+unsafe { (__base_s as *const __koffi_enum_hello_kotlin_Status).read() }.into()
         ).into();
 
         Ok(v as jint)
@@ -600,8 +635,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_paintImpl<'c>(
     p_color: JByteBuffer<'c>,
 ) -> jboolean {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_color = env.get_direct_buffer_address(&p_color)? as *mut u8;
         let v: bool = ::hello_kotlin::paint(
-unsafe { (env.get_direct_buffer_address(&p_color)? as *const __koffi_option_bool).read() }.into()
+unsafe { (__base_color as *const __koffi_option_bool).read() }.into()
         ).into();
 
         Ok(v as jboolean)
@@ -652,8 +691,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rectAreaImpl<'c>
     p_r: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_r = env.get_direct_buffer_address(&p_r)? as *mut u8;
         let v: i32 = ::hello_kotlin::rect_area(
-unsafe { (env.get_direct_buffer_address(&p_r)? as *const __koffi_struct_hello_kotlin_Rect).read() }.into()
+unsafe { (__base_r as *const __koffi_struct_hello_kotlin_Rect).read() }.into()
         ).into();
 
         Ok(v as jint)
@@ -668,8 +711,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_moodIsFlyingImpl
     p_m: JByteBuffer<'c>,
 ) -> jboolean {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_m = env.get_direct_buffer_address(&p_m)? as *mut u8;
         let v: bool = ::hello_kotlin::mood_is_flying(
-unsafe { (env.get_direct_buffer_address(&p_m)? as *const __koffi_enum_hello_kotlin_Mood).read() }.into()
+unsafe { (__base_m as *const __koffi_enum_hello_kotlin_Mood).read() }.into()
         ).into();
 
         Ok(v as jboolean)
@@ -685,8 +732,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_encryptImpl<'c>(
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_secret = env.get_direct_buffer_address(&p_secret)? as *mut u8;
         let v: __koffi_struct_hello_kotlin_SafePacket = ::hello_kotlin::encrypt(
-unsafe { (env.get_direct_buffer_address(&p_secret)? as *const __koffi_struct_hello_kotlin_SafePacket).read() }.into()
+unsafe { (__base_secret as *const __koffi_struct_hello_kotlin_SafePacket).read() }.into()
         ).into();
 
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_SafePacket;
@@ -793,9 +844,13 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_addOptionalImpl<
     p_b: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_b = env.get_direct_buffer_address(&p_b)? as *mut u8;
         let v: u32 = ::hello_kotlin::add_optional(
 (p_a as u32).into(),
-unsafe { (env.get_direct_buffer_address(&p_b)? as *const __koffi_option_u32).read() }.into()
+unsafe { (__base_b as *const __koffi_option_u32).read() }.into()
         ).into();
 
         Ok(v as jint)
@@ -828,8 +883,12 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rectTopLeftImpl<
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_r = env.get_direct_buffer_address(&p_r)? as *mut u8;
         let v: __koffi_struct_hello_kotlin_Point = ::hello_kotlin::rect_top_left(
-unsafe { (env.get_direct_buffer_address(&p_r)? as *const __koffi_struct_hello_kotlin_Rect).read() }.into()
+unsafe { (__base_r as *const __koffi_struct_hello_kotlin_Rect).read() }.into()
         ).into();
 
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Point;

@@ -7,31 +7,37 @@ use crate::types::*;
 use jni::objects::{JByteBuffer, JObject};
 use jni::sys::{jboolean, jbyte, jbyteArray, jdouble, jfloat, jint, jlong, jshort, jstring};
 
-{#~ One call argument. Memory-backed params are read off the direct buffer,
+{#~ One call argument. Memory-backed params are read off the direct buffer
+   whose address the patch block below already fetched (`__base_<param>`);
    opaque handles re-borrow the leaked pointer, spans reference the prelude
-   locals below (`__call_<param>`): owned ones are moved in, borrowed ones
+   locals (`__call_<param>`): owned ones are moved in, borrowed ones
    re-borrow the recovered copy. -#}
 {%- macro call_args(f) -%}
 {%- for p in f.params %}
-{% if p.is_receiver %}{% if !p.ty.is_opaque() %}&{% if p.is_mut_receiver %}mut {% endif %}({% endif %}{% endif %}{% if p.ty.is_span() %}{% match p.ty %}{% when SchemaTypeRef::String %}__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::Str %}&__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::Bytes %}__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::ByteSlice %}&__call_{{ p.c_abi_symbol() }}[..]{% else %}unreachable!(){% endmatch %}{% elif p.ty.is_memory_backed() %}unsafe { (env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *const {{ p.ty.unique_ident() }}).read() }.into(){% else %}{% match p.ty %}{% when SchemaTypeRef::Scalar(kind) %}(p_{{ p.c_abi_symbol() }} as {{ kind.rust_type_name() }}).into(){% when SchemaTypeRef::Enum { discriminant, .. } %}unsafe { std::mem::transmute::<{{ discriminant.jni_type() }}, {{ p.ty.unique_ident() }}>(p_{{ p.c_abi_symbol() }}) }.into(){% when SchemaTypeRef::Opaque { .. } %}{% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *(p_{{ p.c_abi_symbol() }} as usize as *mut {{ p.ty.rust_absolute_path() }}) }{% else %}unsafe { &*(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unsafe { std::ptr::read(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unreachable!(){% endmatch %}{% endif %}{% if p.is_receiver %}{% if !p.ty.is_opaque() %}){% endif %}{% endif %}{% if !loop.last %},{% endif %}
+{% if p.is_receiver %}{% if !p.ty.is_opaque() %}&{% if p.is_mut_receiver %}mut {% endif %}({% endif %}{% endif %}{% if p.ty.is_span() %}{% match p.ty %}{% when SchemaTypeRef::String %}__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::Str %}&__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::Bytes %}__call_{{ p.c_abi_symbol() }}{% when SchemaTypeRef::ByteSlice %}&__call_{{ p.c_abi_symbol() }}[..]{% else %}unreachable!(){% endmatch %}{% elif p.ty.is_memory_backed() %}unsafe { (__base_{{ p.c_abi_symbol() }} as *const {{ p.ty.unique_ident() }}).read() }.into(){% else %}{% match p.ty %}{% when SchemaTypeRef::Scalar(kind) %}(p_{{ p.c_abi_symbol() }} as {{ kind.rust_type_name() }}).into(){% when SchemaTypeRef::Enum { discriminant, .. } %}unsafe { std::mem::transmute::<{{ discriminant.jni_type() }}, {{ p.ty.unique_ident() }}>(p_{{ p.c_abi_symbol() }}) }.into(){% when SchemaTypeRef::Opaque { .. } %}{% if p.is_receiver %}{% if p.is_mut_receiver %}unsafe { &mut *(p_{{ p.c_abi_symbol() }} as usize as *mut {{ p.ty.rust_absolute_path() }}) }{% else %}unsafe { &*(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unsafe { std::ptr::read(p_{{ p.c_abi_symbol() }} as usize as *const {{ p.ty.rust_absolute_path() }}) }{% endif %}{% else %}unreachable!(){% endmatch %}{% endif %}{% if p.is_receiver %}{% if !p.ty.is_opaque() %}){% endif %}{% endif %}{% if !loop.last %},{% endif %}
 {%- endfor -%}
 {%- endmacro -%}
 
 {#~ Recover an owned copy of a Java byte array: the JVM owns the payload,
-   nobody else may touch the JNI memory it points into. -#}
+   nobody else may touch the JNI memory it points into. Writes straight
+   into the returned Vec<u8> - `get_region` takes a `*mut [jbyte]`, which
+   is `[i8]`, so it reinterprets the u8 storage instead of mapping a
+   second Vec out of it. -#}
 {%- if schema.has_spans() %}
 fn recover_bytes<'c>(
     env: &jni::Env<'c>,
     array: &jni::objects::JByteArray<'c>,
 ) -> jni::errors::Result<std::vec::Vec<u8>> {
     let len = array.len(env)?;
-    let mut region: Vec<jni::sys::jbyte> = vec![0; len];
-    array.get_region(env, 0, &mut region)?;
-    Ok(region.into_iter().map(|b| b as u8).collect())
+    let mut region: Vec<u8> = vec![0; len];
+    let bytes =
+        unsafe { std::slice::from_raw_parts_mut(region.as_mut_ptr() as *mut jni::sys::jbyte, len) };
+    array.get_region(env, 0, bytes)?;
+    Ok(region)
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn {{ schema.jni_symbol_for("koffiReadBytes") }}<'c>(
+pub unsafe extern "system" fn {{ schema.jni_symbol_for("koffiTakeBytes") }}<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
     ptr: jlong,
@@ -41,24 +47,11 @@ pub unsafe extern "system" fn {{ schema.jni_symbol_for("koffiReadBytes") }}<'c>(
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
         let src = ptr as usize as *const u8;
         let mut buf: Vec<jni::sys::jbyte> = vec![0; len as usize];
-        // SAFETY: `ptr` comes from the leaked span Rust produced for exactly
-        // `len` bytes; `koffiFreeBytes` releases it right after this call.
+        // SAFETY: `ptr` is the leaked span Rust produced for exactly `len`
+        // bytes; this copy is its only reader, and the call below hands the
+        // box back to `koffi_free_bytes` so nobody else sees it.
         unsafe { std::ptr::copy_nonoverlapping(src, buf.as_mut_ptr() as *mut u8, len as usize) };
         out.set_region(&env, 0, &buf)?;
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn {{ schema.jni_symbol_for("koffiFreeBytes") }}<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    ptr: jlong,
-    len: jlong,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
         crate::cabi::koffi_free_bytes(ptr as *mut u8, len as usize);
         Ok(0 as jint)
     });
@@ -95,15 +88,18 @@ pub unsafe extern "system" fn {{ f.jni_symbol(schema) }}<'c>(
         {%- endfor %}
         {%- for p in f.params %}
         {%- if !p.ty.is_span() && p.ty.is_memory_backed() %}
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_{{ p.c_abi_symbol() }} = env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *mut u8;
         {%- let slots = schema.span_slot_offsets(&p.ty) %}
         {%- if !slots.is_empty() %}
         // Kotlin wrote each embedded span's pointer slot as a byte offset
         // into the wire blob; re-point them at the direct buffer so the
-        // `.into()`s below read the right spans.
+        // `.into()`s in `call_args` read the right spans.
         unsafe {
-            let base = env.get_direct_buffer_address(&p_{{ p.c_abi_symbol() }})? as *mut u8;
             {%- for off in slots %}
-            *(base.add({{ off }}) as *mut usize) = base as usize + *(base.add({{ off }}) as *const usize);
+            *(__base_{{ p.c_abi_symbol() }}.add({{ off }}) as *mut usize) = __base_{{ p.c_abi_symbol() }} as usize + *(__base_{{ p.c_abi_symbol() }}.add({{ off }}) as *const usize);
             {%- endfor %}
         }
         {%- endif %}

@@ -35,11 +35,22 @@ pub fn build_crate(
     crate_path: &Path,
     release: bool,
     features: &[&str],
+    shared_target_dir: Option<&Path>,
 ) -> anyhow::Result<(String, PathBuf)> {
     let (crate_name, target_dir) = crate_metadata(crate_path)?;
 
     debug!("building {} to extract its exports", crate_path.display());
-    let cdylib_path = build_host_cdylib(&crate_name, crate_path, &target_dir, release, features)?;
+    // The artifacts land where cargo actually build them: the shared target
+    // dir when one is given, the crate's own otherwise.
+    let build_dir = shared_target_dir.unwrap_or(&target_dir);
+    let cdylib_path = build_host_cdylib(
+        &crate_name,
+        crate_path,
+        build_dir,
+        release,
+        features,
+        shared_target_dir,
+    )?;
 
     Ok((crate_name, cdylib_path))
 }
@@ -75,8 +86,9 @@ pub fn build_host_cdylib(
     target_dir: &Path,
     release: bool,
     features: &[&str],
+    shared_target_dir: Option<&Path>,
 ) -> anyhow::Result<PathBuf> {
-    run_cargo_build(crate_dir, None, release, features)?;
+    run_cargo_build(crate_dir, None, release, features, shared_target_dir)?;
 
     let cdylib_path = target_dir
         .join(if release { "release" } else { "debug" })
@@ -99,11 +111,19 @@ pub fn build_for_target(
     crate_dir: &Path,
     target_dir: &Path,
     triple: &str,
-    release: bool,
     features: &[&str],
     kinds: &[TargetKind],
+    shared_target_dir: Option<&Path>,
 ) -> anyhow::Result<TargetArtifacts> {
-    run_cargo_build(crate_dir, Some(triple), release, features)?;
+    // The glue always builds in release (see `build_and_stage`).
+    let release = true;
+    run_cargo_build(
+        crate_dir,
+        Some(triple),
+        release,
+        features,
+        shared_target_dir,
+    )?;
 
     let profile_dir = target_dir
         .join(triple)
@@ -124,6 +144,7 @@ fn run_cargo_build(
     triple: Option<&str>,
     release: bool,
     features: &[&str],
+    shared_target_dir: Option<&Path>,
 ) -> anyhow::Result<()> {
     let mut args = vec!["build"];
     if let Some(triple) = triple {
@@ -138,9 +159,17 @@ fn run_cargo_build(
         args.push(feature);
     }
 
-    let status = Command::new("cargo")
-        .args(&args)
-        .current_dir(crate_dir)
+    let mut cmd = Command::new("cargo");
+    cmd.args(&args).current_dir(crate_dir);
+    if let Some(dir) = shared_target_dir {
+        // The glue crate is a separate cargo tree, but pointing it at the
+        // source crate's target dir makes both share fingerprints, so `pack`
+        // after `gen` (or a user's own `cargo build`) doesn't recompile the
+        // source crate from scratch.
+        cmd.env("CARGO_TARGET_DIR", dir);
+    }
+
+    let status = cmd
         .status()
         .map_err(|e| anyhow::anyhow!("failed to run cargo for {}: {e}", crate_dir.display()))?;
     if !status.success() {
@@ -269,6 +298,12 @@ fn triple_os(triple: &str) -> &'static str {
 /// the cinterop `.def` with absolute paths (the Kotlin compiler resolves
 /// them relative to the def's directory, so relative ones silently miss).
 ///
+/// The glue crate always builds in release, whatever `gen -r` said: it is
+/// the runtime ABI bridge, and the source crate it links was already built
+/// by `gen` (the `-r` flag decides that build's profile). The glue build
+/// writes into the source crate's target dir, so the mandatory `cargo build`
+/// at `gen` time doubles as the first stage of `pack`'s.
+///
 /// Layout, mirroring the plan:
 /// - jvm: `resources@jvm/native/lib<ident>_glue.<ext>` (the JNI actual extracts
 ///   this from `/native/` at runtime)
@@ -278,10 +313,10 @@ fn triple_os(triple: &str) -> &'static str {
 pub fn build_and_stage(
     dirs: &OutputDirs,
     source_crate_ident: &str,
-    release: bool,
     config: &KoffiConfig,
 ) -> anyhow::Result<()> {
-    let (glue_name, target_dir) = crate_metadata(&dirs.rust_out_dir)?;
+    let (glue_name, _) = crate_metadata(&dirs.rust_out_dir)?;
+    let (_, source_target_dir) = crate_metadata(&dirs.crate_path)?;
     let host = host_triple();
 
     if config.cross_compile {
@@ -293,7 +328,12 @@ pub fn build_and_stage(
         if config.jvm_uses_jni() || config.has(&TargetPlatform::Android) {
             features.push("jni");
         }
-        let (_, cdylib) = build_crate(&dirs.rust_out_dir, release, &features)?;
+        let (_, cdylib) = build_crate(
+            &dirs.rust_out_dir,
+            true,
+            &features,
+            Some(&source_target_dir),
+        )?;
         stage(
             &cdylib,
             &dirs.kotlin_out_dir.join("resources@jvm").join("native"),
@@ -305,11 +345,11 @@ pub fn build_and_stage(
             match build_for_target(
                 &glue_name,
                 &dirs.rust_out_dir,
-                &target_dir,
+                &source_target_dir,
                 triple,
-                release,
                 &["cabi", "jni"],
                 &[TargetKind::Cdylib],
+                Some(&source_target_dir),
             ) {
                 Ok(artifacts) => {
                     let so = artifacts.cdylib.expect("android wants the cdylib");
@@ -332,11 +372,11 @@ pub fn build_and_stage(
         let artifacts = build_for_target(
             &glue_name,
             &dirs.rust_out_dir,
-            &target_dir,
+            &source_target_dir,
             triple,
-            release,
             &["cabi"],
             &[TargetKind::Staticlib],
+            Some(&source_target_dir),
         )
         .map_err(|e| {
             let linker = linker_hint(&host, triple).map_or_else(String::new, |hint| {

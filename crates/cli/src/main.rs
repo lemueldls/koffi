@@ -47,7 +47,8 @@ pub struct PackageArgs {
     #[facet(args::named, args::short = 'o', default = "generated")]
     pub out: PathBuf,
 
-    /// Enable release mode.
+    /// Enable release mode for the source crate build (the staged glue
+    /// always builds in release regardless).
     #[facet(args::named, args::short = 'r')]
     pub release: bool,
 
@@ -103,7 +104,7 @@ fn main() -> anyhow::Result<()> {
             let (dirs, crate_ident) = generate(&args, &cli.config)?;
 
             info!("packaging the generated glue crate");
-            build_and_stage(&dirs, &crate_ident, args.release, &cli.config)?;
+            build_and_stage(&dirs, &crate_ident, &cli.config)?;
             info!("packaging completed successfully");
         }
         Command::Generate(args) => {
@@ -138,7 +139,7 @@ fn preload_config_file() -> Option<(String, String)> {
 }
 
 fn generate(args: &PackageArgs, config: &KoffiConfig) -> anyhow::Result<(OutputDirs, String)> {
-    let (crate_name, cdylib_path) = build_crate(&args.crate_path, args.release, &[])?;
+    let (crate_name, cdylib_path) = build_crate(&args.crate_path, args.release, &[], None)?;
     info!("generating code for {crate_name}");
 
     debug!("extracting schema from {}", cdylib_path.display());

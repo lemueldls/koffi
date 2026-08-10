@@ -498,6 +498,17 @@ impl SchemaTypeRef {
         )
     }
 
+    /// True for any Option/Result wrapper type. Wrapper marshallers keep
+    /// the section-based (buf-only) form, unlike structs and enums which
+    /// take an absolute `base` offset.
+    #[must_use]
+    pub const fn is_wrapper(&self) -> bool {
+        matches!(
+            self,
+            SchemaTypeRef::Option { .. } | SchemaTypeRef::Result { .. }
+        )
+    }
+
     /// True for a string-flavored span (`String` / `&str`).
     #[must_use]
     pub const fn is_string(&self) -> bool {
@@ -762,15 +773,15 @@ impl SchemaTypeRef {
         }
     }
 
-    /// Generated fn computing a span-bearing struct's blob size: the bytes
-    /// its string/bytes fields (plus nested span-bearing structs') append
-    /// after the wire image. Only structs get one; other types return an
-    /// empty name and never call it.
+    /// Generated fn collecting a span-bearing struct's span payloads (the
+    /// encoded bytes for its string/bytes fields plus nested span-bearing
+    /// structs'), in the exact order `to_wire` consumes them. Only structs
+    /// get one; other types return an empty name and never call it.
     #[must_use]
-    pub fn blob_size_ident(&self) -> String {
+    pub fn blob_payload_ident(&self) -> String {
         match self {
             SchemaTypeRef::Struct { name, .. } => {
-                format!("{}BlobSize", name.to_snake_case())
+                format!("{}BlobPayload", name.to_snake_case())
             }
             _ => String::new(),
         }

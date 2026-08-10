@@ -4,3 +4,6 @@ modules:
   - ./linux
   - ./shared
   - ./windows
+  - ./bench
+  - ./bench-jvm
+  - ./bench-linux

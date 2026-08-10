@@ -1,0 +1,6 @@
+product:
+  type: kmp/lib
+  platforms: [jvm, linuxX64]
+
+dependencies:
+  - ../generated/kotlin

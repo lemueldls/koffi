@@ -18,7 +18,7 @@ fn examples() -> anyhow::Result<()> {
         let entry = entry.expect("failed to read example directory entry");
         let path = entry.path();
 
-        let (crate_name, cdylib_path) = build_crate(&path, false, &[])?;
+        let (crate_name, cdylib_path) = build_crate(&path, false, &[], None)?;
         let schema = extract_schema(&crate_name, &cdylib_path)?;
 
         insta::assert_debug_snapshot!(crate_name, schema);
@@ -72,7 +72,7 @@ fn render() -> anyhow::Result<()> {
     examples.sort();
 
     for path in examples {
-        let (crate_name, cdylib_path) = build_crate(&path, false, &[])?;
+        let (crate_name, cdylib_path) = build_crate(&path, false, &[], None)?;
         let schema = extract_schema(&crate_name, &cdylib_path)?;
 
         for (variant, config) in &variants {

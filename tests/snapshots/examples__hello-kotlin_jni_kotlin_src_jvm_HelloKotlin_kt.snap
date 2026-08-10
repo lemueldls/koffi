@@ -22,8 +22,7 @@ private fun ByteBuffer.section(offset: Int): ByteBuffer =
     duplicate().position(offset).slice().order(ByteOrder.LITTLE_ENDIAN)
 
 
-private fun koffiStringToWire(v: String, buf: ByteBuffer, blob: IntArray, slot: Int) {
-    val content = v.encodeToByteArray()
+private fun koffiStringToWire(buf: ByteBuffer, blob: IntArray, slot: Int, content: ByteArray) {
     val start = blob[0]
     buf.put(start, content)
     buf.putLong(slot, start.toLong())
@@ -31,77 +30,73 @@ private fun koffiStringToWire(v: String, buf: ByteBuffer, blob: IntArray, slot: 
     blob[0] = start + content.size
 }
 
-private fun koffiBytesToWire(v: ByteArray, buf: ByteBuffer, blob: IntArray, slot: Int) {
-    val content = v
+private fun koffiBytesToWire(buf: ByteBuffer, blob: IntArray, slot: Int, content: ByteArray) {
     val start = blob[0]
     buf.put(start, content)
     buf.putLong(slot, start.toLong())
     buf.putLong(slot + 8, content.size.toLong())
     blob[0] = start + content.size
 }
-
-private fun koffiStringFromWire(slot: ByteBuffer): String {
-    val ptr = slot.getLong(0)
-    val len = slot.getLong(8)
+private fun koffiStringFromWire(buf: ByteBuffer, slot: Int): String {
+    val ptr = buf.getLong(slot)
+    val len = buf.getLong(slot + 8)
     val out = ByteArray(len.toInt())
-    HelloKotlinFfi.koffiReadBytes(ptr, len, out)
-    HelloKotlinFfi.koffiFreeBytes(ptr, len)
+    HelloKotlinFfi.koffiTakeBytes(ptr, len, out)
     return String(out, StandardCharsets.UTF_8)
 }
 
-private fun koffiBytesFromWire(slot: ByteBuffer): ByteArray {
-    val ptr = slot.getLong(0)
-    val len = slot.getLong(8)
+private fun koffiBytesFromWire(buf: ByteBuffer, slot: Int): ByteArray {
+    val ptr = buf.getLong(slot)
+    val len = buf.getLong(slot + 8)
     val out = ByteArray(len.toInt())
-    HelloKotlinFfi.koffiReadBytes(ptr, len, out)
-    HelloKotlinFfi.koffiFreeBytes(ptr, len)
+    HelloKotlinFfi.koffiTakeBytes(ptr, len, out)
     return out
 }
 
 
-private fun moodToWire(v: Mood, buf: ByteBuffer) {
-    buf.putInt(0, v.discriminant)
+private fun moodToWire(v: Mood, buf: ByteBuffer, base: Int) {
+    buf.putInt(base, v.discriminant)
     when (v) {
         is Mood.Flying -> {
-            __koffi_option_boolToWire(v.field0, buf.section(4))
+            __koffi_option_boolToWire(v.field0, buf.section(base + 4))
         }
         else -> {}
     }
 }
 
-private fun moodFromWire(buf: ByteBuffer): Mood {
-    val d = buf.getInt(0)
+private fun moodFromWire(buf: ByteBuffer, base: Int): Mood {
+    val d = buf.getInt(base)
     return when (d) {
         0 -> Mood.Fine
-        1 -> Mood.Flying(field0 = __koffi_option_boolFromWire(buf.section(4)))
+        1 -> Mood.Flying(field0 = __koffi_option_boolFromWire(buf.section(base + 4)))
         else -> error("koffi: invalid Mood discriminant $d")
     }
 }
 
 private fun moodToBuf(v: Mood): ByteBuffer {
     val buf = allocateWire(8)
-    moodToWire(v, buf)
+    moodToWire(v, buf, 0)
     return buf
 }
-private fun statusToWire(v: Status, buf: ByteBuffer) {
-    buf.putInt(0, v.discriminant)
+private fun statusToWire(v: Status, buf: ByteBuffer, base: Int) {
+    buf.putInt(base, v.discriminant)
     when (v) {
         is Status.Busy -> {
-            buf.putInt(4, v.field0.toInt())
+            buf.putInt(base + 4, v.field0.toInt())
         }
         is Status.Error -> {
-            buf.putInt(4, v.code.toInt())
+            buf.putInt(base + 4, v.code.toInt())
         }
         else -> {}
     }
 }
 
-private fun statusFromWire(buf: ByteBuffer): Status {
-    val d = buf.getInt(0)
+private fun statusFromWire(buf: ByteBuffer, base: Int): Status {
+    val d = buf.getInt(base)
     return when (d) {
         0 -> Status.Idle
-        1 -> Status.Busy(field0 = buf.getInt(4).toUInt())
-        2 -> Status.Error(code = buf.getInt(4).toUInt())
+        1 -> Status.Busy(field0 = buf.getInt(base + 4).toUInt())
+        2 -> Status.Error(code = buf.getInt(base + 4).toUInt())
         -1 -> Status.Failed
         else -> error("koffi: invalid Status discriminant $d")
     }
@@ -109,208 +104,214 @@ private fun statusFromWire(buf: ByteBuffer): Status {
 
 private fun statusToBuf(v: Status): ByteBuffer {
     val buf = allocateWire(8)
-    statusToWire(v, buf)
+    statusToWire(v, buf, 0)
     return buf
 }
 
 
 
 
-private fun dancerToWire(v: Dancer, buf: ByteBuffer) {
-    buf.putInt(0, v.id.toInt())
-    __koffi_option_boolToWire(v.active, buf.section(4))
+private fun dancerToWire(v: Dancer, buf: ByteBuffer, base: Int) {
+    buf.putInt(base + 0, v.id.toInt())
+    __koffi_option_boolToWire(v.active, buf.section(base + 4))
 }
 
 private fun dancerToBuf(v: Dancer): ByteBuffer {
     val buf = allocateWire(8)
-    dancerToWire(v, buf)
+    dancerToWire(v, buf, 0)
     return buf
 }
 
-private fun dancerFromWire(buf: ByteBuffer): Dancer =
+private fun dancerFromWire(buf: ByteBuffer, base: Int): Dancer =
     Dancer(
-        id = buf.getInt(0).toUInt(),
-        active = __koffi_option_boolFromWire(buf.section(4)))
+        id = buf.getInt(base + 0).toUInt(),
+        active = __koffi_option_boolFromWire(buf.section(base + 4)))
 
 
-private fun greetingBlobSize(v: Greeting): Int =
-    v.name.encodeToByteArray().size +
-    v.blob.size + 0
+private fun greetingBlobPayload(v: Greeting, out: MutableList<ByteArray>) {
+    out.add(v.name.encodeToByteArray())
+    out.add(v.blob)
+}
 
-private fun greetingToWire(v: Greeting, buf: ByteBuffer, base: Int, blob: IntArray) {
-    koffiStringToWire(v.name, buf, blob, base + 0)
-    koffiBytesToWire(v.blob, buf, blob, base + 16)
+private fun greetingToWire(v: Greeting, buf: ByteBuffer, base: Int, blob: IntArray, payload: MutableList<ByteArray>) {
+    koffiStringToWire(buf, blob, base + 0, payload.removeAt(0))
+    koffiBytesToWire(buf, blob, base + 16, payload.removeAt(0))
 }
 
 private fun greetingToBuf(v: Greeting): ByteBuffer {
+    val payload = ArrayList<ByteArray>()
+    greetingBlobPayload(v, payload)
     val blob = intArrayOf(32)
-    val buf = allocateWire(32 + greetingBlobSize(v))
-    greetingToWire(v, buf, 0, blob)
+    val buf = allocateWire(32 + payload.sumOf { it.size })
+    greetingToWire(v, buf, 0, blob, payload)
     return buf
 }
 
-private fun greetingFromWire(buf: ByteBuffer): Greeting =
+private fun greetingFromWire(buf: ByteBuffer, base: Int): Greeting =
     Greeting(
-        name = koffiStringFromWire(buf.section(0)),
-        blob = koffiBytesFromWire(buf.section(16)))
+        name = koffiStringFromWire(buf, base + 0),
+        blob = koffiBytesFromWire(buf, base + 16))
 
 
-private fun mailBlobSize(v: Mail): Int =
-    greetingBlobSize(v.greeting) + 0
+private fun mailBlobPayload(v: Mail, out: MutableList<ByteArray>) {
+    greetingBlobPayload(v.greeting, out)
+}
 
-private fun mailToWire(v: Mail, buf: ByteBuffer, base: Int, blob: IntArray) {
-    greetingToWire(v.greeting, buf, base + 0, blob)
+private fun mailToWire(v: Mail, buf: ByteBuffer, base: Int, blob: IntArray, payload: MutableList<ByteArray>) {
+    greetingToWire(v.greeting, buf, base + 0, blob, payload)
     buf.putInt(base + 32, v.hops.toInt())
 }
 
 private fun mailToBuf(v: Mail): ByteBuffer {
+    val payload = ArrayList<ByteArray>()
+    mailBlobPayload(v, payload)
     val blob = intArrayOf(40)
-    val buf = allocateWire(40 + mailBlobSize(v))
-    mailToWire(v, buf, 0, blob)
+    val buf = allocateWire(40 + payload.sumOf { it.size })
+    mailToWire(v, buf, 0, blob, payload)
     return buf
 }
 
-private fun mailFromWire(buf: ByteBuffer): Mail =
+private fun mailFromWire(buf: ByteBuffer, base: Int): Mail =
     Mail(
-        greeting = greetingFromWire(buf.section(0)),
-        hops = buf.getInt(32).toUInt())
+        greeting = greetingFromWire(buf, base + 0),
+        hops = buf.getInt(base + 32).toUInt())
 
 
 
-private fun payloadToWire(v: Payload, buf: ByteBuffer) {
-    buf.putShort(0, v.data.toShort())
+private fun payloadToWire(v: Payload, buf: ByteBuffer, base: Int) {
+    buf.putShort(base + 0, v.data.toShort())
 }
 
 private fun payloadToBuf(v: Payload): ByteBuffer {
     val buf = allocateWire(2)
-    payloadToWire(v, buf)
+    payloadToWire(v, buf, 0)
     return buf
 }
 
-private fun payloadFromWire(buf: ByteBuffer): Payload =
+private fun payloadFromWire(buf: ByteBuffer, base: Int): Payload =
     Payload(
-        data = buf.getShort(0).toUShort())
+        data = buf.getShort(base + 0).toUShort())
 
 
 
-private fun pointToWire(v: Point, buf: ByteBuffer) {
-    buf.putInt(0, v.x)
-    buf.putInt(4, v.y)
+private fun pointToWire(v: Point, buf: ByteBuffer, base: Int) {
+    buf.putInt(base + 0, v.x)
+    buf.putInt(base + 4, v.y)
 }
 
 private fun pointToBuf(v: Point): ByteBuffer {
     val buf = allocateWire(8)
-    pointToWire(v, buf)
+    pointToWire(v, buf, 0)
     return buf
 }
 
-private fun pointFromWire(buf: ByteBuffer): Point =
+private fun pointFromWire(buf: ByteBuffer, base: Int): Point =
     Point(
-        x = buf.getInt(0),
-        y = buf.getInt(4))
+        x = buf.getInt(base + 0),
+        y = buf.getInt(base + 4))
 
 
 
-private fun rectToWire(v: Rect, buf: ByteBuffer) {
-    pointToWire(v.topLeft, buf.section(0))
-    pointToWire(v.bottomRight, buf.section(8))
+private fun rectToWire(v: Rect, buf: ByteBuffer, base: Int) {
+    pointToWire(v.topLeft, buf, base + 0)
+    pointToWire(v.bottomRight, buf, base + 8)
 }
 
 private fun rectToBuf(v: Rect): ByteBuffer {
     val buf = allocateWire(16)
-    rectToWire(v, buf)
+    rectToWire(v, buf, 0)
     return buf
 }
 
-private fun rectFromWire(buf: ByteBuffer): Rect =
+private fun rectFromWire(buf: ByteBuffer, base: Int): Rect =
     Rect(
-        topLeft = pointFromWire(buf.section(0)),
-        bottomRight = pointFromWire(buf.section(8)))
+        topLeft = pointFromWire(buf, base + 0),
+        bottomRight = pointFromWire(buf, base + 8))
 
 
 
-private fun safe_packetToWire(v: SafePacket, buf: ByteBuffer) {
-    secret_wireToWire(v.secret, buf.section(0))
-    buf.put(4, v.hop.toByte())
+private fun safe_packetToWire(v: SafePacket, buf: ByteBuffer, base: Int) {
+    secret_wireToWire(v.secret, buf, base + 0)
+    buf.put(base + 4, v.hop.toByte())
 }
 
 private fun safe_packetToBuf(v: SafePacket): ByteBuffer {
     val buf = allocateWire(5)
-    safe_packetToWire(v, buf)
+    safe_packetToWire(v, buf, 0)
     return buf
 }
 
-private fun safe_packetFromWire(buf: ByteBuffer): SafePacket =
+private fun safe_packetFromWire(buf: ByteBuffer, base: Int): SafePacket =
     SafePacket(
-        secret = secret_wireFromWire(buf.section(0)),
-        hop = buf.get(4).toUByte())
+        secret = secret_wireFromWire(buf, base + 0),
+        hop = buf.get(base + 4).toUByte())
 
 
 
-private fun secret_wireToWire(v: SecretWire, buf: ByteBuffer) {
-    buf.put(0, v.a.toByte())
-    buf.put(1, v.b.toByte())
-    buf.put(2, v.c.toByte())
-    buf.put(3, v.d.toByte())
+private fun secret_wireToWire(v: SecretWire, buf: ByteBuffer, base: Int) {
+    buf.put(base + 0, v.a.toByte())
+    buf.put(base + 1, v.b.toByte())
+    buf.put(base + 2, v.c.toByte())
+    buf.put(base + 3, v.d.toByte())
 }
 
 private fun secret_wireToBuf(v: SecretWire): ByteBuffer {
     val buf = allocateWire(4)
-    secret_wireToWire(v, buf)
+    secret_wireToWire(v, buf, 0)
     return buf
 }
 
-private fun secret_wireFromWire(buf: ByteBuffer): SecretWire =
+private fun secret_wireFromWire(buf: ByteBuffer, base: Int): SecretWire =
     SecretWire(
-        a = buf.get(0).toUByte(),
-        b = buf.get(1).toUByte(),
-        c = buf.get(2).toUByte(),
-        d = buf.get(3).toUByte())
+        a = buf.get(base + 0).toUByte(),
+        b = buf.get(base + 1).toUByte(),
+        c = buf.get(base + 2).toUByte(),
+        d = buf.get(base + 3).toUByte())
 
 
 
-private fun status_holderToWire(v: StatusHolder, buf: ByteBuffer) {
-    statusToWire(v.status, buf.section(0))
-    buf.put(8, v.tag.toByte())
+private fun status_holderToWire(v: StatusHolder, buf: ByteBuffer, base: Int) {
+    statusToWire(v.status, buf, base + 0)
+    buf.put(base + 8, v.tag.toByte())
 }
 
 private fun status_holderToBuf(v: StatusHolder): ByteBuffer {
     val buf = allocateWire(12)
-    status_holderToWire(v, buf)
+    status_holderToWire(v, buf, 0)
     return buf
 }
 
-private fun status_holderFromWire(buf: ByteBuffer): StatusHolder =
+private fun status_holderFromWire(buf: ByteBuffer, base: Int): StatusHolder =
     StatusHolder(
-        status = statusFromWire(buf.section(0)),
-        tag = buf.get(8).toUByte())
+        status = statusFromWire(buf, base + 0),
+        tag = buf.get(base + 8).toUByte())
 
 
 
-private fun window_pairToWire(v: WindowPair, buf: ByteBuffer) {
-    buf.putLong(0, v.a.handle)
-    buf.putLong(8, v.b.handle)
-    buf.put(16, v.tag.toByte())
+private fun window_pairToWire(v: WindowPair, buf: ByteBuffer, base: Int) {
+    buf.putLong(base + 0, v.a.handle)
+    buf.putLong(base + 8, v.b.handle)
+    buf.put(base + 16, v.tag.toByte())
 }
 
 private fun window_pairToBuf(v: WindowPair): ByteBuffer {
     val buf = allocateWire(24)
-    window_pairToWire(v, buf)
+    window_pairToWire(v, buf, 0)
     return buf
 }
 
-private fun window_pairFromWire(buf: ByteBuffer): WindowPair =
+private fun window_pairFromWire(buf: ByteBuffer, base: Int): WindowPair =
     WindowPair(
-        a = Window(buf.getLong(0)),
-        b = Window(buf.getLong(8)),
-        tag = buf.get(16).toUByte())
+        a = Window(buf.getLong(base + 0)),
+        b = Window(buf.getLong(base + 8)),
+        tag = buf.get(base + 16).toUByte())
 
 private fun __koffi_option___koffi_struct_hello_kotlin_DancerToWire(v: Dancer?, buf: ByteBuffer) {
     if (v != null) {
         buf.put(0, 1.toByte())
         val inner = v
         
-dancerToWire(inner, buf.section(4))
+dancerToWire(inner, buf.section(4), 0)
     } else {
         buf.put(0, 0.toByte())
     }
@@ -319,7 +320,7 @@ dancerToWire(inner, buf.section(4))
 private fun __koffi_option___koffi_struct_hello_kotlin_DancerFromWire(buf: ByteBuffer): Dancer? {
     return if (buf.get(0) == 1.toByte()) {
         
-dancerFromWire(buf.section(4))
+dancerFromWire(buf.section(4), 0)
     } else {
         null
     }
@@ -335,7 +336,7 @@ private fun __koffi_option___koffi_struct_hello_kotlin_PayloadToWire(v: Payload?
         buf.put(0, 1.toByte())
         val inner = v
         
-payloadToWire(inner, buf.section(2))
+payloadToWire(inner, buf.section(2), 0)
     } else {
         buf.put(0, 0.toByte())
     }
@@ -344,7 +345,7 @@ payloadToWire(inner, buf.section(2))
 private fun __koffi_option___koffi_struct_hello_kotlin_PayloadFromWire(buf: ByteBuffer): Payload? {
     return if (buf.get(0) == 1.toByte()) {
         
-payloadFromWire(buf.section(2))
+payloadFromWire(buf.section(2), 0)
     } else {
         null
     }
@@ -468,13 +469,13 @@ private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hell
             buf.put(0, 1.toByte())
             val inner = (v as KoffiResult.Ok<Payload>).value
             
-payloadToWire(inner, buf.section(4))
+payloadToWire(inner, buf.section(4), 0)
         }
         is KoffiResult.Err<*> -> {
             buf.put(0, 0.toByte())
             val inner = (v as KoffiResult.Err<Status>).error
             
-statusToWire(inner, buf.section(4))
+statusToWire(inner, buf.section(4), 0)
         }
     }
 }
@@ -482,10 +483,10 @@ statusToWire(inner, buf.section(4))
 private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromWire(buf: ByteBuffer): KoffiResult<Payload, Status> {
     return if (buf.get(0) == 1.toByte()) {
         KoffiResult.Ok(
-payloadFromWire(buf.section(4)))
+payloadFromWire(buf.section(4), 0))
     } else {
         KoffiResult.Err(
-statusFromWire(buf.section(4)))
+statusFromWire(buf.section(4), 0))
     }
 }
 
@@ -530,8 +531,7 @@ actual object HelloKotlinFfi {
     init {
         System.load(HelloKotlinLoader.extractLibrary())
     }
-external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
-    external fun koffiFreeBytes(ptr: Long, len: Long)
+external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
@@ -678,7 +678,7 @@ external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
     actual fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload {
         val out = allocateWire(2)
         helloKotlinPayloadWithDataImpl(payloadToBuf(self), data.toShort(), out)
-        return payloadFromWire(out)
+        return payloadFromWire(out, 0)
     }
 
     external fun helloKotlinPayloadWithDataImpl(
@@ -698,7 +698,7 @@ external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
     actual fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair {
         val out = allocateWire(24)
         helloKotlinWindowPairNewImpl(a.toLong(), b.toLong(), out)
-        return window_pairFromWire(out)
+        return window_pairFromWire(out, 0)
     }
 
     external fun helloKotlinWindowPairNewImpl(
@@ -766,7 +766,7 @@ external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
     actual fun helloKotlinStatusNewBusy(code: UInt): Status {
         val out = allocateWire(8)
         helloKotlinStatusNewBusyImpl(code.toInt(), out)
-        return statusFromWire(out)
+        return statusFromWire(out, 0)
     }
 
     external fun helloKotlinStatusNewBusyImpl(
@@ -779,7 +779,7 @@ external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
     actual fun helloKotlinStatusIdle(): Status {
         val out = allocateWire(8)
         helloKotlinStatusIdleImpl(out)
-        return statusFromWire(out)
+        return statusFromWire(out, 0)
     }
 
     external fun helloKotlinStatusIdleImpl(
@@ -831,7 +831,7 @@ external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
     actual fun helloKotlinPayloadNew(data: UShort): Payload {
         val out = allocateWire(2)
         helloKotlinPayloadNewImpl(data.toShort(), out)
-        return payloadFromWire(out)
+        return payloadFromWire(out, 0)
     }
 
     external fun helloKotlinPayloadNewImpl(
@@ -884,7 +884,7 @@ external fun koffiReadBytes(ptr: Long, len: Long, out: ByteArray)
 actual fun makeHolder(): StatusHolder {
     val out = allocateWire(12)
     HelloKotlinFfi.makeHolderImpl(out)
-    return status_holderFromWire(out)
+    return status_holderFromWire(out, 0)
 }
 actual fun cStatusIsErr(s: CStatus): Boolean =
     HelloKotlinFfi.cStatusIsErrImpl(s.discriminant.toInt())
@@ -897,12 +897,12 @@ actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt =
 actual fun makeRect(): Rect {
     val out = allocateWire(16)
     HelloKotlinFfi.makeRectImpl(out)
-    return rectFromWire(out)
+    return rectFromWire(out, 0)
 }
 actual fun holderStatus(h: StatusHolder): Status {
     val out = allocateWire(8)
     HelloKotlinFfi.holderStatusImpl(status_holderToBuf(h), out)
-    return statusFromWire(out)
+    return statusFromWire(out, 0)
 }
 actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
     val out = allocateWire(8)
@@ -917,12 +917,12 @@ actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
 actual fun makeStatus(): Status {
     val out = allocateWire(8)
     HelloKotlinFfi.makeStatusImpl(out)
-    return statusFromWire(out)
+    return statusFromWire(out, 0)
 }
 actual fun upgrade(m: Mail): Mail {
     val out = allocateWire(40)
     HelloKotlinFfi.upgradeImpl(mailToBuf(m), out)
-    return mailFromWire(out)
+    return mailFromWire(out, 0)
 }
 actual fun nothing(): UInt? {
     val out = allocateWire(8)
@@ -955,7 +955,7 @@ actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
 actual fun mood(): Mood {
     val out = allocateWire(8)
     HelloKotlinFfi.moodImpl(out)
-    return moodFromWire(out)
+    return moodFromWire(out, 0)
 }
 actual fun statusCode(s: Status): UInt =
     HelloKotlinFfi.statusCodeImpl(statusToBuf(s)).toUInt()
@@ -968,7 +968,7 @@ actual fun moodIsFlying(m: Mood): Boolean =
 actual fun encrypt(secret: SafePacket): SafePacket {
     val out = allocateWire(5)
     HelloKotlinFfi.encryptImpl(safe_packetToBuf(secret), out)
-    return safe_packetFromWire(out)
+    return safe_packetFromWire(out, 0)
 }
 actual fun emptyString(): String =
     HelloKotlinFfi.emptyStringImpl()
@@ -984,12 +984,12 @@ actual fun addOptional(a: UInt, b: UInt?): UInt =
 actual fun hello(): Payload {
     val out = allocateWire(2)
     HelloKotlinFfi.helloImpl(out)
-    return payloadFromWire(out)
+    return payloadFromWire(out, 0)
 }
 actual fun rectTopLeft(r: Rect): Point {
     val out = allocateWire(8)
     HelloKotlinFfi.rectTopLeftImpl(rectToBuf(r), out)
-    return pointFromWire(out)
+    return pointFromWire(out, 0)
 }
 actual fun stringPair(a: String, b: String): Boolean =
     HelloKotlinFfi.stringPairImpl(a, b)
