@@ -70,6 +70,7 @@ pub struct SchemaStruct {
     pub module_path: Option<String>,
     pub fields: Vec<SchemaField>,
     pub layout: StructLayoutInfo,
+    pub is_tuple: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -584,10 +585,12 @@ fn convert_shape(
                     let key = (module_path.clone(), name.clone());
 
                     if !structs.contains_key(&key) {
+                        let is_tuple = s.kind == facet::StructKind::TupleStruct;
                         let fields = s
                             .fields
                             .iter()
                             .map(|f| {
+                                let name = field_ident(s.kind, f.effective_name());
                                 // A `#[facet(proxy = X)]` field is wired as X
                                 // (the proxy shape) and converted through the
                                 // user's TryFrom pair in the generated glue.
@@ -604,7 +607,7 @@ fn convert_shape(
                                     );
                                 }
                                 Ok(SchemaField {
-                                    name: f.effective_name().to_string(),
+                                    name,
                                     ty,
                                     is_proxy: f.proxy_shape().is_some(),
                                     real_ty: f.proxy_shape().map(|_| {
@@ -629,6 +632,7 @@ fn convert_shape(
                             module_path,
                             fields,
                             layout,
+                            is_tuple,
                         });
                     }
 
@@ -756,6 +760,18 @@ fn convert_shape(
 /// Projects one enum variant's payload fields. Unit variants yield an empty
 /// list; tuple-variant fields get `field{n}` names (facet names them `"0"`,
 /// which isn't a valid Kotlin/Rust identifier).
+/// A facet field name usable everywhere: tuple positions (`"0"`, `"1"`)
+/// become `field0`, `field1` (facet names tuple fields after the literal,
+/// which isn't a valid identifier in Rust, C or Kotlin); named fields pass
+/// through.
+fn field_ident(kind: facet::StructKind, name: &str) -> String {
+    if kind == facet::StructKind::TupleStruct {
+        format!("field{name}")
+    } else {
+        name.to_string()
+    }
+}
+
 fn project_variant_fields(
     variant: &'static facet::Variant,
     structs: &mut BTreeMap<(Option<String>, String), SchemaStruct>,
@@ -768,11 +784,7 @@ fn project_variant_fields(
         .fields
         .iter()
         .map(|f| {
-            let name = if variant.data.kind == facet::StructKind::TupleStruct {
-                format!("field{}", f.effective_name())
-            } else {
-                f.effective_name().to_string()
-            };
+            let name = field_ident(variant.data.kind, f.effective_name());
             let field_shape = f.proxy_shape().unwrap_or_else(|| f.shape());
             let ty = convert_shape(field_shape, structs, enums, wrappers, opaques)?;
             if ty.structured_contains_span(structs) {

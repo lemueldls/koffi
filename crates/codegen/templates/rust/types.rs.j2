@@ -87,11 +87,15 @@ pub struct {{ s.unique_ident() }} {
 
 impl From<{{ s.unique_ident() }}> for {{ s.rust_absolute_path() }} {
     fn from(c: {{ s.unique_ident() }}) -> Self {
+        {%- if s.is_tuple %}
+        Self({% for field in s.fields %}{% if field.is_proxy %}{{ field.real_rust_path() }}::try_from({{ field.ty.rust_absolute_path() }}::from(c.{{ field.name }})).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ s.name }}::{{ field.name }}")){% else %}c.{{ field.name }}.into(){% endif %}{% if !loop.last %}, {% endif %}{% endfor %})
+        {%- else %}
         Self {
             {%- for field in s.fields %}
             {{ field.name }}: {% if field.is_proxy %}{{ field.real_rust_path() }}::try_from({{ field.ty.rust_absolute_path() }}::from(c.{{ field.name }})).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ s.name }}::{{ field.name }}")){% else %}c.{{ field.name }}.into(){% endif %},
             {%- endfor %}
         }
+        {%- endif %}
     }
 }
 
@@ -99,7 +103,7 @@ impl From<{{ s.rust_absolute_path() }}> for {{ s.unique_ident() }} {
     fn from(v: {{ s.rust_absolute_path() }}) -> Self {
         Self {
             {%- for field in s.fields %}
-            {{ field.name }}: {% if field.is_proxy %}{{ field.ty.rust_absolute_path() }}::try_from(&v.{{ field.name }}).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ s.name }}::{{ field.name }}")).into(){% else %}v.{{ field.name }}.into(){% endif %},
+            {{ field.name }}: {% if field.is_proxy %}{{ field.ty.rust_absolute_path() }}::try_from(&v.{% if s.is_tuple %}{{ loop.index0 }}{% else %}{{ field.name }}{% endif %}).unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ s.name }}::{{ field.name }}")).into(){% else %}v.{% if s.is_tuple %}{{ loop.index0 }}{% else %}{{ field.name }}{% endif %}.into(){% endif %},
             {%- endfor %}
         }
     }
@@ -151,12 +155,8 @@ impl From<{{ e.unique_ident() }}> for {{ e.rust_absolute_path() }} {
                     {%- endfor %}
                 }
                 {%- elif !v.placements.is_empty() %}
-                {%- if v.placements[0].is_proxy %}
-                Self::{{ v.name }}({{ v.placements[0].real_rust_path() }}::try_from({{ v.placements[0].ty.rust_absolute_path() }}::from(unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ v.placements[0].name }}))
-                    .unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ e.name }}::{{ v.name }}")))
-                {%- else %}
-                Self::{{ v.name }}(unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ v.placements[0].name }}.into())
-                {%- endif %}
+                Self::{{ v.name }}({% for f in v.placements %}{% if f.is_proxy %}{{ f.real_rust_path() }}::try_from({{ f.ty.rust_absolute_path() }}::from(unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ f.name }}))
+                    .unwrap_or_else(|_| panic!("koffi: proxy conversion failed for {{ e.name }}::{{ v.name }}::{{ f.name }}")){% else %}unsafe { w._u.{{ e.variant_wire_name(v) }} }.{{ f.name }}.into(){% endif %}{% if !loop.last %}, {% endif %}{% endfor %})
                 {%- else %}
                 Self::{{ v.name }}
                 {%- endif %}

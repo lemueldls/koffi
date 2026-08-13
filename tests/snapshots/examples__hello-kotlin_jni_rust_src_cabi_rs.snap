@@ -44,6 +44,17 @@ _p_s.into(),
     })
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_positioned_sum(
+    _p_p: __koffi_struct_hello_kotlin_Positioned,
+) -> u64 {
+    guarded(|| {
+        ::hello_kotlin::positioned_sum(
+            
+_p_p.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn __koffi_fn_hello_kotlin_greet(
     _p_g: __koffi_struct_hello_kotlin_Greeting,
 ) -> __koffi_string {
@@ -85,6 +96,17 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_WindowPair_first_describe(
 ) -> u64 {
     guarded(|| {
         ::hello_kotlin::WindowPair::first_describe(
+            & 
+_p_self.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_Pair_swapped(
+    _p_self: __koffi_struct_hello_kotlin_Pair,
+) -> __koffi_struct_hello_kotlin_Pair {
+    guarded(|| {
+        ::hello_kotlin::Pair::swapped(
             & 
 _p_self.into(),
         ).into()
@@ -219,6 +241,14 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_nothing(
 ) -> __koffi_option_u32 {
     guarded(|| {
         ::hello_kotlin::nothing(
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_make_pair(
+) -> __koffi_struct_hello_kotlin_Pair {
+    guarded(|| {
+        ::hello_kotlin::make_pair(
         ).into()
     })
 }
@@ -448,6 +478,31 @@ _p_color.into(),
     })
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_pair_sum(
+    _p_p: __koffi_struct_hello_kotlin_Pair,
+) -> u64 {
+    guarded(|| {
+        ::hello_kotlin::pair_sum(
+            
+_p_p.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_Pair_new(
+    _p_x: u32,
+    _p_y: u64,
+) -> __koffi_struct_hello_kotlin_Pair {
+    guarded(|| {
+        ::hello_kotlin::Pair::new(
+            
+_p_x.into(),
+            
+_p_y.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn __koffi_fn_hello_kotlin_KeywordBag_new(
     _p_object: u32,
     _p_when: u32,
@@ -624,6 +679,14 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_make_when(
 _p_object.into(),
             
 _p_val.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_make_loading(
+) -> __koffi_enum_hello_kotlin_Status {
+    guarded(|| {
+        ::hello_kotlin::make_loading(
         ).into()
     })
 }

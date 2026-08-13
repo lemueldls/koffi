@@ -100,6 +100,10 @@ private fun statusToC(v: Status, scope: MemScope): CValue<__koffi_enum_hello_kot
         is Status.Error -> {
             _u.error.code = v.code
         }
+        is Status.Loading -> {
+            _u.loading.field0 = v.field0
+            _u.loading.field1 = v.field1
+        }
         else -> {}
     }
 }
@@ -110,6 +114,7 @@ private fun statusFromC(w: CValue<__koffi_enum_hello_kotlin_Status>): Status = w
         1 -> Status.Busy(field0 = _u.busy.field0)
         2 -> Status.Error(code = _u.error.code)
         -1 -> Status.Failed
+        3 -> Status.Loading(field0 = _u.loading.field0, field1 = _u.loading.field1)
         else -> error("koffi: invalid Status discriminant $_d")
     }
 }
@@ -158,6 +163,16 @@ private fun mailFromC(w: CValue<__koffi_struct_hello_kotlin_Mail>): Mail = w.use
         greeting = greetingFromC(greeting.readValue()),
         hops = hops)
 }
+private fun pairToC(v: Pair, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Pair> = cValue {
+    field0 = v.field0
+    field1 = v.field1
+}
+
+private fun pairFromC(w: CValue<__koffi_struct_hello_kotlin_Pair>): Pair = w.useContents {
+    Pair(
+        field0 = field0,
+        field1 = field1)
+}
 private fun payloadToC(v: Payload, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Payload> = cValue {
     data = v.data
 }
@@ -175,6 +190,16 @@ private fun pointFromC(w: CValue<__koffi_struct_hello_kotlin_Point>): Point = w.
     Point(
         x = x,
         y = y)
+}
+private fun positionedToC(v: Positioned, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Positioned> = cValue {
+    pairToC(v.top, scope).place(top.ptr)
+    pairToC(v.origin, scope).place(origin.ptr)
+}
+
+private fun positionedFromC(w: CValue<__koffi_struct_hello_kotlin_Positioned>): Positioned = w.useContents {
+    Positioned(
+        top = pairFromC(top.readValue()),
+        origin = pairFromC(origin.readValue()))
 }
 private fun rectToC(v: Rect, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Rect> = cValue {
     pointToC(v.topLeft, scope).place(top_left.ptr)
@@ -406,6 +431,11 @@ actual object HelloKotlinFfi {
             __koffi_fn_hello_kotlin_WindowPair_first_describe(window_pairToC(self, this))
         }
     }
+    actual fun helloKotlinPairSwapped(self: Pair): Pair {
+        return memScoped {
+            __koffi_fn_hello_kotlin_Pair_swapped(pairToC(self, this)).let { pairFromC(it) }
+        }
+    }
     actual fun helloKotlinPayloadDescribeFormat(): UInt {
         return memScoped {
             __koffi_fn_hello_kotlin_Payload_describe_format()
@@ -461,6 +491,11 @@ actual object HelloKotlinFfi {
             __koffi_fn_hello_kotlin_WindowPair_retag_a(window_pairToC(self, this), id)
         }
     }
+    actual fun helloKotlinPairNew(x: UInt, y: ULong): Pair {
+        return memScoped {
+            __koffi_fn_hello_kotlin_Pair_new(x, y).let { pairFromC(it) }
+        }
+    }
     actual fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag {
         return memScoped {
             __koffi_fn_hello_kotlin_KeywordBag_new(`object`, `when`).let { keyword_bagFromC(it) }
@@ -501,6 +536,11 @@ actual fun fancy(): KeywordData {
 actual fun cStatusIsErr(s: CStatus): Boolean {
     return memScoped {
         __koffi_fn_hello_kotlin_c_status_is_err(s.discriminant) != 0u.toUByte()
+    }
+}
+actual fun positionedSum(p: Positioned): ULong {
+    return memScoped {
+        __koffi_fn_hello_kotlin_positioned_sum(positionedToC(p, this))
     }
 }
 actual fun greet(g: Greeting): String {
@@ -568,6 +608,11 @@ actual fun nothing(): UInt? {
         __koffi_fn_hello_kotlin_nothing().let { __koffi_option_u32FromC(it) }
     }
 }
+actual fun makePair(): Pair {
+    return memScoped {
+        __koffi_fn_hello_kotlin_make_pair().let { pairFromC(it) }
+    }
+}
 actual fun echoBytes(b: ByteArray): ByteArray {
     return memScoped {
         __koffi_fn_hello_kotlin_echo_bytes(koffiBytesToC(b, this)).let { koffiBytesFromC(it) }
@@ -628,6 +673,11 @@ actual fun paint(color: Boolean?): Boolean {
         __koffi_fn_hello_kotlin_paint(__koffi_option_boolToC(color, this)) != 0u.toUByte()
     }
 }
+actual fun pairSum(p: Pair): ULong {
+    return memScoped {
+        __koffi_fn_hello_kotlin_pair_sum(pairToC(p, this))
+    }
+}
 actual fun rectArea(r: Rect): Int {
     return memScoped {
         __koffi_fn_hello_kotlin_rect_area(rectToC(r, this))
@@ -681,6 +731,11 @@ actual fun stringPair(a: String, b: String): Boolean {
 actual fun makeWhen(`object`: UInt, `val`: UInt): `when` {
     return memScoped {
         __koffi_fn_hello_kotlin_make_when(`object`, `val`).let { whenFromC(it) }
+    }
+}
+actual fun makeLoading(): Status {
+    return memScoped {
+        __koffi_fn_hello_kotlin_make_loading().let { statusFromC(it) }
     }
 }
 actual fun keywordDataSum(d: KeywordData): UInt {

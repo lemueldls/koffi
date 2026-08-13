@@ -30,6 +30,8 @@ fun runChecks() {
     // Free fns: data-carrying enum as arg and return.
     check("makeStatus() -> Busy(7)", makeStatus() == Status.Busy(7u))
     check("statusCode(Busy(7)) == 7", statusCode(Status.Busy(7u)) == 7u)
+    check("makeLoading() -> Loading(11, 22)", makeLoading() == Status.Loading(11u, 22u))
+    check("statusCode(Loading(3, 4)) == 7", statusCode(Status.Loading(3u, 4u)) == 7u)
     check("statusCode(Error(code=42)) == 42", statusCode(Status.Error(code = 42u)) == 42u)
     check("statusCode(Idle) == 0", statusCode(Status.Idle) == 0u)
     check("statusCode(Failed) == 3", statusCode(Status.Failed) == 3u)
@@ -186,6 +188,16 @@ fun runChecks() {
 
     val kwOpaque = `object`.open(7uL)
     check("`object`.open(7).describe() == 7", kwOpaque.describe() == 7uL)
+
+    // Positional (tuple) structs: fields surface as field0/field1.
+    check("makePair() == Pair(3, 7)", makePair() == Pair(3u, 7uL))
+    check("pairSum(Pair(5, 9)) == 14", pairSum(Pair(5u, 9uL)) == 14uL)
+    check("Pair.new(1, 2) roundtrips", Pair.new(1u, 2uL) == Pair(1u, 2uL))
+    check("Pair(4, 8).swapped() == Pair(8, 4)", Pair(4u, 8uL).swapped() == Pair(8u, 4uL))
+    check(
+        "nested tuple structs roundtrip",
+        positionedSum(Positioned(Pair(1u, 2uL), Pair(3u, 4uL))) == 10uL,
+    )
 
     if (failures > 0) {
         println("\n$failures test(s) FAILED")

@@ -111,6 +111,10 @@ private fun statusToWire(v: Status, buf: ByteBuffer, base: Int) {
         is Status.Error -> {
             buf.putInt(base + 4, v.code.toInt())
         }
+        is Status.Loading -> {
+            buf.putInt(base + 4, v.field0.toInt())
+            buf.putInt(base + 8, v.field1.toInt())
+        }
         else -> {}
     }
 }
@@ -122,12 +126,13 @@ private fun statusFromWire(buf: ByteBuffer, base: Int): Status {
         1 -> Status.Busy(field0 = buf.getInt(base + 4).toUInt())
         2 -> Status.Error(code = buf.getInt(base + 4).toUInt())
         -1 -> Status.Failed
+        3 -> Status.Loading(field0 = buf.getInt(base + 4).toUInt(), field1 = buf.getInt(base + 8).toUInt())
         else -> error("koffi: invalid Status discriminant $d")
     }
 }
 
 private fun statusToBuf(v: Status): ByteBuffer {
-    val buf = allocateWire(8)
+    val buf = allocateWire(12)
     statusToWire(v, buf, 0)
     return buf
 }
@@ -224,6 +229,24 @@ private fun mailFromWire(buf: ByteBuffer, base: Int): Mail =
 
 
 
+private fun pairToWire(v: Pair, buf: ByteBuffer, base: Int) {
+    buf.putInt(base + 0, v.field0.toInt())
+    buf.putLong(base + 8, v.field1.toLong())
+}
+
+private fun pairToBuf(v: Pair): ByteBuffer {
+    val buf = allocateWire(16)
+    pairToWire(v, buf, 0)
+    return buf
+}
+
+private fun pairFromWire(buf: ByteBuffer, base: Int): Pair =
+    Pair(
+        field0 = buf.getInt(base + 0).toUInt(),
+        field1 = buf.getLong(base + 8).toULong())
+
+
+
 private fun payloadToWire(v: Payload, buf: ByteBuffer, base: Int) {
     buf.putShort(base + 0, v.data.toShort())
 }
@@ -255,6 +278,24 @@ private fun pointFromWire(buf: ByteBuffer, base: Int): Point =
     Point(
         x = buf.getInt(base + 0),
         y = buf.getInt(base + 4))
+
+
+
+private fun positionedToWire(v: Positioned, buf: ByteBuffer, base: Int) {
+    pairToWire(v.top, buf, base + 0)
+    pairToWire(v.origin, buf, base + 16)
+}
+
+private fun positionedToBuf(v: Positioned): ByteBuffer {
+    val buf = allocateWire(32)
+    positionedToWire(v, buf, 0)
+    return buf
+}
+
+private fun positionedFromWire(buf: ByteBuffer, base: Int): Positioned =
+    Positioned(
+        top = pairFromWire(buf, base + 0),
+        origin = pairFromWire(buf, base + 16))
 
 
 
@@ -318,11 +359,11 @@ private fun secret_wireFromWire(buf: ByteBuffer, base: Int): SecretWire =
 
 private fun status_holderToWire(v: StatusHolder, buf: ByteBuffer, base: Int) {
     statusToWire(v.status, buf, base + 0)
-    buf.put(base + 8, v.tag.toByte())
+    buf.put(base + 12, v.tag.toByte())
 }
 
 private fun status_holderToBuf(v: StatusHolder): ByteBuffer {
-    val buf = allocateWire(12)
+    val buf = allocateWire(16)
     status_holderToWire(v, buf, 0)
     return buf
 }
@@ -330,7 +371,7 @@ private fun status_holderToBuf(v: StatusHolder): ByteBuffer {
 private fun status_holderFromWire(buf: ByteBuffer, base: Int): StatusHolder =
     StatusHolder(
         status = statusFromWire(buf, base + 0),
-        tag = buf.get(base + 8).toUByte())
+        tag = buf.get(base + 12).toUByte())
 
 
 
@@ -555,7 +596,7 @@ statusFromWire(buf.section(4), 0))
 }
 
 private fun __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusToBuf(v: KoffiResult<Payload, Status>): ByteBuffer {
-    val buf = allocateWire(12)
+    val buf = allocateWire(16)
     __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusToWire(v, buf)
     return buf
 }
@@ -624,6 +665,12 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    external fun positionedSumImpl(
+        p: ByteBuffer,
+    ): Long
+
+
+
     external fun greetImpl(
         g: ByteBuffer,
     ): String
@@ -649,6 +696,19 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
     external fun helloKotlinWindowPairFirstDescribeImpl(
         self: ByteBuffer,
     ): Long
+
+
+
+    actual fun helloKotlinPairSwapped(self: Pair): Pair {
+        val out = allocateWire(16)
+        helloKotlinPairSwappedImpl(pairToBuf(self), out)
+        return pairFromWire(out, 0)
+    }
+
+    external fun helloKotlinPairSwappedImpl(
+        self: ByteBuffer,
+        out: ByteBuffer,
+    )
 
 
 
@@ -737,6 +797,12 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
     external fun nothingImpl(
+        out: ByteBuffer,
+    )
+
+
+
+    external fun makePairImpl(
         out: ByteBuffer,
     )
 
@@ -899,6 +965,26 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    external fun pairSumImpl(
+        p: ByteBuffer,
+    ): Long
+
+
+
+    actual fun helloKotlinPairNew(x: UInt, y: ULong): Pair {
+        val out = allocateWire(16)
+        helloKotlinPairNewImpl(x.toInt(), y.toLong(), out)
+        return pairFromWire(out, 0)
+    }
+
+    external fun helloKotlinPairNewImpl(
+        x: Int,
+        y: Long,
+        out: ByteBuffer,
+    )
+
+
+
     actual fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag {
         val out = allocateWire(16)
         helloKotlinKeywordBagNewImpl(`object`.toInt(), `when`.toInt(), out)
@@ -914,7 +1000,7 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
     actual fun helloKotlinStatusNewBusy(code: UInt): Status {
-        val out = allocateWire(8)
+        val out = allocateWire(12)
         helloKotlinStatusNewBusyImpl(code.toInt(), out)
         return statusFromWire(out, 0)
     }
@@ -927,7 +1013,7 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
     actual fun helloKotlinStatusIdle(): Status {
-        val out = allocateWire(8)
+        val out = allocateWire(12)
         helloKotlinStatusIdleImpl(out)
         return statusFromWire(out, 0)
     }
@@ -1032,6 +1118,12 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    external fun makeLoadingImpl(
+        out: ByteBuffer,
+    )
+
+
+
     external fun keywordDataSumImpl(
         d: ByteBuffer,
     ): Int
@@ -1050,7 +1142,7 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 }
 
 actual fun makeHolder(): StatusHolder {
-    val out = allocateWire(12)
+    val out = allocateWire(16)
     HelloKotlinFfi.makeHolderImpl(out)
     return status_holderFromWire(out, 0)
 }
@@ -1061,6 +1153,8 @@ actual fun fancy(): KeywordData {
 }
 actual fun cStatusIsErr(s: CStatus): Boolean =
     HelloKotlinFfi.cStatusIsErrImpl(s.discriminant.toInt())
+actual fun positionedSum(p: Positioned): ULong =
+    HelloKotlinFfi.positionedSumImpl(positionedToBuf(p)).toULong()
 actual fun greet(g: Greeting): String =
     HelloKotlinFfi.greetImpl(greetingToBuf(g))
 actual fun spanLength(s: String): UInt =
@@ -1075,7 +1169,7 @@ actual fun makeRect(): Rect {
     return rectFromWire(out, 0)
 }
 actual fun holderStatus(h: StatusHolder): Status {
-    val out = allocateWire(8)
+    val out = allocateWire(12)
     HelloKotlinFfi.holderStatusImpl(status_holderToBuf(h), out)
     return statusFromWire(out, 0)
 }
@@ -1092,7 +1186,7 @@ actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
     return __koffi_result___koffi_option_u32_u8FromWire(out)
 }
 actual fun makeStatus(): Status {
-    val out = allocateWire(8)
+    val out = allocateWire(12)
     HelloKotlinFfi.makeStatusImpl(out)
     return statusFromWire(out, 0)
 }
@@ -1107,6 +1201,11 @@ actual fun nothing(): UInt? {
     val out = allocateWire(8)
     HelloKotlinFfi.nothingImpl(out)
     return __koffi_option_u32FromWire(out)
+}
+actual fun makePair(): Pair {
+    val out = allocateWire(16)
+    HelloKotlinFfi.makePairImpl(out)
+    return pairFromWire(out, 0)
 }
 actual fun echoBytes(b: ByteArray): ByteArray =
     HelloKotlinFfi.echoBytesImpl(b)
@@ -1131,7 +1230,7 @@ actual fun favorite(): UInt? {
     return __koffi_option_u32FromWire(out)
 }
 actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
-    val out = allocateWire(12)
+    val out = allocateWire(16)
     HelloKotlinFfi.nominateImpl(x.toInt(), out)
     return __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromWire(out)
 }
@@ -1144,6 +1243,8 @@ actual fun statusCode(s: Status): UInt =
     HelloKotlinFfi.statusCodeImpl(statusToBuf(s)).toUInt()
 actual fun paint(color: Boolean?): Boolean =
     HelloKotlinFfi.paintImpl(__koffi_option_boolToBuf(color))
+actual fun pairSum(p: Pair): ULong =
+    HelloKotlinFfi.pairSumImpl(pairToBuf(p)).toULong()
 actual fun rectArea(r: Rect): Int =
     HelloKotlinFfi.rectAreaImpl(rectToBuf(r))
 actual fun moodIsFlying(m: Mood): Boolean =
@@ -1180,6 +1281,11 @@ actual fun makeWhen(`object`: UInt, `val`: UInt): `when` {
     val out = allocateWire(8)
     HelloKotlinFfi.makeWhenImpl(`object`.toInt(), `val`.toInt(), out)
     return whenFromWire(out, 0)
+}
+actual fun makeLoading(): Status {
+    val out = allocateWire(12)
+    HelloKotlinFfi.makeLoadingImpl(out)
+    return statusFromWire(out, 0)
 }
 actual fun keywordDataSum(d: KeywordData): UInt =
     HelloKotlinFfi.keywordDataSumImpl(keyword_dataToBuf(d)).toUInt()

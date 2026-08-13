@@ -90,6 +90,30 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "positioned_sum",
+            kotlin_name: "positionedSum",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "p",
+                    ty: Struct {
+                        name: "Positioned",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
             rust_name: "greet",
             kotlin_name: "greet",
             module_path: Some(
@@ -192,6 +216,40 @@ Schema {
             return_type: Scalar(
                 U64,
             ),
+        },
+        SchemaFn {
+            rust_name: "swapped",
+            kotlin_name: "swapped",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Pair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Pair",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Pair",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
         },
         SchemaFn {
             rust_name: "describe_format",
@@ -508,6 +566,21 @@ Schema {
             return_type: Option {
                 inner: Scalar(
                     U32,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "make_pair",
+            kotlin_name: "makePair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "Pair",
+                module_path: Some(
+                    "hello_kotlin",
                 ),
             },
         },
@@ -1078,6 +1151,69 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "pair_sum",
+            kotlin_name: "pairSum",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "p",
+                    ty: Struct {
+                        name: "Pair",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Pair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "x",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "y",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Pair",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
             rust_name: "new",
             kotlin_name: "new",
             module_path: Some(
@@ -1502,6 +1638,23 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "make_loading",
+            kotlin_name: "makeLoading",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
             rust_name: "keyword_data_sum",
             kotlin_name: "keywordDataSum",
             module_path: Some(
@@ -1632,6 +1785,7 @@ Schema {
                     align: 4,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "Greeting",
@@ -1684,6 +1838,7 @@ Schema {
                     align: 8,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "KeywordBag",
@@ -1786,6 +1941,7 @@ Schema {
                     align: 4,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "Mail",
@@ -1855,6 +2011,71 @@ Schema {
                     align: 8,
                 },
             },
+            is_tuple: false,
+        },
+        SchemaStruct {
+            name: "Pair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "field0",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "field1",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "field0",
+                    },
+                    Padding {
+                        bytes: 4,
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_LONG",
+                        name: "field1",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "field0",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "field1",
+                        ty: Scalar(
+                            U64,
+                        ),
+                        offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 16,
+                    align: 8,
+                },
+            },
+            is_tuple: true,
         },
         SchemaStruct {
             name: "Payload",
@@ -1894,6 +2115,7 @@ Schema {
                     align: 2,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "Point",
@@ -1954,6 +2176,80 @@ Schema {
                     align: 4,
                 },
             },
+            is_tuple: false,
+        },
+        SchemaStruct {
+            name: "Positioned",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "top",
+                    ty: Struct {
+                        name: "Pair",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "origin",
+                    ty: Struct {
+                        name: "Pair",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_PairLayout",
+                        name: "top",
+                    },
+                    Value {
+                        kotlin_layout: "__koffi_struct_hello_kotlin_PairLayout",
+                        name: "origin",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "top",
+                        ty: Struct {
+                            name: "Pair",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "origin",
+                        ty: Struct {
+                            name: "Pair",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
+                        offset: 16,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 32,
+                    align: 8,
+                },
+            },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "Rect",
@@ -2026,6 +2322,7 @@ Schema {
                     align: 4,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "SafePacket",
@@ -2106,6 +2403,7 @@ Schema {
                     align: 1,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "SecretWire",
@@ -2208,6 +2506,7 @@ Schema {
                     align: 1,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "StatusHolder",
@@ -2271,16 +2570,17 @@ Schema {
                         ty: Scalar(
                             U8,
                         ),
-                        offset: 8,
+                        offset: 12,
                         is_proxy: false,
                         real_ty: None,
                     },
                 ],
                 total: Layout {
-                    size: 12,
+                    size: 16,
                     align: 4,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "WindowPair",
@@ -2377,6 +2677,7 @@ Schema {
                     align: 8,
                 },
             },
+            is_tuple: false,
         },
         SchemaStruct {
             name: "when",
@@ -2437,6 +2738,7 @@ Schema {
                     align: 4,
                 },
             },
+            is_tuple: false,
         },
     ],
     enums: [
@@ -2737,12 +3039,41 @@ Schema {
                     placements: [],
                     is_struct_variant: false,
                 },
+                SchemaEnumVariant {
+                    name: "Loading",
+                    discriminant: 3,
+                    placements: [
+                        FieldPlacement {
+                            name: "field0",
+                            ty: Scalar(
+                                U32,
+                            ),
+                            offset: 4,
+                            is_proxy: false,
+                            real_ty: None,
+                        },
+                        FieldPlacement {
+                            name: "field1",
+                            ty: Scalar(
+                                U32,
+                            ),
+                            offset: 8,
+                            is_proxy: false,
+                            real_ty: None,
+                        },
+                    ],
+                    is_struct_variant: false,
+                },
             ],
             layout: StructLayoutInfo {
                 entries: [
                     Value {
                         kotlin_layout: "ValueLayout.JAVA_INT",
                         name: "discriminant",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "",
                     },
                     Value {
                         kotlin_layout: "ValueLayout.JAVA_INT",
@@ -2768,9 +3099,27 @@ Schema {
                         is_proxy: false,
                         real_ty: None,
                     },
+                    FieldPlacement {
+                        name: "field0",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "field1",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
                 ],
                 total: Layout {
-                    size: 8,
+                    size: 12,
                     align: 4,
                 },
             },
@@ -3125,7 +3474,7 @@ Schema {
                     },
                 ],
                 total: Layout {
-                    size: 12,
+                    size: 16,
                     align: 4,
                 },
             },

@@ -187,6 +187,27 @@ impl From<::hello_kotlin::Mail> for __koffi_struct_hello_kotlin_Mail {
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_Pair {
+    pub field0: u32,
+    pub field1: u64,
+}
+
+impl From<__koffi_struct_hello_kotlin_Pair> for ::hello_kotlin::Pair {
+    fn from(c: __koffi_struct_hello_kotlin_Pair) -> Self {
+        Self(c.field0.into(), c.field1.into())
+    }
+}
+
+impl From<::hello_kotlin::Pair> for __koffi_struct_hello_kotlin_Pair {
+    fn from(v: ::hello_kotlin::Pair) -> Self {
+        Self {
+            field0: v.0.into(),
+            field1: v.1.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct __koffi_struct_hello_kotlin_Payload {
     pub data: u16,
 }
@@ -227,6 +248,30 @@ impl From<::hello_kotlin::Point> for __koffi_struct_hello_kotlin_Point {
         Self {
             x: v.x.into(),
             y: v.y.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_Positioned {
+    pub top: __koffi_struct_hello_kotlin_Pair,
+    pub origin: __koffi_struct_hello_kotlin_Pair,
+}
+
+impl From<__koffi_struct_hello_kotlin_Positioned> for ::hello_kotlin::Positioned {
+    fn from(c: __koffi_struct_hello_kotlin_Positioned) -> Self {
+        Self {
+            top: c.top.into(),
+            origin: c.origin.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::Positioned> for __koffi_struct_hello_kotlin_Positioned {
+    fn from(v: ::hello_kotlin::Positioned) -> Self {
+        Self {
+            top: v.top.into(),
+            origin: v.origin.into(),
         }
     }
 }
@@ -584,11 +629,20 @@ pub struct __koffi_enum_hello_kotlin_Status_error {
 }
 
 
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_enum_hello_kotlin_Status_loading {
+    pub field0: u32,
+    pub field1: u32,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union __koffi_enum_hello_kotlin_Status_payload {
     busy: __koffi_enum_hello_kotlin_Status_busy,
     error: __koffi_enum_hello_kotlin_Status_error,
+    loading: __koffi_enum_hello_kotlin_Status_loading,
 }
 
 #[repr(C)]
@@ -616,6 +670,9 @@ impl From<__koffi_enum_hello_kotlin_Status> for ::hello_kotlin::Status {
             },
             -1 => {
                 Self::Failed
+            },
+            3 => {
+                Self::Loading(unsafe { w._u.loading }.field0.into(), unsafe { w._u.loading }.field1.into())
             },
             _ => unreachable!("koffi: invalid Status discriminant"),
         }
@@ -650,6 +707,17 @@ impl From<::hello_kotlin::Status> for __koffi_enum_hello_kotlin_Status {
             ::hello_kotlin::Status::Failed => Self {
                 _d: -1,
                 _u: unsafe { std::mem::zeroed() },
+            },
+            ::hello_kotlin::Status::Loading(field0, field1) => Self {
+                _d: 3,
+                _u: __koffi_enum_hello_kotlin_Status_payload {
+                    loading: __koffi_enum_hello_kotlin_Status_loading {
+                        
+                        field0: field0.into(),
+                        
+                        field1: field1.into(),
+                    }
+                },
             },
         }
     }

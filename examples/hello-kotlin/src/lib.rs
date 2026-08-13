@@ -31,6 +31,7 @@ pub enum Status {
     Busy(u32) = 1,
     Error { code: u32 } = 2,
     Failed = -1,
+    Loading(u32, u32) = 3,
 }
 
 #[derive(Facet)]
@@ -48,6 +49,7 @@ impl Status {
             Status::Busy(_) => 1,
             Status::Error { code } => *code,
             Status::Failed => 2,
+            Status::Loading(..) => 4,
         }
     }
 
@@ -83,7 +85,13 @@ pub fn status_code(s: Status) -> u32 {
         Status::Busy(code) => code,
         Status::Error { code } => code,
         Status::Failed => 3,
+        Status::Loading(a, b) => a + b,
     }
+}
+
+#[koffi::export]
+pub fn make_loading() -> Status {
+    Status::Loading(11, 22)
 }
 
 #[koffi::export]
@@ -539,4 +547,42 @@ impl object {
     pub fn describe(&self) -> u64 {
         self.id
     }
+}
+
+// Tuple structs: facet names the fields `"0"`, `"1"`, which the generator
+// renames to `field0`, `field1` everywhere (C header, Kotlin properties,
+// glue crate). The glue constructs the user type positionally.
+#[derive(Facet)]
+pub struct Pair(pub u32, pub u64);
+
+#[koffi::export]
+impl Pair {
+    pub fn new(x: u32, y: u64) -> Self {
+        Self(x, y)
+    }
+
+    pub fn swapped(&self) -> Self {
+        Self(self.1 as u32, self.0 as u64)
+    }
+}
+
+#[koffi::export]
+pub fn make_pair() -> Pair {
+    Pair(3, 7)
+}
+
+#[koffi::export]
+pub fn pair_sum(p: Pair) -> u64 {
+    p.0 as u64 + p.1
+}
+
+#[derive(Facet)]
+pub struct Positioned {
+    pub top: Pair,
+    pub origin: Pair,
+}
+
+#[koffi::export]
+pub fn positioned_sum(p: Positioned) -> u64 {
+    pair_sum(p.top) + pair_sum(p.origin)
 }
