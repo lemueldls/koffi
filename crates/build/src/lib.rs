@@ -106,17 +106,17 @@ pub fn build_host_cdylib(
 /// returns the artifacts that exist afterwards. The build is one cargo
 /// invocation covering both crate-types; only the artifacts matching the
 /// requested type are looked up (`want_cdylib`/`want_staticlib`).
+#[allow(clippy::too_many_arguments)]
 pub fn build_for_target(
     crate_name: &str,
     crate_dir: &Path,
     target_dir: &Path,
     triple: &str,
+    release: bool,
     features: &[&str],
     kinds: &[TargetKind],
     shared_target_dir: Option<&Path>,
 ) -> anyhow::Result<TargetArtifacts> {
-    // The glue always builds in release (see `build_and_stage`).
-    let release = true;
     run_cargo_build(
         crate_dir,
         Some(triple),
@@ -298,11 +298,12 @@ fn triple_os(triple: &str) -> &'static str {
 /// the cinterop `.def` with absolute paths (the Kotlin compiler resolves
 /// them relative to the def's directory, so relative ones silently miss).
 ///
-/// The glue crate always builds in release, whatever `gen -r` said: it is
-/// the runtime ABI bridge, and the source crate it links was already built
-/// by `gen` (the `-r` flag decides that build's profile). The glue build
-/// writes into the source crate's target dir, so the mandatory `cargo build`
-/// at `gen` time doubles as the first stage of `pack`'s.
+/// `release` is the CLI's `-r` flag, and it rules both the source crate
+/// build (`gen`) and the glue builds here, so the profiles always match.
+/// The glue build writes into the source crate's target dir, so the
+/// mandatory `cargo build` at `gen` time doubles as the first stage of
+/// `pack`'s; same profiles mean shared fingerprints, and an unchanged
+/// incremental `pack` stays under a second.
 ///
 /// Layout, mirroring the plan:
 /// - jvm: `resources@jvm/native/lib<ident>_glue.<ext>` (the JNI actual extracts
@@ -314,6 +315,7 @@ pub fn build_and_stage(
     dirs: &OutputDirs,
     source_crate_ident: &str,
     config: &KoffiConfig,
+    release: bool,
 ) -> anyhow::Result<()> {
     let (glue_name, _) = crate_metadata(&dirs.rust_out_dir)?;
     let (_, source_target_dir) = crate_metadata(&dirs.crate_path)?;
@@ -330,7 +332,7 @@ pub fn build_and_stage(
         }
         let (_, cdylib) = build_crate(
             &dirs.rust_out_dir,
-            true,
+            release,
             &features,
             Some(&source_target_dir),
         )?;
@@ -347,6 +349,7 @@ pub fn build_and_stage(
                 &dirs.rust_out_dir,
                 &source_target_dir,
                 triple,
+                release,
                 &["cabi", "jni"],
                 &[TargetKind::Cdylib],
                 Some(&source_target_dir),
@@ -374,6 +377,7 @@ pub fn build_and_stage(
             &dirs.rust_out_dir,
             &source_target_dir,
             triple,
+            release,
             &["cabi"],
             &[TargetKind::Staticlib],
             Some(&source_target_dir),

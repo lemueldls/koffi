@@ -24,8 +24,8 @@ cabi = []
 jni = ["dep:jni"]
 wasm = ["dep:wasm-bindgen"]
 
-# koffi ships this crate as the ABI bridge, so it always builds in release
-# regardless of the user's own profile. `panic = "unwind"` is load-bearing:
+# koffi ships this crate as the ABI bridge; `pack -r` builds it in release
+# like any other profile. `panic = "unwind"` is load-bearing:
 # the exported fns lean on catch_unwind (guarded()/env.with_env) to turn
 # Rust panics into a Kotlin-visible failure instead of aborting the process.
 [profile.release]

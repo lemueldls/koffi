@@ -47,8 +47,9 @@ pub struct PackageArgs {
     #[facet(args::named, args::short = 'o', default = "generated")]
     pub out: PathBuf,
 
-    /// Enable release mode for the source crate build (the staged glue
-    /// always builds in release regardless).
+    /// Build in release mode: the source crate `gen` builds to extract its
+    /// schema, and the staged glue libs `pack` produces (jvm, android and
+    /// native targets all follow).
     #[facet(args::named, args::short = 'r')]
     pub release: bool,
 
@@ -104,7 +105,7 @@ fn main() -> anyhow::Result<()> {
             let (dirs, crate_ident) = generate(&args, &cli.config)?;
 
             info!("packaging the generated glue crate");
-            build_and_stage(&dirs, &crate_ident, &cli.config)?;
+            build_and_stage(&dirs, &crate_ident, &cli.config, args.release)?;
             info!("packaging completed successfully");
         }
         Command::Generate(args) => {
