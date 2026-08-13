@@ -16,6 +16,8 @@ expression: "fs::read_to_string(&file)?"
 
 typedef uint32_t __koffi_enum_hello_kotlin_CStatus;
 
+typedef int32_t __koffi_enum_hello_kotlin_KeywordFlag;
+
 
 
 // The shared span wire struct: `{ptr, len}` mirroring Rust's
@@ -33,6 +35,20 @@ typedef struct {
 // another must have its typedef declared first. repr(C) in Rust means no
 // padding bookkeeping here: the header mirrors the field lists directly.
 
+typedef struct {
+    uint32_t object;
+    uint32_t when;
+    uint32_t fun;
+} __koffi_enum_hello_kotlin_KeywordData_fancy;
+
+typedef union {
+    __koffi_enum_hello_kotlin_KeywordData_fancy fancy;
+} __koffi_enum_hello_kotlin_KeywordData_payload;
+
+typedef struct {
+    int32_t _d;
+    __koffi_enum_hello_kotlin_KeywordData_payload _u;
+} __koffi_enum_hello_kotlin_KeywordData;
 typedef union {
     uint8_t some;
 } __koffi_option_bool_payload;
@@ -79,6 +95,12 @@ typedef struct {
     __koffi_string blob;
 } __koffi_struct_hello_kotlin_Greeting;
 typedef struct {
+    uint32_t object;
+    uint32_t when;
+    uint32_t class;
+    uint32_t fun;
+} __koffi_struct_hello_kotlin_KeywordBag;
+typedef struct {
     __koffi_struct_hello_kotlin_Greeting greeting;
     uint32_t hops;
 } __koffi_struct_hello_kotlin_Mail;
@@ -112,6 +134,10 @@ typedef struct {
     intptr_t b;
     uint8_t tag;
 } __koffi_struct_hello_kotlin_WindowPair;
+typedef struct {
+    uint32_t object;
+    uint32_t val;
+} __koffi_struct_hello_kotlin_when;
 typedef union {
     __koffi_struct_hello_kotlin_Dancer some;
 } __koffi_option___koffi_struct_hello_kotlin_Dancer_payload;
@@ -173,26 +199,36 @@ typedef struct {
 } __koffi_result_u32_u8;
 
 __koffi_struct_hello_kotlin_StatusHolder __koffi_fn_hello_kotlin_make_holder(void);
+__koffi_enum_hello_kotlin_KeywordData __koffi_fn_hello_kotlin_fancy(void);
+__koffi_enum_hello_kotlin_KeywordFlag __koffi_fn_hello_kotlin_KeywordFlag_object(void);
 uint8_t __koffi_fn_hello_kotlin_c_status_is_err(__koffi_enum_hello_kotlin_CStatus s);
 __koffi_string __koffi_fn_hello_kotlin_greet(__koffi_struct_hello_kotlin_Greeting g);
 uint32_t __koffi_fn_hello_kotlin_span_length(__koffi_string s);
+uint32_t __koffi_fn_hello_kotlin_in(__koffi_struct_hello_kotlin_KeywordBag obj, uint32_t when);
 uint64_t __koffi_fn_hello_kotlin_WindowPair_first_describe(__koffi_struct_hello_kotlin_WindowPair self);
 uint32_t __koffi_fn_hello_kotlin_Payload_describe_format(void);
 uint32_t __koffi_fn_hello_kotlin_result_value(__koffi_result_u32_u8 r);
 __koffi_struct_hello_kotlin_Rect __koffi_fn_hello_kotlin_make_rect(void);
+uint64_t __koffi_fn_hello_kotlin_object_describe(intptr_t self);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_holder_status(__koffi_struct_hello_kotlin_StatusHolder h);
+uint32_t __koffi_fn_hello_kotlin_type(uint32_t in);
 __koffi_result_u32_u8 __koffi_fn_hello_kotlin_divide(uint32_t n, uint32_t d);
 __koffi_result___koffi_option_u32_u8 __koffi_fn_hello_kotlin_drink(uint32_t x);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_make_status(void);
 uint64_t __koffi_fn_hello_kotlin_Window_describe(intptr_t self);
+int32_t __koffi_fn_hello_kotlin_flag_value(__koffi_enum_hello_kotlin_KeywordFlag f);
 __koffi_struct_hello_kotlin_Mail __koffi_fn_hello_kotlin_upgrade(__koffi_struct_hello_kotlin_Mail m);
 __koffi_option_u32 __koffi_fn_hello_kotlin_nothing(void);
+intptr_t __koffi_fn_hello_kotlin_object_open(uint64_t id);
 __koffi_string __koffi_fn_hello_kotlin_echo_bytes(__koffi_string b);
 uint32_t __koffi_fn_hello_kotlin_Status_describe(__koffi_enum_hello_kotlin_Status self);
 uint64_t __koffi_fn_hello_kotlin_describe_window(intptr_t w);
+uint32_t __koffi_fn_hello_kotlin_class(uint32_t a, uint32_t fun);
 __koffi_option___koffi_struct_hello_kotlin_Dancer __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_Dancer dance);
+uint32_t __koffi_fn_hello_kotlin_when_sum(__koffi_struct_hello_kotlin_when w);
 double __koffi_fn_hello_kotlin_how_long(__koffi_option_f64 seconds);
 __koffi_enum_hello_kotlin_CStatus __koffi_fn_hello_kotlin_c_status(void);
+uint32_t __koffi_fn_hello_kotlin_KeywordBag_match(__koffi_struct_hello_kotlin_KeywordBag self);
 __koffi_struct_hello_kotlin_Payload __koffi_fn_hello_kotlin_Payload_with_data(__koffi_struct_hello_kotlin_Payload self, uint16_t data);
 __koffi_option_u32 __koffi_fn_hello_kotlin_favorite(void);
 __koffi_struct_hello_kotlin_WindowPair __koffi_fn_hello_kotlin_WindowPair_new(uint64_t a, uint64_t b);
@@ -203,6 +239,7 @@ uint32_t __koffi_fn_hello_kotlin_Payload_describe(__koffi_struct_hello_kotlin_Pa
 uint64_t __koffi_fn_hello_kotlin_WindowPair_retag_a(__koffi_struct_hello_kotlin_WindowPair self, uint64_t id);
 uint32_t __koffi_fn_hello_kotlin_status_code(__koffi_enum_hello_kotlin_Status s);
 uint8_t __koffi_fn_hello_kotlin_paint(__koffi_option_bool color);
+__koffi_struct_hello_kotlin_KeywordBag __koffi_fn_hello_kotlin_KeywordBag_new(uint32_t object, uint32_t when);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_Status_new_busy(uint32_t code);
 __koffi_enum_hello_kotlin_Status __koffi_fn_hello_kotlin_Status_idle(void);
 int32_t __koffi_fn_hello_kotlin_rect_area(__koffi_struct_hello_kotlin_Rect r);
@@ -217,6 +254,9 @@ uint32_t __koffi_fn_hello_kotlin_add_optional(uint32_t a, __koffi_option_u32 b);
 __koffi_struct_hello_kotlin_Payload __koffi_fn_hello_kotlin_hello(void);
 __koffi_struct_hello_kotlin_Point __koffi_fn_hello_kotlin_rect_top_left(__koffi_struct_hello_kotlin_Rect r);
 uint8_t __koffi_fn_hello_kotlin_string_pair(__koffi_string a, __koffi_string b);
+__koffi_struct_hello_kotlin_when __koffi_fn_hello_kotlin_make_when(uint32_t object, uint32_t val);
+uint32_t __koffi_fn_hello_kotlin_keyword_data_sum(__koffi_enum_hello_kotlin_KeywordData d);
+uint32_t __koffi_fn_hello_kotlin_object(void);
 uint8_t __koffi_fn_hello_kotlin_bytes_pair(__koffi_string a, __koffi_string b);
 
 

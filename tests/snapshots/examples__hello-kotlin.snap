@@ -21,6 +21,49 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "fancy",
+            kotlin_name: "fancy",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "KeywordData",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "object",
+            kotlin_name: "object",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "KeywordFlag",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: false,
+                },
+            ),
+            params: [],
+            return_type: Enum {
+                name: "KeywordFlag",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: false,
+            },
+        },
+        SchemaFn {
             rust_name: "c_status_is_err",
             kotlin_name: "cStatusIsErr",
             module_path: Some(
@@ -79,6 +122,38 @@ Schema {
                 SchemaParam {
                     name: "s",
                     ty: String,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "r#in",
+            kotlin_name: "in",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "obj",
+                    ty: Struct {
+                        name: "KeywordBag",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "r#when",
+                    ty: Scalar(
+                        U32,
+                    ),
                     is_receiver: false,
                     is_mut_receiver: false,
                 },
@@ -179,6 +254,37 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Opaque {
+                    name: "object",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Opaque {
+                        name: "object",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
             rust_name: "holder_status",
             kotlin_name: "holderStatus",
             module_path: Some(
@@ -206,6 +312,27 @@ Schema {
                 discriminant: I32,
                 has_data: true,
             },
+        },
+        SchemaFn {
+            rust_name: "r#type",
+            kotlin_name: "type",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "r#in",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
         },
         SchemaFn {
             rust_name: "divide",
@@ -318,6 +445,32 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "flag_value",
+            kotlin_name: "flagValue",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "f",
+                    ty: Enum {
+                        name: "KeywordFlag",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: false,
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                I32,
+            ),
+        },
+        SchemaFn {
             rust_name: "upgrade",
             kotlin_name: "upgrade",
             module_path: Some(
@@ -355,6 +508,37 @@ Schema {
             return_type: Option {
                 inner: Scalar(
                     U32,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "open",
+            kotlin_name: "open",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Opaque {
+                    name: "object",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "id",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Opaque {
+                name: "object",
+                module_path: Some(
+                    "hello_kotlin",
                 ),
             },
         },
@@ -435,6 +619,35 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "class",
+            kotlin_name: "class",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "fun",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
             rust_name: "ride",
             kotlin_name: "ride",
             module_path: Some(
@@ -464,6 +677,30 @@ Schema {
                     ),
                 },
             },
+        },
+        SchemaFn {
+            rust_name: "when_sum",
+            kotlin_name: "whenSum",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "w",
+                    ty: Struct {
+                        name: "when",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
         },
         SchemaFn {
             rust_name: "how_long",
@@ -504,6 +741,37 @@ Schema {
                 discriminant: U32,
                 has_data: false,
             },
+        },
+        SchemaFn {
+            rust_name: "r#match",
+            kotlin_name: "match",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "KeywordBag",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "KeywordBag",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
         },
         SchemaFn {
             rust_name: "with_data",
@@ -808,6 +1076,45 @@ Schema {
             return_type: Scalar(
                 Bool,
             ),
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "KeywordBag",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "object",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "when",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "KeywordBag",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
         },
         SchemaFn {
             rust_name: "new_busy",
@@ -1163,6 +1470,76 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "make_when",
+            kotlin_name: "makeWhen",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "object",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "val",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "when",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "keyword_data_sum",
+            kotlin_name: "keywordDataSum",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "d",
+                    ty: Enum {
+                        name: "KeywordData",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "object",
+            kotlin_name: "object",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
             rust_name: "bytes_pair",
             kotlin_name: "bytesPair",
             module_path: Some(
@@ -1305,6 +1682,108 @@ Schema {
                 total: Layout {
                     size: 32,
                     align: 8,
+                },
+            },
+        },
+        SchemaStruct {
+            name: "KeywordBag",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "object",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "when",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "class",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "fun",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "object",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "when",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "class",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "fun",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "object",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "when",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "class",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "fun",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 12,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 16,
+                    align: 4,
                 },
             },
         },
@@ -1899,6 +2378,66 @@ Schema {
                 },
             },
         },
+        SchemaStruct {
+            name: "when",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            fields: [
+                SchemaField {
+                    name: "object",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+                SchemaField {
+                    name: "val",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_proxy: false,
+                    real_ty: None,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "object",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "val",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "object",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 0,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "val",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 8,
+                    align: 4,
+                },
+            },
+        },
     ],
     enums: [
         SchemaEnum {
@@ -1918,6 +2457,150 @@ Schema {
                 SchemaEnumVariant {
                     name: "Err",
                     discriminant: -1,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "discriminant",
+                    },
+                ],
+                placements: [],
+                total: Layout {
+                    size: 4,
+                    align: 4,
+                },
+            },
+        },
+        SchemaEnum {
+            name: "KeywordData",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            discriminant: I32,
+            has_data: true,
+            variants: [
+                SchemaEnumVariant {
+                    name: "Plain",
+                    discriminant: 0,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+                SchemaEnumVariant {
+                    name: "Fancy",
+                    discriminant: 1,
+                    placements: [
+                        FieldPlacement {
+                            name: "object",
+                            ty: Scalar(
+                                U32,
+                            ),
+                            offset: 4,
+                            is_proxy: false,
+                            real_ty: None,
+                        },
+                        FieldPlacement {
+                            name: "when",
+                            ty: Scalar(
+                                U32,
+                            ),
+                            offset: 8,
+                            is_proxy: false,
+                            real_ty: None,
+                        },
+                        FieldPlacement {
+                            name: "fun",
+                            ty: Scalar(
+                                U32,
+                            ),
+                            offset: 12,
+                            is_proxy: false,
+                            real_ty: None,
+                        },
+                    ],
+                    is_struct_variant: true,
+                },
+            ],
+            layout: StructLayoutInfo {
+                entries: [
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "discriminant",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "",
+                    },
+                    Value {
+                        kotlin_layout: "ValueLayout.JAVA_INT",
+                        name: "",
+                    },
+                ],
+                placements: [
+                    FieldPlacement {
+                        name: "object",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 4,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "when",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 8,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                    FieldPlacement {
+                        name: "fun",
+                        ty: Scalar(
+                            U32,
+                        ),
+                        offset: 12,
+                        is_proxy: false,
+                        real_ty: None,
+                    },
+                ],
+                total: Layout {
+                    size: 16,
+                    align: 4,
+                },
+            },
+        },
+        SchemaEnum {
+            name: "KeywordFlag",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            discriminant: I32,
+            has_data: false,
+            variants: [
+                SchemaEnumVariant {
+                    name: "when",
+                    discriminant: 0,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+                SchemaEnumVariant {
+                    name: "val",
+                    discriminant: 1,
+                    placements: [],
+                    is_struct_variant: false,
+                },
+                SchemaEnumVariant {
+                    name: "fun",
+                    discriminant: 2,
                     placements: [],
                     is_struct_variant: false,
                 },
@@ -2508,6 +3191,12 @@ Schema {
     opaques: [
         SchemaOpaque {
             name: "Window",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+        },
+        SchemaOpaque {
+            name: "object",
             module_path: Some(
                 "hello_kotlin",
             ),

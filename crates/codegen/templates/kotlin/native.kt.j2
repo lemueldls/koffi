@@ -65,11 +65,11 @@ private fun __koffi_string.fillFromBytes(v: ByteArray, scope: MemScope) {
    content there so it stays alive for the call and is released when the
    scope closes. -#}
 {%- macro native_fn(f, member_name, indent) -%}
-{{ indent }}actual fun {{ member_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
+{{ indent }}actual fun {{ member_name }}({% for p in f.params %}{{ p.kotlin_name() }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
 {{ indent }}    return memScoped {
 {{ indent }}        {{ f.c_abi_symbol() }}(
         {%- for p in f.params %}
-        {%- if p.ty.is_memory_backed() %}{{ p.ty.to_c_ident() }}({{ p.name }}, this){% else %}{{ p.name }}{{ p.ty.to_c_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}
+        {%- if p.ty.is_memory_backed() %}{{ p.ty.to_c_ident() }}({{ p.kotlin_name() }}, this){% else %}{{ p.kotlin_name() }}{{ p.ty.to_c_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}
         {%- endfor -%}
         ){% if f.return_type.is_memory_backed() %}.let { {{ f.return_type.from_c_ident() }}(it) }{% else %}{{ f.return_type.from_c_suffix() }}{% endif %}
 {{ indent }}    }
@@ -82,16 +82,16 @@ private fun __koffi_string.fillFromBytes(v: ByteArray, scope: MemScope) {
    fieldless ones cross the ABI as their plain discriminant scalar,
    identity with the C typedef. -#}
 {%~ for e in schema.enums %}{% if e.has_data %}
-private fun {{ e.to_c_ident() }}(v: {{ e.name }}, scope: MemScope): CValue<{{ e.unique_ident() }}> = cValue {
+private fun {{ e.to_c_ident() }}(v: {{ e.kotlin_name() }}, scope: MemScope): CValue<{{ e.unique_ident() }}> = cValue {
     _d = v.discriminant
     when (v) {
         {%- for v2 in e.variants %}{% if !v2.placements.is_empty() %}
-        is {{ e.name }}.{{ v2.name }} -> {
+        is {{ e.kotlin_name() }}.{{ v2.kotlin_name() }} -> {
             {%- for f in v2.placements %}
             {%- if f.ty.is_memory_backed() %}
-            {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}, scope).place(_u.{{ e.variant_wire_name(v2) }}.{{ f.name }}.ptr)
+            {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}, scope).place(_u.{{ e.variant_wire_kotlin_name(v2) }}.{{ f.kotlin_c_member_name() }}.ptr)
             {%- else %}
-            _u.{{ e.variant_wire_name(v2) }}.{{ f.name }} = v.{{ f.kotlin_name() }}{{ f.ty.to_c_suffix() }}
+            _u.{{ e.variant_wire_kotlin_name(v2) }}.{{ f.kotlin_c_member_name() }} = v.{{ f.kotlin_name() }}{{ f.ty.to_c_suffix() }}
             {%- endif %}
             {%- endfor %}
         }
@@ -100,12 +100,12 @@ private fun {{ e.to_c_ident() }}(v: {{ e.name }}, scope: MemScope): CValue<{{ e.
     }
 }
 
-private fun {{ e.from_c_ident() }}(w: CValue<{{ e.unique_ident() }}>): {{ e.name }} = w.useContents {
+private fun {{ e.from_c_ident() }}(w: CValue<{{ e.unique_ident() }}>): {{ e.kotlin_name() }} = w.useContents {
     when (_d) {
         {%- for v2 in e.variants %}
-        {{ e.discriminant.kotlin_discriminant_literal(v2.discriminant) }} -> {% if v2.placements.is_empty() %}{{ e.name }}.{{ v2.name }}{% else %}{{ e.name }}.{{ v2.name }}({% for f in v2.placements %}{% if f.ty.is_memory_backed() %}{{ f.kotlin_name() }} = {{ f.ty.from_c_ident() }}(_u.{{ e.variant_wire_name(v2) }}.{{ f.name }}.readValue()){% else %}{{ f.kotlin_name() }} = _u.{{ e.variant_wire_name(v2) }}.{{ f.name }}{{ f.ty.from_c_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
+        {{ e.discriminant.kotlin_discriminant_literal(v2.discriminant) }} -> {% if v2.placements.is_empty() %}{{ e.kotlin_name() }}.{{ v2.kotlin_name() }}{% else %}{{ e.kotlin_name() }}.{{ v2.kotlin_name() }}({% for f in v2.placements %}{% if f.ty.is_memory_backed() %}{{ f.kotlin_name() }} = {{ f.ty.from_c_ident() }}(_u.{{ e.variant_wire_kotlin_name(v2) }}.{{ f.kotlin_c_member_name() }}.readValue()){% else %}{{ f.kotlin_name() }} = _u.{{ e.variant_wire_kotlin_name(v2) }}.{{ f.kotlin_c_member_name() }}{{ f.ty.from_c_suffix() }}{% endif %}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
         {%- endfor %}
-        else -> error("koffi: invalid {{ e.name }} discriminant $_d")
+        else -> error("koffi: invalid {{ e.kotlin_name() }} discriminant $_d")
     }
 }{%- endif %}{%- endfor %}
 
@@ -115,25 +115,25 @@ private fun {{ e.from_c_ident() }}(w: CValue<{{ e.unique_ident() }}>): {{ e.name
    declarations don't have the declaration-order constraint that `val`
    properties do, so the iteration order here doesn't matter. -#}
 {%~ for s in schema.structs %}
-private fun {{ s.to_c_ident() }}(v: {{ s.name }}, scope: MemScope): CValue<{{ s.unique_ident() }}> = cValue {
+private fun {{ s.to_c_ident() }}(v: {{ s.kotlin_name() }}, scope: MemScope): CValue<{{ s.unique_ident() }}> = cValue {
     {%- for f in s.fields %}
     {%- if f.ty.is_span() %}
-    {{ f.name }}.{{ f.ty.span_member_name() }}(v.{{ f.kotlin_name() }}, scope)
+    {{ f.kotlin_c_member_name() }}.{{ f.ty.span_member_name() }}(v.{{ f.kotlin_name() }}, scope)
     {%- elif f.ty.is_memory_backed() %}
-    {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}, scope).place({{ f.name }}.ptr)
+    {{ f.ty.to_c_ident() }}(v.{{ f.kotlin_name() }}, scope).place({{ f.kotlin_c_member_name() }}.ptr)
     {%- else %}
-    {{ f.name }} = v.{{ f.kotlin_name() }}{{ f.ty.to_c_suffix() }}
+    {{ f.kotlin_c_member_name() }} = v.{{ f.kotlin_name() }}{{ f.ty.to_c_suffix() }}
     {%- endif %}
     {%- endfor %}
 }
 
-private fun {{ s.from_c_ident() }}(w: CValue<{{ s.unique_ident() }}>): {{ s.name }} = w.useContents {
-    {{ s.name }}(
+private fun {{ s.from_c_ident() }}(w: CValue<{{ s.unique_ident() }}>): {{ s.kotlin_name() }} = w.useContents {
+    {{ s.kotlin_name() }}(
         {%- for f in s.fields %}
         {%- if f.ty.is_memory_backed() %}
-        {{ f.kotlin_name() }} = {{ f.ty.from_c_ident() }}({{ f.name }}.readValue()){% if !loop.last %},{% endif %}
+        {{ f.kotlin_name() }} = {{ f.ty.from_c_ident() }}({{ f.kotlin_c_member_name() }}.readValue()){% if !loop.last %},{% endif %}
         {%- else %}
-        {{ f.kotlin_name() }} = {{ f.name }}{{ f.ty.from_c_suffix() }}{% if !loop.last %},{% endif %}
+        {{ f.kotlin_name() }} = {{ f.kotlin_c_member_name() }}{{ f.ty.from_c_suffix() }}{% if !loop.last %},{% endif %}
         {%- endif %}
         {%- endfor -%}
     )
@@ -212,5 +212,5 @@ actual object {{ schema.ffi_object_name() }} {
 }
 
 {%~ for f in schema.functions %}{%- if f.parent.is_none() %}
-{{ native_fn(&f, f.kotlin_name, "") }}
+{{ native_fn(&f, f.kotlin_name(), "") }}
 {%- endif %}{%~ endfor %}

@@ -3,7 +3,7 @@
 package {{ schema.kotlin_package() }}
 
 {%~ for f in schema.functions %}{%- if f.parent.is_none() %}
-// actual fun {{ f.kotlin_name }}(...): {{ f.return_type.kotlin_type() }} = TODO()
+// actual fun {{ f.kotlin_name() }}(...): {{ f.return_type.kotlin_type() }} = TODO()
 {%- endif %}{%- endfor %}
 
 actual object {{ schema.ffi_object_name() }} {

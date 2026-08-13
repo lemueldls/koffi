@@ -407,3 +407,136 @@ pub fn upgrade(m: Mail) -> Mail {
         hops: m.hops + 1,
     }
 }
+
+// Kotlin keyword collisions: `object`, `when` and `class` are valid Rust
+// identifiers but hard Kotlin keywords, and raw `r#` idents surface the
+// same way after the prefix is stripped. The generator backticks them on
+// the Kotlin side; this block exercises every identifier position (fn
+// names, params, struct fields, enum variants, type names) on all three
+// backends.
+#[derive(Facet)]
+pub struct KeywordBag {
+    pub object: u32,
+    pub when: u32,
+    pub class: u32,
+    pub fun: u32,
+}
+
+#[koffi::export]
+impl KeywordBag {
+    pub fn new(object: u32, when: u32) -> Self {
+        Self {
+            object,
+            when,
+            class: 7,
+            fun: 8,
+        }
+    }
+
+    pub fn r#match(&self) -> u32 {
+        self.object + self.when
+    }
+}
+
+#[koffi::export]
+pub fn r#in(obj: KeywordBag, r#when: u32) -> u32 {
+    obj.object + r#when
+}
+
+#[koffi::export]
+pub fn object() -> u32 {
+    42
+}
+
+#[koffi::export]
+pub fn class(a: u32, fun: u32) -> u32 {
+    a + fun
+}
+
+#[koffi::export]
+pub fn r#type(r#in: u32) -> u32 {
+    r#in
+}
+
+#[derive(Facet)]
+#[repr(i32)]
+#[allow(non_camel_case_types)]
+pub enum KeywordFlag {
+    when = 0,
+    val = 1,
+    fun = 2,
+}
+
+#[koffi::export]
+impl KeywordFlag {
+    // Not a variant name too: the variant would shadow this fn for any
+    // other crate (and the Kotlin enum entry would shadow the companion
+    // fn), making the call unresolvable.
+    pub fn object() -> Self {
+        Self::when
+    }
+}
+
+#[koffi::export]
+pub fn flag_value(f: KeywordFlag) -> i32 {
+    f as i32
+}
+
+#[derive(Facet)]
+#[repr(i32)]
+pub enum KeywordData {
+    Plain = 0,
+    Fancy { object: u32, when: u32, fun: u32 } = 1,
+}
+
+#[koffi::export]
+pub fn fancy() -> KeywordData {
+    KeywordData::Fancy {
+        object: 1,
+        when: 2,
+        fun: 3,
+    }
+}
+
+#[koffi::export]
+pub fn keyword_data_sum(d: KeywordData) -> u32 {
+    match d {
+        KeywordData::Plain => 0,
+        KeywordData::Fancy { object, when, fun } => object + when + fun,
+    }
+}
+
+#[derive(Facet)]
+#[allow(non_camel_case_types)]
+pub struct when {
+    pub object: u32,
+    pub val: u32,
+}
+
+#[koffi::export]
+pub fn make_when(object: u32, val: u32) -> when {
+    when { object, val }
+}
+
+#[koffi::export]
+pub fn when_sum(w: when) -> u32 {
+    w.object + w.val
+}
+
+#[derive(Facet)]
+#[facet(opaque)]
+#[allow(non_camel_case_types)]
+pub struct object {
+    id: u64,
+}
+
+#[koffi::export]
+impl object {
+    pub fn open(id: u64) -> Self {
+        Self { id }
+    }
+
+    pub fn describe(&self) -> u64 {
+        self.id
+    }
+}

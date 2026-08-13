@@ -55,6 +55,25 @@ private fun __koffi_string.fillFromBytes(v: ByteArray, scope: MemScope) {
 }
 
 
+private fun keyword_dataToC(v: KeywordData, scope: MemScope): CValue<__koffi_enum_hello_kotlin_KeywordData> = cValue {
+    _d = v.discriminant
+    when (v) {
+        is KeywordData.Fancy -> {
+            _u.fancy.`object` = v.`object`
+            _u.fancy.`when` = v.`when`
+            _u.fancy.`fun` = v.`fun`
+        }
+        else -> {}
+    }
+}
+
+private fun keyword_dataFromC(w: CValue<__koffi_enum_hello_kotlin_KeywordData>): KeywordData = w.useContents {
+    when (_d) {
+        0 -> KeywordData.Plain
+        1 -> KeywordData.Fancy(`object` = _u.fancy.`object`, `when` = _u.fancy.`when`, `fun` = _u.fancy.`fun`)
+        else -> error("koffi: invalid KeywordData discriminant $_d")
+    }
+}
 private fun moodToC(v: Mood, scope: MemScope): CValue<__koffi_enum_hello_kotlin_Mood> = cValue {
     _d = v.discriminant
     when (v) {
@@ -114,6 +133,20 @@ private fun greetingFromC(w: CValue<__koffi_struct_hello_kotlin_Greeting>): Gree
     Greeting(
         name = koffiStringFromC(name.readValue()),
         blob = koffiBytesFromC(blob.readValue()))
+}
+private fun keyword_bagToC(v: KeywordBag, scope: MemScope): CValue<__koffi_struct_hello_kotlin_KeywordBag> = cValue {
+    `object` = v.`object`
+    `when` = v.`when`
+    `class` = v.`class`
+    `fun` = v.`fun`
+}
+
+private fun keyword_bagFromC(w: CValue<__koffi_struct_hello_kotlin_KeywordBag>): KeywordBag = w.useContents {
+    KeywordBag(
+        `object` = `object`,
+        `when` = `when`,
+        `class` = `class`,
+        `fun` = `fun`)
 }
 private fun mailToC(v: Mail, scope: MemScope): CValue<__koffi_struct_hello_kotlin_Mail> = cValue {
     greetingToC(v.greeting, scope).place(greeting.ptr)
@@ -198,6 +231,16 @@ private fun window_pairFromC(w: CValue<__koffi_struct_hello_kotlin_WindowPair>):
         a = a.let { Window(it) },
         b = b.let { Window(it) },
         tag = tag)
+}
+private fun whenToC(v: `when`, scope: MemScope): CValue<__koffi_struct_hello_kotlin_when> = cValue {
+    `object` = v.`object`
+    `val` = v.`val`
+}
+
+private fun whenFromC(w: CValue<__koffi_struct_hello_kotlin_when>): `when` = w.useContents {
+    `when`(
+        `object` = `object`,
+        `val` = `val`)
 }
 
 private fun __koffi_option___koffi_struct_hello_kotlin_DancerToC(v: Dancer?, scope: MemScope): CValue<__koffi_option___koffi_struct_hello_kotlin_Dancer> = cValue {
@@ -353,6 +396,11 @@ private fun __koffi_result_u32_u8FromC(c: CValue<__koffi_result_u32_u8>): KoffiR
 }
 actual object HelloKotlinFfi {
 
+    actual fun helloKotlinKeywordFlagObject(): KeywordFlag {
+        return memScoped {
+            __koffi_fn_hello_kotlin_KeywordFlag_object().let { KeywordFlag.fromDiscriminant(it) }
+        }
+    }
     actual fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong {
         return memScoped {
             __koffi_fn_hello_kotlin_WindowPair_first_describe(window_pairToC(self, this))
@@ -363,14 +411,29 @@ actual object HelloKotlinFfi {
             __koffi_fn_hello_kotlin_Payload_describe_format()
         }
     }
+    actual fun helloKotlinObjectDescribe(self: `object`): ULong {
+        return memScoped {
+            __koffi_fn_hello_kotlin_object_describe(self.handle)
+        }
+    }
     actual fun helloKotlinWindowDescribe(self: Window): ULong {
         return memScoped {
             __koffi_fn_hello_kotlin_Window_describe(self.handle)
         }
     }
+    actual fun helloKotlinObjectOpen(id: ULong): `object` {
+        return memScoped {
+            __koffi_fn_hello_kotlin_object_open(id).let { `object`(it) }
+        }
+    }
     actual fun helloKotlinStatusDescribe(self: Status): UInt {
         return memScoped {
             __koffi_fn_hello_kotlin_Status_describe(statusToC(self, this))
+        }
+    }
+    actual fun helloKotlinKeywordBagMatch(self: KeywordBag): UInt {
+        return memScoped {
+            __koffi_fn_hello_kotlin_KeywordBag_match(keyword_bagToC(self, this))
         }
     }
     actual fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload {
@@ -396,6 +459,11 @@ actual object HelloKotlinFfi {
     actual fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong {
         return memScoped {
             __koffi_fn_hello_kotlin_WindowPair_retag_a(window_pairToC(self, this), id)
+        }
+    }
+    actual fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag {
+        return memScoped {
+            __koffi_fn_hello_kotlin_KeywordBag_new(`object`, `when`).let { keyword_bagFromC(it) }
         }
     }
     actual fun helloKotlinStatusNewBusy(code: UInt): Status {
@@ -425,6 +493,11 @@ actual fun makeHolder(): StatusHolder {
         __koffi_fn_hello_kotlin_make_holder().let { status_holderFromC(it) }
     }
 }
+actual fun fancy(): KeywordData {
+    return memScoped {
+        __koffi_fn_hello_kotlin_fancy().let { keyword_dataFromC(it) }
+    }
+}
 actual fun cStatusIsErr(s: CStatus): Boolean {
     return memScoped {
         __koffi_fn_hello_kotlin_c_status_is_err(s.discriminant) != 0u.toUByte()
@@ -438,6 +511,11 @@ actual fun greet(g: Greeting): String {
 actual fun spanLength(s: String): UInt {
     return memScoped {
         __koffi_fn_hello_kotlin_span_length(koffiStringToC(s, this))
+    }
+}
+actual fun `in`(obj: KeywordBag, `when`: UInt): UInt {
+    return memScoped {
+        __koffi_fn_hello_kotlin_in(keyword_bagToC(obj, this), `when`)
     }
 }
 actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt {
@@ -455,6 +533,11 @@ actual fun holderStatus(h: StatusHolder): Status {
         __koffi_fn_hello_kotlin_holder_status(status_holderToC(h, this)).let { statusFromC(it) }
     }
 }
+actual fun type(`in`: UInt): UInt {
+    return memScoped {
+        __koffi_fn_hello_kotlin_type(`in`)
+    }
+}
 actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
     return memScoped {
         __koffi_fn_hello_kotlin_divide(n, d).let { __koffi_result_u32_u8FromC(it) }
@@ -468,6 +551,11 @@ actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
 actual fun makeStatus(): Status {
     return memScoped {
         __koffi_fn_hello_kotlin_make_status().let { statusFromC(it) }
+    }
+}
+actual fun flagValue(f: KeywordFlag): Int {
+    return memScoped {
+        __koffi_fn_hello_kotlin_flag_value(f.discriminant)
     }
 }
 actual fun upgrade(m: Mail): Mail {
@@ -490,9 +578,19 @@ actual fun describeWindow(w: Window): ULong {
         __koffi_fn_hello_kotlin_describe_window(w.handle)
     }
 }
+actual fun `class`(a: UInt, `fun`: UInt): UInt {
+    return memScoped {
+        __koffi_fn_hello_kotlin_class(a, `fun`)
+    }
+}
 actual fun ride(dance: Dancer?): Dancer? {
     return memScoped {
         __koffi_fn_hello_kotlin_ride(__koffi_option___koffi_struct_hello_kotlin_DancerToC(dance, this)).let { __koffi_option___koffi_struct_hello_kotlin_DancerFromC(it) }
+    }
+}
+actual fun whenSum(w: `when`): UInt {
+    return memScoped {
+        __koffi_fn_hello_kotlin_when_sum(whenToC(w, this))
     }
 }
 actual fun howLong(seconds: Double?): Double {
@@ -578,6 +676,21 @@ actual fun rectTopLeft(r: Rect): Point {
 actual fun stringPair(a: String, b: String): Boolean {
     return memScoped {
         __koffi_fn_hello_kotlin_string_pair(koffiStringToC(a, this), koffiStringToC(b, this)) != 0u.toUByte()
+    }
+}
+actual fun makeWhen(`object`: UInt, `val`: UInt): `when` {
+    return memScoped {
+        __koffi_fn_hello_kotlin_make_when(`object`, `val`).let { whenFromC(it) }
+    }
+}
+actual fun keywordDataSum(d: KeywordData): UInt {
+    return memScoped {
+        __koffi_fn_hello_kotlin_keyword_data_sum(keyword_dataToC(d, this))
+    }
+}
+actual fun `object`(): UInt {
+    return memScoped {
+        __koffi_fn_hello_kotlin_object()
     }
 }
 actual fun bytesPair(a: ByteArray, b: ByteArray): Boolean {

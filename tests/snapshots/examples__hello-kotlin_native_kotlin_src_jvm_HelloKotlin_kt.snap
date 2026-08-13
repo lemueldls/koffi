@@ -74,6 +74,12 @@ private fun koffiStringFromFfm(slot: MemorySegment): String {
 }
 
 
+private val __koffi_enum_hello_kotlin_KeywordDataLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_INT.withName("discriminant"),
+    ValueLayout.JAVA_INT.withName(""),
+    ValueLayout.JAVA_INT.withName(""),
+    ValueLayout.JAVA_INT.withName("")
+)
 private val __koffi_option_boolLayout: MemoryLayout = MemoryLayout.structLayout(
     ValueLayout.JAVA_BYTE.withName("discriminant"),
     ValueLayout.JAVA_BOOLEAN.withName("")
@@ -95,6 +101,12 @@ private val __koffi_struct_hello_kotlin_DancerLayout: MemoryLayout = MemoryLayou
 private val __koffi_struct_hello_kotlin_GreetingLayout: MemoryLayout = MemoryLayout.structLayout(
     __koffi_stringLayout.withName("name"),
     __koffi_stringLayout.withName("blob")
+)
+private val __koffi_struct_hello_kotlin_KeywordBagLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_INT.withName("object"),
+    ValueLayout.JAVA_INT.withName("when"),
+    ValueLayout.JAVA_INT.withName("class"),
+    ValueLayout.JAVA_INT.withName("fun")
 )
 private val __koffi_struct_hello_kotlin_MailLayout: MemoryLayout = MemoryLayout.structLayout(
     __koffi_struct_hello_kotlin_GreetingLayout.withName("greeting"),
@@ -133,6 +145,10 @@ private val __koffi_struct_hello_kotlin_WindowPairLayout: MemoryLayout = MemoryL
     ValueLayout.JAVA_BYTE.withName("tag"),
     MemoryLayout.paddingLayout(7)
 )
+private val __koffi_struct_hello_kotlin_whenLayout: MemoryLayout = MemoryLayout.structLayout(
+    ValueLayout.JAVA_INT.withName("object"),
+    ValueLayout.JAVA_INT.withName("val")
+)
 private val __koffi_option___koffi_struct_hello_kotlin_DancerLayout: MemoryLayout = MemoryLayout.structLayout(
     ValueLayout.JAVA_BYTE.withName("discriminant"),
     MemoryLayout.paddingLayout(3),
@@ -169,6 +185,29 @@ private val __koffi_result_u32_u8Layout: MemoryLayout = MemoryLayout.structLayou
     ValueLayout.JAVA_INT.withName("")
 )
 
+private fun keyword_dataToFfm(value: KeywordData, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_enum_hello_kotlin_KeywordDataLayout)
+    segment.set(ValueLayout.JAVA_INT, 0L, value.discriminant)
+    when (value) {
+        KeywordData.Plain -> {
+        }
+        is KeywordData.Fancy -> {
+            segment.set(ValueLayout.JAVA_INT, 4L, value.`object`.toInt())
+            segment.set(ValueLayout.JAVA_INT, 8L, value.`when`.toInt())
+            segment.set(ValueLayout.JAVA_INT, 12L, value.`fun`.toInt())
+        }
+    }
+    return segment
+}
+
+private fun keyword_dataFromFfm(segment: MemorySegment): KeywordData {
+    val d = segment.get(ValueLayout.JAVA_INT, 0L)
+    return when (d) {
+        0 -> KeywordData.Plain
+        1 -> KeywordData.Fancy(`object` = segment.get(ValueLayout.JAVA_INT, 4L).toUInt(), `when` = segment.get(ValueLayout.JAVA_INT, 8L).toUInt(), `fun` = segment.get(ValueLayout.JAVA_INT, 12L).toUInt())
+        else -> error("koffi: invalid KeywordData discriminant $d")
+    }
+}
 private fun moodToFfm(value: Mood, arena: Arena): MemorySegment {
     val segment = arena.allocate(__koffi_enum_hello_kotlin_MoodLayout)
     segment.set(ValueLayout.JAVA_INT, 0L, value.discriminant)
@@ -242,6 +281,22 @@ private fun greetingFromFfm(segment: MemorySegment): Greeting {
     return Greeting(
         name = koffiStringFromFfm(segment.asSlice(0L, __koffi_stringLayout.byteSize())),
         blob = koffiBytesFromFfm(segment.asSlice(16L, __koffi_stringLayout.byteSize())))
+}
+private fun keyword_bagToFfm(value: KeywordBag, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_struct_hello_kotlin_KeywordBagLayout)
+    segment.set(ValueLayout.JAVA_INT, 0L, value.`object`.toInt())
+    segment.set(ValueLayout.JAVA_INT, 4L, value.`when`.toInt())
+    segment.set(ValueLayout.JAVA_INT, 8L, value.`class`.toInt())
+    segment.set(ValueLayout.JAVA_INT, 12L, value.`fun`.toInt())
+    return segment
+}
+
+private fun keyword_bagFromFfm(segment: MemorySegment): KeywordBag {
+    return KeywordBag(
+        `object` = segment.get(ValueLayout.JAVA_INT, 0L).toUInt(),
+        `when` = segment.get(ValueLayout.JAVA_INT, 4L).toUInt(),
+        `class` = segment.get(ValueLayout.JAVA_INT, 8L).toUInt(),
+        `fun` = segment.get(ValueLayout.JAVA_INT, 12L).toUInt())
 }
 private fun mailToFfm(value: Mail, arena: Arena): MemorySegment {
     val segment = arena.allocate(__koffi_struct_hello_kotlin_MailLayout)
@@ -342,6 +397,18 @@ private fun window_pairFromFfm(segment: MemorySegment): WindowPair {
         a = Window(segment.get(ValueLayout.ADDRESS, 0L).address()),
         b = Window(segment.get(ValueLayout.ADDRESS, 8L).address()),
         tag = segment.get(ValueLayout.JAVA_BYTE, 16L).toUByte())
+}
+private fun whenToFfm(value: `when`, arena: Arena): MemorySegment {
+    val segment = arena.allocate(__koffi_struct_hello_kotlin_whenLayout)
+    segment.set(ValueLayout.JAVA_INT, 0L, value.`object`.toInt())
+    segment.set(ValueLayout.JAVA_INT, 4L, value.`val`.toInt())
+    return segment
+}
+
+private fun whenFromFfm(segment: MemorySegment): `when` {
+    return `when`(
+        `object` = segment.get(ValueLayout.JAVA_INT, 0L).toUInt(),
+        `val` = segment.get(ValueLayout.JAVA_INT, 4L).toUInt())
 }
 
 private fun __koffi_option___koffi_struct_hello_kotlin_DancerToFfm(value: Dancer?, arena: Arena): MemorySegment {
@@ -505,6 +572,14 @@ private val __koffi_fn_hello_kotlin_make_holder: MethodHandle = linker.downcallH
     lookup.find("__koffi_fn_hello_kotlin_make_holder").orElseThrow(),
     FunctionDescriptor.of(__koffi_struct_hello_kotlin_StatusHolderLayout),
 )
+private val __koffi_fn_hello_kotlin_fancy: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_fancy").orElseThrow(),
+    FunctionDescriptor.of(__koffi_enum_hello_kotlin_KeywordDataLayout),
+)
+private val __koffi_fn_hello_kotlin_KeywordFlag_object: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_KeywordFlag_object").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT),
+)
 private val __koffi_fn_hello_kotlin_c_status_is_err: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_c_status_is_err").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.JAVA_INT),
@@ -516,6 +591,10 @@ private val __koffi_fn_hello_kotlin_greet: MethodHandle = linker.downcallHandle(
 private val __koffi_fn_hello_kotlin_span_length: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_span_length").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_INT, __koffi_stringLayout),
+)
+private val __koffi_fn_hello_kotlin_in: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_in").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, __koffi_struct_hello_kotlin_KeywordBagLayout, ValueLayout.JAVA_INT),
 )
 private val __koffi_fn_hello_kotlin_WindowPair_first_describe: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_WindowPair_first_describe").orElseThrow(),
@@ -533,9 +612,17 @@ private val __koffi_fn_hello_kotlin_make_rect: MethodHandle = linker.downcallHan
     lookup.find("__koffi_fn_hello_kotlin_make_rect").orElseThrow(),
     FunctionDescriptor.of(__koffi_struct_hello_kotlin_RectLayout),
 )
+private val __koffi_fn_hello_kotlin_object_describe: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_object_describe").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS),
+)
 private val __koffi_fn_hello_kotlin_holder_status: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_holder_status").orElseThrow(),
     FunctionDescriptor.of(__koffi_enum_hello_kotlin_StatusLayout, __koffi_struct_hello_kotlin_StatusHolderLayout),
+)
+private val __koffi_fn_hello_kotlin_type: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_type").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
 )
 private val __koffi_fn_hello_kotlin_divide: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_divide").orElseThrow(),
@@ -553,6 +640,10 @@ private val __koffi_fn_hello_kotlin_Window_describe: MethodHandle = linker.downc
     lookup.find("__koffi_fn_hello_kotlin_Window_describe").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS),
 )
+private val __koffi_fn_hello_kotlin_flag_value: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_flag_value").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
+)
 private val __koffi_fn_hello_kotlin_upgrade: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_upgrade").orElseThrow(),
     FunctionDescriptor.of(__koffi_struct_hello_kotlin_MailLayout, __koffi_struct_hello_kotlin_MailLayout),
@@ -560,6 +651,10 @@ private val __koffi_fn_hello_kotlin_upgrade: MethodHandle = linker.downcallHandl
 private val __koffi_fn_hello_kotlin_nothing: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_nothing").orElseThrow(),
     FunctionDescriptor.of(__koffi_option_u32Layout),
+)
+private val __koffi_fn_hello_kotlin_object_open: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_object_open").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.JAVA_LONG),
 )
 private val __koffi_fn_hello_kotlin_echo_bytes: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_echo_bytes").orElseThrow(),
@@ -573,9 +668,17 @@ private val __koffi_fn_hello_kotlin_describe_window: MethodHandle = linker.downc
     lookup.find("__koffi_fn_hello_kotlin_describe_window").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS),
 )
+private val __koffi_fn_hello_kotlin_class: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_class").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
+)
 private val __koffi_fn_hello_kotlin_ride: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_ride").orElseThrow(),
     FunctionDescriptor.of(__koffi_option___koffi_struct_hello_kotlin_DancerLayout, __koffi_option___koffi_struct_hello_kotlin_DancerLayout),
+)
+private val __koffi_fn_hello_kotlin_when_sum: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_when_sum").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, __koffi_struct_hello_kotlin_whenLayout),
 )
 private val __koffi_fn_hello_kotlin_how_long: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_how_long").orElseThrow(),
@@ -584,6 +687,10 @@ private val __koffi_fn_hello_kotlin_how_long: MethodHandle = linker.downcallHand
 private val __koffi_fn_hello_kotlin_c_status: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_c_status").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_INT),
+)
+private val __koffi_fn_hello_kotlin_KeywordBag_match: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_KeywordBag_match").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, __koffi_struct_hello_kotlin_KeywordBagLayout),
 )
 private val __koffi_fn_hello_kotlin_Payload_with_data: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_Payload_with_data").orElseThrow(),
@@ -624,6 +731,10 @@ private val __koffi_fn_hello_kotlin_status_code: MethodHandle = linker.downcallH
 private val __koffi_fn_hello_kotlin_paint: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_paint").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, __koffi_option_boolLayout),
+)
+private val __koffi_fn_hello_kotlin_KeywordBag_new: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_KeywordBag_new").orElseThrow(),
+    FunctionDescriptor.of(__koffi_struct_hello_kotlin_KeywordBagLayout, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
 )
 private val __koffi_fn_hello_kotlin_Status_new_busy: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_Status_new_busy").orElseThrow(),
@@ -681,12 +792,30 @@ private val __koffi_fn_hello_kotlin_string_pair: MethodHandle = linker.downcallH
     lookup.find("__koffi_fn_hello_kotlin_string_pair").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, __koffi_stringLayout, __koffi_stringLayout),
 )
+private val __koffi_fn_hello_kotlin_make_when: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_make_when").orElseThrow(),
+    FunctionDescriptor.of(__koffi_struct_hello_kotlin_whenLayout, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
+)
+private val __koffi_fn_hello_kotlin_keyword_data_sum: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_keyword_data_sum").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT, __koffi_enum_hello_kotlin_KeywordDataLayout),
+)
+private val __koffi_fn_hello_kotlin_object: MethodHandle = linker.downcallHandle(
+    lookup.find("__koffi_fn_hello_kotlin_object").orElseThrow(),
+    FunctionDescriptor.of(ValueLayout.JAVA_INT),
+)
 private val __koffi_fn_hello_kotlin_bytes_pair: MethodHandle = linker.downcallHandle(
     lookup.find("__koffi_fn_hello_kotlin_bytes_pair").orElseThrow(),
     FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, __koffi_stringLayout, __koffi_stringLayout),
 )
 actual object HelloKotlinFfi {
 
+    actual fun helloKotlinKeywordFlagObject(): KeywordFlag {
+        Arena.ofConfined().use { callArena ->
+            val __r = __koffi_fn_hello_kotlin_KeywordFlag_object.invokeWithArguments()
+            return KeywordFlag.fromDiscriminant((__r as Int))
+        }
+    }
     actual fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong {
         Arena.ofConfined().use { callArena ->
             val selfSegment = window_pairToFfm(self, callArena)
@@ -700,16 +829,35 @@ actual object HelloKotlinFfi {
             return (__r as Int).toUInt()
         }
     }
+    actual fun helloKotlinObjectDescribe(self: `object`): ULong {
+        Arena.ofConfined().use { callArena ->
+            val __r = __koffi_fn_hello_kotlin_object_describe.invokeWithArguments(MemorySegment.ofAddress(self.handle))
+            return (__r as Long).toULong()
+        }
+    }
     actual fun helloKotlinWindowDescribe(self: Window): ULong {
         Arena.ofConfined().use { callArena ->
             val __r = __koffi_fn_hello_kotlin_Window_describe.invokeWithArguments(MemorySegment.ofAddress(self.handle))
             return (__r as Long).toULong()
         }
     }
+    actual fun helloKotlinObjectOpen(id: ULong): `object` {
+        Arena.ofConfined().use { callArena ->
+            val __r = __koffi_fn_hello_kotlin_object_open.invokeWithArguments(id.toLong())
+            return `object`((__r as MemorySegment).address())
+        }
+    }
     actual fun helloKotlinStatusDescribe(self: Status): UInt {
         Arena.ofConfined().use { callArena ->
             val selfSegment = statusToFfm(self, callArena)
             val __r = __koffi_fn_hello_kotlin_Status_describe.invokeWithArguments(selfSegment)
+            return (__r as Int).toUInt()
+        }
+    }
+    actual fun helloKotlinKeywordBagMatch(self: KeywordBag): UInt {
+        Arena.ofConfined().use { callArena ->
+            val selfSegment = keyword_bagToFfm(self, callArena)
+            val __r = __koffi_fn_hello_kotlin_KeywordBag_match.invokeWithArguments(selfSegment)
             return (__r as Int).toUInt()
         }
     }
@@ -746,6 +894,12 @@ actual object HelloKotlinFfi {
             return (__r as Long).toULong()
         }
     }
+    actual fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag {
+        Arena.ofConfined().use { callArena ->
+            val __r = __koffi_fn_hello_kotlin_KeywordBag_new.invokeWithArguments(callArena, `object`.toInt(), `when`.toInt())
+            return keyword_bagFromFfm(__r as MemorySegment)
+        }
+    }
     actual fun helloKotlinStatusNewBusy(code: UInt): Status {
         Arena.ofConfined().use { callArena ->
             val __r = __koffi_fn_hello_kotlin_Status_new_busy.invokeWithArguments(callArena, code.toInt())
@@ -778,6 +932,12 @@ actual fun makeHolder(): StatusHolder {
         return status_holderFromFfm(__r as MemorySegment)
     }
 }
+actual fun fancy(): KeywordData {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_fancy.invokeWithArguments(callArena)
+        return keyword_dataFromFfm(__r as MemorySegment)
+    }
+}
 actual fun cStatusIsErr(s: CStatus): Boolean {
     Arena.ofConfined().use { callArena ->
         val __r = __koffi_fn_hello_kotlin_c_status_is_err.invokeWithArguments(s.discriminant.toInt())
@@ -795,6 +955,13 @@ actual fun spanLength(s: String): UInt {
     Arena.ofConfined().use { callArena ->
         val sSegment = koffiStringToFfm(s, callArena)
         val __r = __koffi_fn_hello_kotlin_span_length.invokeWithArguments(sSegment)
+        return (__r as Int).toUInt()
+    }
+}
+actual fun `in`(obj: KeywordBag, `when`: UInt): UInt {
+    Arena.ofConfined().use { callArena ->
+        val objSegment = keyword_bagToFfm(obj, callArena)
+        val __r = __koffi_fn_hello_kotlin_in.invokeWithArguments(objSegment, `when`.toInt())
         return (__r as Int).toUInt()
     }
 }
@@ -818,6 +985,12 @@ actual fun holderStatus(h: StatusHolder): Status {
         return statusFromFfm(__r as MemorySegment)
     }
 }
+actual fun type(`in`: UInt): UInt {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_type.invokeWithArguments(`in`.toInt())
+        return (__r as Int).toUInt()
+    }
+}
 actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
     Arena.ofConfined().use { callArena ->
         val __r = __koffi_fn_hello_kotlin_divide.invokeWithArguments(callArena, n.toInt(), d.toInt())
@@ -834,6 +1007,12 @@ actual fun makeStatus(): Status {
     Arena.ofConfined().use { callArena ->
         val __r = __koffi_fn_hello_kotlin_make_status.invokeWithArguments(callArena)
         return statusFromFfm(__r as MemorySegment)
+    }
+}
+actual fun flagValue(f: KeywordFlag): Int {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_flag_value.invokeWithArguments(f.discriminant)
+        return (__r as Int)
     }
 }
 actual fun upgrade(m: Mail): Mail {
@@ -862,11 +1041,24 @@ actual fun describeWindow(w: Window): ULong {
         return (__r as Long).toULong()
     }
 }
+actual fun `class`(a: UInt, `fun`: UInt): UInt {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_class.invokeWithArguments(a.toInt(), `fun`.toInt())
+        return (__r as Int).toUInt()
+    }
+}
 actual fun ride(dance: Dancer?): Dancer? {
     Arena.ofConfined().use { callArena ->
         val danceSegment = __koffi_option___koffi_struct_hello_kotlin_DancerToFfm(dance, callArena)
         val __r = __koffi_fn_hello_kotlin_ride.invokeWithArguments(callArena, danceSegment)
         return __koffi_option___koffi_struct_hello_kotlin_DancerFromFfm(__r as MemorySegment)
+    }
+}
+actual fun whenSum(w: `when`): UInt {
+    Arena.ofConfined().use { callArena ->
+        val wSegment = whenToFfm(w, callArena)
+        val __r = __koffi_fn_hello_kotlin_when_sum.invokeWithArguments(wSegment)
+        return (__r as Int).toUInt()
     }
 }
 actual fun howLong(seconds: Double?): Double {
@@ -980,6 +1172,25 @@ actual fun stringPair(a: String, b: String): Boolean {
         val bSegment = koffiStringToFfm(b, callArena)
         val __r = __koffi_fn_hello_kotlin_string_pair.invokeWithArguments(aSegment, bSegment)
         return (__r as Boolean)
+    }
+}
+actual fun makeWhen(`object`: UInt, `val`: UInt): `when` {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_make_when.invokeWithArguments(callArena, `object`.toInt(), `val`.toInt())
+        return whenFromFfm(__r as MemorySegment)
+    }
+}
+actual fun keywordDataSum(d: KeywordData): UInt {
+    Arena.ofConfined().use { callArena ->
+        val dSegment = keyword_dataToFfm(d, callArena)
+        val __r = __koffi_fn_hello_kotlin_keyword_data_sum.invokeWithArguments(dSegment)
+        return (__r as Int).toUInt()
+    }
+}
+actual fun `object`(): UInt {
+    Arena.ofConfined().use { callArena ->
+        val __r = __koffi_fn_hello_kotlin_object.invokeWithArguments()
+        return (__r as Int).toUInt()
     }
 }
 actual fun bytesPair(a: ByteArray, b: ByteArray): Boolean {

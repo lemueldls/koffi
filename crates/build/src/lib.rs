@@ -455,7 +455,7 @@ fn absolutize_def(
     }
 
     std::fs::write(&def_path, def)?;
-    info!("absolutized {} for cinterop", def_path.display());
+    debug!("absolutized {} for cinterop", def_path.display());
 
     Ok(())
 }

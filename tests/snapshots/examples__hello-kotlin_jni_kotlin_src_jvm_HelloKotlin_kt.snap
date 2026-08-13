@@ -54,6 +54,32 @@ private fun koffiBytesFromWire(buf: ByteBuffer, slot: Int): ByteArray {
 }
 
 
+private fun keyword_dataToWire(v: KeywordData, buf: ByteBuffer, base: Int) {
+    buf.putInt(base, v.discriminant)
+    when (v) {
+        is KeywordData.Fancy -> {
+            buf.putInt(base + 4, v.`object`.toInt())
+            buf.putInt(base + 8, v.`when`.toInt())
+            buf.putInt(base + 12, v.`fun`.toInt())
+        }
+        else -> {}
+    }
+}
+
+private fun keyword_dataFromWire(buf: ByteBuffer, base: Int): KeywordData {
+    val d = buf.getInt(base)
+    return when (d) {
+        0 -> KeywordData.Plain
+        1 -> KeywordData.Fancy(`object` = buf.getInt(base + 4).toUInt(), `when` = buf.getInt(base + 8).toUInt(), `fun` = buf.getInt(base + 12).toUInt())
+        else -> error("koffi: invalid KeywordData discriminant $d")
+    }
+}
+
+private fun keyword_dataToBuf(v: KeywordData): ByteBuffer {
+    val buf = allocateWire(16)
+    keyword_dataToWire(v, buf, 0)
+    return buf
+}
 private fun moodToWire(v: Mood, buf: ByteBuffer, base: Int) {
     buf.putInt(base, v.discriminant)
     when (v) {
@@ -151,6 +177,28 @@ private fun greetingFromWire(buf: ByteBuffer, base: Int): Greeting =
     Greeting(
         name = koffiStringFromWire(buf, base + 0),
         blob = koffiBytesFromWire(buf, base + 16))
+
+
+
+private fun keyword_bagToWire(v: KeywordBag, buf: ByteBuffer, base: Int) {
+    buf.putInt(base + 0, v.`object`.toInt())
+    buf.putInt(base + 4, v.`when`.toInt())
+    buf.putInt(base + 8, v.`class`.toInt())
+    buf.putInt(base + 12, v.`fun`.toInt())
+}
+
+private fun keyword_bagToBuf(v: KeywordBag): ByteBuffer {
+    val buf = allocateWire(16)
+    keyword_bagToWire(v, buf, 0)
+    return buf
+}
+
+private fun keyword_bagFromWire(buf: ByteBuffer, base: Int): KeywordBag =
+    KeywordBag(
+        `object` = buf.getInt(base + 0).toUInt(),
+        `when` = buf.getInt(base + 4).toUInt(),
+        `class` = buf.getInt(base + 8).toUInt(),
+        `fun` = buf.getInt(base + 12).toUInt())
 
 
 private fun mailBlobPayload(v: Mail, out: MutableList<ByteArray>) {
@@ -305,6 +353,24 @@ private fun window_pairFromWire(buf: ByteBuffer, base: Int): WindowPair =
         a = Window(buf.getLong(base + 0)),
         b = Window(buf.getLong(base + 8)),
         tag = buf.get(base + 16).toUByte())
+
+
+
+private fun whenToWire(v: `when`, buf: ByteBuffer, base: Int) {
+    buf.putInt(base + 0, v.`object`.toInt())
+    buf.putInt(base + 4, v.`val`.toInt())
+}
+
+private fun whenToBuf(v: `when`): ByteBuffer {
+    val buf = allocateWire(8)
+    whenToWire(v, buf, 0)
+    return buf
+}
+
+private fun whenFromWire(buf: ByteBuffer, base: Int): `when` =
+    `when`(
+        `object` = buf.getInt(base + 0).toUInt(),
+        `val` = buf.getInt(base + 4).toUInt())
 
 private fun __koffi_option___koffi_struct_hello_kotlin_DancerToWire(v: Dancer?, buf: ByteBuffer) {
     if (v != null) {
@@ -541,6 +607,19 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    external fun fancyImpl(
+        out: ByteBuffer,
+    )
+
+
+
+    actual fun helloKotlinKeywordFlagObject(): KeywordFlag =
+        helloKotlinKeywordFlagObjectImpl().let { KeywordFlag.fromDiscriminant(it) }
+
+    external fun helloKotlinKeywordFlagObjectImpl(): Int
+
+
+
     external fun cStatusIsErrImpl(
         s: Int,
     ): Boolean
@@ -555,6 +634,13 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
     external fun spanLengthImpl(
         s: String,
+    ): Int
+
+
+
+    external fun inImpl(
+        obj: ByteBuffer,
+        `when`: Int,
     ): Int
 
 
@@ -587,10 +673,25 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    actual fun helloKotlinObjectDescribe(self: `object`): ULong =
+        helloKotlinObjectDescribeImpl(self.handle).toULong()
+
+    external fun helloKotlinObjectDescribeImpl(
+        self: Long,
+    ): Long
+
+
+
     external fun holderStatusImpl(
         h: ByteBuffer,
         out: ByteBuffer,
     )
+
+
+
+    external fun typeImpl(
+        `in`: Int,
+    ): Int
 
 
 
@@ -624,6 +725,12 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    external fun flagValueImpl(
+        f: Int,
+    ): Int
+
+
+
     external fun upgradeImpl(
         m: ByteBuffer,
         out: ByteBuffer,
@@ -634,6 +741,15 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
     external fun nothingImpl(
         out: ByteBuffer,
     )
+
+
+
+    actual fun helloKotlinObjectOpen(id: ULong): `object` =
+        helloKotlinObjectOpenImpl(id.toLong()).let { `object`(it) }
+
+    external fun helloKotlinObjectOpenImpl(
+        id: Long,
+    ): Long
 
 
 
@@ -658,10 +774,23 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    external fun classImpl(
+        a: Int,
+        `fun`: Int,
+    ): Int
+
+
+
     external fun rideImpl(
         dance: ByteBuffer,
         out: ByteBuffer,
     )
+
+
+
+    external fun whenSumImpl(
+        w: ByteBuffer,
+    ): Int
 
 
 
@@ -672,6 +801,15 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
     external fun cStatusImpl(): Int
+
+
+
+    actual fun helloKotlinKeywordBagMatch(self: KeywordBag): UInt =
+        helloKotlinKeywordBagMatchImpl(keyword_bagToBuf(self)).toUInt()
+
+    external fun helloKotlinKeywordBagMatchImpl(
+        self: ByteBuffer,
+    ): Int
 
 
 
@@ -760,6 +898,20 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
     external fun paintImpl(
         color: ByteBuffer,
     ): Boolean
+
+
+
+    actual fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag {
+        val out = allocateWire(16)
+        helloKotlinKeywordBagNewImpl(`object`.toInt(), `when`.toInt(), out)
+        return keyword_bagFromWire(out, 0)
+    }
+
+    external fun helloKotlinKeywordBagNewImpl(
+        `object`: Int,
+        `when`: Int,
+        out: ByteBuffer,
+    )
 
 
 
@@ -874,6 +1026,24 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    external fun makeWhenImpl(
+        `object`: Int,
+        `val`: Int,
+        out: ByteBuffer,
+    )
+
+
+
+    external fun keywordDataSumImpl(
+        d: ByteBuffer,
+    ): Int
+
+
+
+    external fun objectImpl(): Int
+
+
+
     external fun bytesPairImpl(
         a: ByteArray,
         b: ByteArray,
@@ -886,12 +1056,19 @@ actual fun makeHolder(): StatusHolder {
     HelloKotlinFfi.makeHolderImpl(out)
     return status_holderFromWire(out, 0)
 }
+actual fun fancy(): KeywordData {
+    val out = allocateWire(16)
+    HelloKotlinFfi.fancyImpl(out)
+    return keyword_dataFromWire(out, 0)
+}
 actual fun cStatusIsErr(s: CStatus): Boolean =
     HelloKotlinFfi.cStatusIsErrImpl(s.discriminant.toInt())
 actual fun greet(g: Greeting): String =
     HelloKotlinFfi.greetImpl(greetingToBuf(g))
 actual fun spanLength(s: String): UInt =
     HelloKotlinFfi.spanLengthImpl(s).toUInt()
+actual fun `in`(obj: KeywordBag, `when`: UInt): UInt =
+    HelloKotlinFfi.inImpl(keyword_bagToBuf(obj), `when`.toInt()).toUInt()
 actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt =
     HelloKotlinFfi.resultValueImpl(__koffi_result_u32_u8ToBuf(r)).toUInt()
 actual fun makeRect(): Rect {
@@ -904,6 +1081,8 @@ actual fun holderStatus(h: StatusHolder): Status {
     HelloKotlinFfi.holderStatusImpl(status_holderToBuf(h), out)
     return statusFromWire(out, 0)
 }
+actual fun type(`in`: UInt): UInt =
+    HelloKotlinFfi.typeImpl(`in`.toInt()).toUInt()
 actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
     val out = allocateWire(8)
     HelloKotlinFfi.divideImpl(n.toInt(), d.toInt(), out)
@@ -919,6 +1098,8 @@ actual fun makeStatus(): Status {
     HelloKotlinFfi.makeStatusImpl(out)
     return statusFromWire(out, 0)
 }
+actual fun flagValue(f: KeywordFlag): Int =
+    HelloKotlinFfi.flagValueImpl(f.discriminant)
 actual fun upgrade(m: Mail): Mail {
     val out = allocateWire(40)
     HelloKotlinFfi.upgradeImpl(mailToBuf(m), out)
@@ -933,11 +1114,15 @@ actual fun echoBytes(b: ByteArray): ByteArray =
     HelloKotlinFfi.echoBytesImpl(b)
 actual fun describeWindow(w: Window): ULong =
     HelloKotlinFfi.describeWindowImpl(w.handle).toULong()
+actual fun `class`(a: UInt, `fun`: UInt): UInt =
+    HelloKotlinFfi.classImpl(a.toInt(), `fun`.toInt()).toUInt()
 actual fun ride(dance: Dancer?): Dancer? {
     val out = allocateWire(12)
     HelloKotlinFfi.rideImpl(__koffi_option___koffi_struct_hello_kotlin_DancerToBuf(dance), out)
     return __koffi_option___koffi_struct_hello_kotlin_DancerFromWire(out)
 }
+actual fun whenSum(w: `when`): UInt =
+    HelloKotlinFfi.whenSumImpl(whenToBuf(w)).toUInt()
 actual fun howLong(seconds: Double?): Double =
     HelloKotlinFfi.howLongImpl(__koffi_option_f64ToBuf(seconds))
 actual fun cStatus(): CStatus =
@@ -993,6 +1178,15 @@ actual fun rectTopLeft(r: Rect): Point {
 }
 actual fun stringPair(a: String, b: String): Boolean =
     HelloKotlinFfi.stringPairImpl(a, b)
+actual fun makeWhen(`object`: UInt, `val`: UInt): `when` {
+    val out = allocateWire(8)
+    HelloKotlinFfi.makeWhenImpl(`object`.toInt(), `val`.toInt(), out)
+    return whenFromWire(out, 0)
+}
+actual fun keywordDataSum(d: KeywordData): UInt =
+    HelloKotlinFfi.keywordDataSumImpl(keyword_dataToBuf(d)).toUInt()
+actual fun `object`(): UInt =
+    HelloKotlinFfi.objectImpl().toUInt()
 actual fun bytesPair(a: ByteArray, b: ByteArray): Boolean =
     HelloKotlinFfi.bytesPairImpl(a, b)
 

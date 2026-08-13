@@ -27,6 +27,19 @@ class Window internal constructor(
             HelloKotlinFfi.helloKotlinWindowOpen(id)
     }
 }
+class `object` internal constructor(
+    internal val handle: Long,
+) {
+    fun describe(): ULong =
+        HelloKotlinFfi.helloKotlinObjectDescribe(this)
+
+    companion object {
+        operator fun invoke(id: ULong): `object` =
+            HelloKotlinFfi.helloKotlinObjectOpen(id)
+        fun open(id: ULong): `object` =
+            HelloKotlinFfi.helloKotlinObjectOpen(id)
+    }
+}
 
 data class Dancer(
     val id: UInt,
@@ -36,6 +49,22 @@ data class Greeting(
     val name: String,
     val blob: ByteArray
 )
+data class KeywordBag(
+    val `object`: UInt,
+    val `when`: UInt,
+    val `class`: UInt,
+    val `fun`: UInt
+) {
+    fun match(): UInt =
+        HelloKotlinFfi.helloKotlinKeywordBagMatch(this)
+
+    companion object {
+        operator fun invoke(`object`: UInt, `when`: UInt): KeywordBag =
+            HelloKotlinFfi.helloKotlinKeywordBagNew(`object`, `when`)
+        fun new(`object`: UInt, `when`: UInt): KeywordBag =
+            HelloKotlinFfi.helloKotlinKeywordBagNew(`object`, `when`)
+    }
+}
 data class Mail(
     val greeting: Greeting,
     val hops: UInt
@@ -94,6 +123,10 @@ data class WindowPair(
             HelloKotlinFfi.helloKotlinWindowPairNew(a, b)
     }
 }
+data class `when`(
+    val `object`: UInt,
+    val `val`: UInt
+)
 
 
 enum class CStatus(val discriminant: UInt) {
@@ -103,6 +136,35 @@ enum class CStatus(val discriminant: UInt) {
     companion object {
         fun fromDiscriminant(value: UInt): CStatus =
             entries.first { it.discriminant == value }
+    }
+}
+
+
+sealed class KeywordData(val discriminant: Int) {
+    object Plain : KeywordData(0)
+    data class Fancy(
+        val `object`: UInt,
+        val `when`: UInt,
+        val `fun`: UInt
+    ) : KeywordData(1)
+
+    companion object {
+    }
+}
+
+
+enum class KeywordFlag(val discriminant: Int) {
+    `when`(0),
+    `val`(1),
+    `fun`(2);
+
+    companion object {
+        fun fromDiscriminant(value: Int): KeywordFlag =
+            entries.first { it.discriminant == value }
+        operator fun invoke(): KeywordFlag =
+            HelloKotlinFfi.helloKotlinKeywordFlagObject()
+        fun `object`(): KeywordFlag =
+            HelloKotlinFfi.helloKotlinKeywordFlagObject()
     }
 }
 
@@ -144,20 +206,26 @@ sealed class Status(val discriminant: Int) {
 
 
 expect fun makeHolder(): StatusHolder
+expect fun fancy(): KeywordData
 expect fun cStatusIsErr(s: CStatus): Boolean
 expect fun greet(g: Greeting): String
 expect fun spanLength(s: String): UInt
+expect fun `in`(obj: KeywordBag, `when`: UInt): UInt
 expect fun resultValue(r: KoffiResult<UInt, UByte>): UInt
 expect fun makeRect(): Rect
 expect fun holderStatus(h: StatusHolder): Status
+expect fun type(`in`: UInt): UInt
 expect fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte>
 expect fun drink(x: UInt): KoffiResult<UInt?, UByte>
 expect fun makeStatus(): Status
+expect fun flagValue(f: KeywordFlag): Int
 expect fun upgrade(m: Mail): Mail
 expect fun nothing(): UInt?
 expect fun echoBytes(b: ByteArray): ByteArray
 expect fun describeWindow(w: Window): ULong
+expect fun `class`(a: UInt, `fun`: UInt): UInt
 expect fun ride(dance: Dancer?): Dancer?
+expect fun whenSum(w: `when`): UInt
 expect fun howLong(seconds: Double?): Double
 expect fun cStatus(): CStatus
 expect fun favorite(): UInt?
@@ -175,18 +243,26 @@ expect fun addOptional(a: UInt, b: UInt?): UInt
 expect fun hello(): Payload
 expect fun rectTopLeft(r: Rect): Point
 expect fun stringPair(a: String, b: String): Boolean
+expect fun makeWhen(`object`: UInt, `val`: UInt): `when`
+expect fun keywordDataSum(d: KeywordData): UInt
+expect fun `object`(): UInt
 expect fun bytesPair(a: ByteArray, b: ByteArray): Boolean
 
 expect object HelloKotlinFfi {
+    fun helloKotlinKeywordFlagObject(): KeywordFlag
     fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong
     fun helloKotlinPayloadDescribeFormat(): UInt
+    fun helloKotlinObjectDescribe(self: `object`): ULong
     fun helloKotlinWindowDescribe(self: Window): ULong
+    fun helloKotlinObjectOpen(id: ULong): `object`
     fun helloKotlinStatusDescribe(self: Status): UInt
+    fun helloKotlinKeywordBagMatch(self: KeywordBag): UInt
     fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload
     fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair
     fun helloKotlinWindowRetag(self: Window, id: ULong): ULong
     fun helloKotlinPayloadDescribe(self: Payload): UInt
     fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong
+    fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag
     fun helloKotlinStatusNewBusy(code: UInt): Status
     fun helloKotlinStatusIdle(): Status
     fun helloKotlinWindowOpen(id: ULong): Window

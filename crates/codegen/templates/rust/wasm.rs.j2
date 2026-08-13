@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 
 {%~ for f in schema.functions %}
 #[wasm_bindgen]
-pub fn {{ f.kotlin_name }}(/* TODO: wasm-bindgen-compatible params */) -> ! {
+pub fn {{ f.rust_name }}(/* TODO: wasm-bindgen-compatible params */) -> ! {
     todo!("wasm-bindgen marshaling: see the scope note above")
 }
 {%- endfor %}

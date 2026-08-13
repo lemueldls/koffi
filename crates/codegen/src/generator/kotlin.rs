@@ -3,10 +3,54 @@ use heck::{ToLowerCamelCase, ToSnakeCase, ToUpperCamelCase};
 use crate::{
     layout::FieldPlacement,
     schema::{
-        ScalarKind, Schema, SchemaEnum, SchemaField, SchemaFn, SchemaOpaque, SchemaParam,
-        SchemaStruct, SchemaTypeRef, SchemaWrapper, WrapperKind, WrapperMember,
+        ScalarKind, Schema, SchemaEnum, SchemaEnumVariant, SchemaField, SchemaFn, SchemaOpaque,
+        SchemaParam, SchemaStruct, SchemaTypeRef, SchemaWrapper, WrapperKind, WrapperMember,
     },
 };
+
+/// Kotlin's hard keywords can't be identifiers unless backticked: a Rust
+/// fn or field named `when`, `object` or `in` would render as invalid
+/// Kotlin. Backticks are legal in every identifier position (fn names,
+/// params, properties, class names), so one escape covers them all. The
+/// `r#` prefix the macro records for raw identifiers (`r#in`) is stripped
+/// first; facet-side names (fields, variants) arrive already stripped.
+fn kotlin_ident(name: &str) -> String {
+    let name = name.trim_start_matches("r#");
+    if matches!(
+        name,
+        "as" | "break"
+            | "class"
+            | "continue"
+            | "do"
+            | "else"
+            | "false"
+            | "for"
+            | "fun"
+            | "if"
+            | "in"
+            | "interface"
+            | "is"
+            | "null"
+            | "object"
+            | "package"
+            | "return"
+            | "super"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typealias"
+            | "typeof"
+            | "val"
+            | "var"
+            | "when"
+            | "while"
+    ) {
+        format!("`{name}`")
+    } else {
+        name.to_string()
+    }
+}
 
 impl Schema {
     #[must_use]
@@ -66,6 +110,10 @@ impl Schema {
             .and_then(|f| f.module_path.as_deref())
             .unwrap_or("")
             .replace("::", ".")
+            .split('.')
+            .map(kotlin_ident)
+            .collect::<Vec<_>>()
+            .join(".")
     }
 
     #[must_use]
@@ -371,7 +419,7 @@ impl SchemaTypeRef {
             SchemaTypeRef::Scalar(k) => k.kotlin_type().to_string(),
             SchemaTypeRef::Struct { name, .. }
             | SchemaTypeRef::Enum { name, .. }
-            | SchemaTypeRef::Opaque { name, .. } => name.clone(),
+            | SchemaTypeRef::Opaque { name, .. } => kotlin_ident(name),
             // None is `null`; the nullability is what marshals the
             // None case, so the marshaller just checks for null.
             SchemaTypeRef::Option { inner } => format!("{}?", inner.kotlin_type()),
@@ -642,7 +690,7 @@ impl SchemaTypeRef {
                 name,
                 has_data: false,
                 ..
-            } => format!(".let {{ {name}.fromDiscriminant(it) }}"),
+            } => format!(".let {{ {}.fromDiscriminant(it) }}", kotlin_ident(name)),
             SchemaTypeRef::Struct { .. }
             | SchemaTypeRef::Enum { has_data: true, .. }
             | SchemaTypeRef::Option { .. }
@@ -651,7 +699,9 @@ impl SchemaTypeRef {
             | SchemaTypeRef::Str
             | SchemaTypeRef::Bytes
             | SchemaTypeRef::ByteSlice => String::new(),
-            SchemaTypeRef::Opaque { name, .. } => format!(".let {{ {name}(it) }}"),
+            SchemaTypeRef::Opaque { name, .. } => {
+                format!(".let {{ {}(it) }}", kotlin_ident(name))
+            }
         }
     }
 
@@ -833,9 +883,12 @@ impl SchemaTypeRef {
             } => {
                 let suffix = discriminant.from_ffm_suffix();
                 if suffix.is_empty() {
-                    format!(".let {{ {name}.fromDiscriminant(it) }}")
+                    format!(".let {{ {}.fromDiscriminant(it) }}", kotlin_ident(name))
                 } else {
-                    format!(".let {{ {name}.fromDiscriminant(it{suffix}) }}")
+                    format!(
+                        ".let {{ {}.fromDiscriminant(it{suffix}) }}",
+                        kotlin_ident(name)
+                    )
                 }
             }
             SchemaTypeRef::Struct { .. }
@@ -846,12 +899,24 @@ impl SchemaTypeRef {
             | SchemaTypeRef::Str
             | SchemaTypeRef::Bytes
             | SchemaTypeRef::ByteSlice => String::new(),
-            SchemaTypeRef::Opaque { name, .. } => format!(".let {{ {name}(it) }}"),
+            SchemaTypeRef::Opaque { name, .. } => {
+                format!(".let {{ {}(it) }}", kotlin_ident(name))
+            }
         }
     }
 }
 
 impl SchemaFn {
+    /// Kotlin name with keyword escapes applied, for emission into the
+    /// Kotlin sources. The stored `kotlin_name` field stays raw: the
+    /// wasm.rs.j2 stub reuses it as a Rust identifier, and the composed
+    /// object members (`ffi_member_name`, the `Impl` externals) can never
+    /// equal a keyword, so they keep the raw field too.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        kotlin_ident(&self.kotlin_name)
+    }
+
     /// FFI-object member name for a parent-having fn: the `expect`/`actual`
     /// fun generated on the shared object. Parent-having fns are prefixed
     /// with the parent type (module-aware) so `Payload::new` and
@@ -884,6 +949,23 @@ impl SchemaFn {
         let prefix = format!("{mod_infix}_{name}").to_lower_camel_case();
 
         format!("{prefix}{}", self.kotlin_name.to_upper_camel_case())
+    }
+}
+
+impl SchemaParam {
+    /// Kotlin parameter name, keyword-escaped. Param names come from the
+    /// macro verbatim, so raw `r#` prefixes are stripped here.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        kotlin_ident(&self.name)
+    }
+
+    /// The extra FFM binding for a memory-backed param (`val <p>Segment`):
+    /// a fresh identifier, so it must be checked as a whole, not as a
+    /// suffixed keyword-escape (`` `when`Segment `` isn't valid Kotlin).
+    #[must_use]
+    pub fn ffm_segment_name(&self) -> String {
+        kotlin_ident(&format!("{}Segment", self.name.trim_start_matches("r#")))
     }
 }
 
@@ -1076,26 +1158,60 @@ impl ScalarKind {
 }
 
 impl SchemaField {
-    /// Kotlin property name for a Rust struct field: lowerCamelCase. The
-    /// raw `name` stays the Rust field name for the glue crate's Rust
-    /// templates.
+    /// Kotlin property name for a Rust struct field: lowerCamelCase,
+    /// keyword-escaped. The raw `name` stays the Rust field name for the
+    /// glue crate's Rust templates.
     #[must_use]
     pub fn kotlin_name(&self) -> String {
-        self.name.to_lower_camel_case()
+        kotlin_ident(&self.name.to_lower_camel_case())
+    }
+
+    /// The C struct member's name as a Kotlin identifier, for the
+    /// native.kt.j2 cinterop marshallers. Same name as the header field;
+    /// a field called `val` or `object` needs backticks here.
+    #[must_use]
+    pub fn kotlin_c_member_name(&self) -> String {
+        kotlin_ident(&self.name)
     }
 }
 
 impl FieldPlacement {
     /// Kotlin property name for a reflected field (struct layout or enum
-    /// variant payload): lowerCamelCase. The raw `name` stays the Rust
-    /// field name for the glue crate's Rust templates.
+    /// variant payload): lowerCamelCase, keyword-escaped. The raw `name`
+    /// stays the Rust field name for the glue crate's Rust templates.
     #[must_use]
     pub fn kotlin_name(&self) -> String {
-        self.name.to_lower_camel_case()
+        kotlin_ident(&self.name.to_lower_camel_case())
+    }
+
+    /// The C struct member's name as a Kotlin identifier, for the
+    /// native.kt.j2 cinterop marshallers. cinterop exposes members under
+    /// their raw C names, so a field called `val` or `object` needs
+    /// backticks here just like a Kotlin property does.
+    #[must_use]
+    pub fn kotlin_c_member_name(&self) -> String {
+        kotlin_ident(&self.name)
+    }
+}
+
+impl SchemaEnumVariant {
+    /// Kotlin name for an enum variant (`object`/`data class` entry),
+    /// keyword-escaped. Variants are used verbatim (no case conversion),
+    /// so a Rust `when` variant stays `when` in Kotlin, just backticked.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        kotlin_ident(&self.name)
     }
 }
 
 impl SchemaStruct {
+    /// Kotlin class name, keyword-escaped. The raw `name` stays the Rust
+    /// type name for the glue crate's Rust templates and the C header.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        kotlin_ident(&self.name)
+    }
+
     /// Does calling this struct's own primary (field) constructor take the
     /// same argument list, in order and type, as `params`? `Type(..)` call
     /// syntax already means the primary constructor; a companion `invoke`
@@ -1172,7 +1288,32 @@ impl SchemaStruct {
     }
 }
 
+impl SchemaOpaque {
+    /// Kotlin handle-class name, keyword-escaped.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        kotlin_ident(&self.name)
+    }
+}
+
 impl SchemaEnum {
+    /// Kotlin enum/sealed-class name, keyword-escaped. The raw `name`
+    /// stays the Rust type name for the glue crate's Rust templates and
+    /// the C header.
+    #[must_use]
+    pub fn kotlin_name(&self) -> String {
+        kotlin_ident(&self.name)
+    }
+
+    /// The variant's wire-union member name as a Kotlin identifier, for
+    /// the native.kt.j2 cinterop marshallers. Same C field as
+    /// `variant_wire_name`; a variant called `when` would surface there
+    /// unescaped.
+    #[must_use]
+    pub fn variant_wire_kotlin_name(&self, v: &SchemaEnumVariant) -> String {
+        kotlin_ident(&self.variant_wire_name(v))
+    }
+
     /// The generated FFM struct layout constant for a data-carrying enum.
     /// Fieldless enums cross the ABI as their plain discriminant scalar and
     /// never get a layout constant.

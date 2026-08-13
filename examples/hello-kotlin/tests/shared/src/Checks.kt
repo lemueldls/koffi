@@ -157,6 +157,36 @@ fun runChecks() {
     check("upgrade name gains '!'", mail.greeting.name == "Hi!")
     check("upgrade blob roundtrips", mail.greeting.blob.contentEquals(byteArrayOf(9, 9)))
 
+    // Kotlin keywords as Rust identifiers: the generator backticks them,
+    // and every identifier position survives the roundtrip.
+    check("`object`() == 42", `object`() == 42u)
+    check("`class`(3, 4) == 7", `class`(3u, 4u) == 7u)
+    check("`in`(bag, 2) == 44", `in`(KeywordBag.new(42u, 1u), 2u) == 44u)
+    check("`type`(5) == 5", `type`(5u) == 5u)
+
+    val bag = KeywordBag(`object` = 40u, `when` = 2u)
+    check("KeywordBag keyword fields roundtrip", bag.`object` == 40u && bag.`when` == 2u && bag.`class` == 7u && bag.`fun` == 8u)
+    check("KeywordBag.new(1, 2) -> object=1 when=2", KeywordBag.new(1u, 2u).`match`() == 3u)
+    check("bag.`match`() == 42", bag.`match`() == 42u)
+
+    check("KeywordFlag.when == 0", KeywordFlag.`when`.discriminant == 0)
+    check("KeywordFlag.object() -> when", KeywordFlag.`object`() == KeywordFlag.`when`)
+    check("flagValue(when) == 0", flagValue(KeywordFlag.`when`) == 0)
+    check("flagValue(fun) == 2", flagValue(KeywordFlag.`fun`) == 2)
+
+    val kwd = fancy()
+    check("fancy() -> Fancy(1,2,3)", kwd == KeywordData.Fancy(`object` = 1u, `when` = 2u, `fun` = 3u))
+    check("keywordDataSum(Fancy(1,2,3)) == 6", keywordDataSum(kwd) == 6u)
+    check("keywordDataSum(Plain) == 0", keywordDataSum(KeywordData.Plain) == 0u)
+
+    val kw = makeWhen(5u, 6u)
+    check("makeWhen(5, 6).`object` == 5", kw.`object` == 5u)
+    check("makeWhen(5, 6).`val` == 6", kw.`val` == 6u)
+    check("whenSum(makeWhen(5, 6)) == 11", whenSum(kw) == 11u)
+
+    val kwOpaque = `object`.open(7uL)
+    check("`object`.open(7).describe() == 7", kwOpaque.describe() == 7uL)
+
     if (failures > 0) {
         println("\n$failures test(s) FAILED")
         exitProcess(1)

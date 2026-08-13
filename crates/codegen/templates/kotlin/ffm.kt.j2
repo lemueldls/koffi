@@ -17,18 +17,18 @@ import java.nio.file.StandardCopyOption
    only the name differs, and `indent` carries the call site's indentation
    so object members stay nested. -#}
 {%- macro ffm_fn(f, member_name, indent) -%}
-{{ indent }}actual fun {{ member_name }}({% for p in f.params %}{{ p.name }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
+{{ indent }}actual fun {{ member_name }}({% for p in f.params %}{{ p.kotlin_name() }}: {{ p.ty.kotlin_type() }}{% if !loop.last %}, {% endif %}{% endfor %}): {{ f.return_type.kotlin_type() }} {
 {{ indent }}    Arena.ofConfined().use { callArena ->
         {%- for p in f.params %}
         {%- if p.ty.is_memory_backed() %}
-{{ indent }}        val {{ p.name }}Segment = {{ p.ty.to_ffm_ident() }}({{ p.name }}, callArena)
+{{ indent }}        val {{ p.ffm_segment_name() }} = {{ p.ty.to_ffm_ident() }}({{ p.kotlin_name() }}, callArena)
         {%- endif %}
         {%- endfor %}
 {{ indent }}        val __r = {{ f.unique_ident() }}.invokeWithArguments(
             {%- if f.return_type.is_memory_backed() %}callArena{% if !f.params.is_empty() %}, {% endif %}{%- endif -%}
             {%- for p in f.params -%}
             {%- if !loop.first %}, {% endif -%}
-            {%- if p.ty.is_memory_backed() %}{{ p.name }}Segment{% elif p.ty.is_opaque() %}MemorySegment.ofAddress({{ p.name }}.handle){% else %}{{ p.name }}{{ p.ty.to_ffm_suffix() }}{% endif -%}
+            {%- if p.ty.is_memory_backed() %}{{ p.ffm_segment_name() }}{% elif p.ty.is_opaque() %}MemorySegment.ofAddress({{ p.kotlin_name() }}.handle){% else %}{{ p.kotlin_name() }}{{ p.ty.to_ffm_suffix() }}{% endif -%}
             {%- endfor -%}
         )
         {%- if f.return_type.is_memory_backed() %}
@@ -38,9 +38,9 @@ import java.nio.file.StandardCopyOption
         {%- when SchemaTypeRef::Scalar(kind) %}
 {{ indent }}        return (__r as {{ kind.jvm_boxed_type() }}){{ kind.from_ffm_suffix() }}
         {%- when SchemaTypeRef::Enum { name, discriminant, .. } %}
-{{ indent }}        return {{ name }}.fromDiscriminant((__r as {{ discriminant.jvm_boxed_type() }}){{ discriminant.from_ffm_suffix() }})
-        {%- when SchemaTypeRef::Opaque { name, .. } %}
-{{ indent }}        return {{ name }}((__r as MemorySegment).address())
+{{ indent }}        return {{ f.return_type.kotlin_type() }}.fromDiscriminant((__r as {{ discriminant.jvm_boxed_type() }}){{ discriminant.from_ffm_suffix() }})
+        {%- when SchemaTypeRef::Opaque { .. } %}
+{{ indent }}        return {{ f.return_type.kotlin_type() }}((__r as MemorySegment).address())
         {%- when SchemaTypeRef::Struct { .. } %}
         {# unreachable: is_memory_backed covers structs #}
         {%- when SchemaTypeRef::Option { .. } %}
@@ -78,7 +78,7 @@ segment.set({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L, {{ expr }}{{ ty.t
 {{ ty.from_ffm_ident() }}(segment.asSlice({{ offset }}L, {{ ty.kotlin_ffm_value_layout() }}.byteSize()))
 {%- elif ty.is_opaque() -%}
 {%- match ty %}
-{%- when SchemaTypeRef::Opaque { name, .. } %}{{ name }}(segment.get({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L).address())
+{%- when SchemaTypeRef::Opaque { .. } %}{{ ty.kotlin_type() }}(segment.get({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L).address())
 {%- else %}{% endmatch -%}
 {%- else -%}
 segment.get({{ ty.kotlin_ffm_value_layout() }}, {{ offset }}L){{ ty.from_ffm_suffix() }}
@@ -201,16 +201,16 @@ private val {{ w.kotlin_ffm_value_layout() }}: MemoryLayout = MemoryLayout.struc
    `statusFromFfm` reads it back. Only data-carrying enums need these;
    fieldless ones cross the ABI as their plain discriminant scalar. -#}
 {%~ for e in schema.enums %}{% if e.has_data %}
-private fun {{ e.to_ffm_ident() }}(value: {{ e.name }}, arena: Arena): MemorySegment {
+private fun {{ e.to_ffm_ident() }}(value: {{ e.kotlin_name() }}, arena: Arena): MemorySegment {
     val segment = arena.allocate({{ e.kotlin_ffm_value_layout() }})
     segment.set({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L, value.discriminant{{ e.discriminant.to_ffm_suffix() }})
     when (value) {
         {%- for v in e.variants %}
         {%- if v.placements.is_empty() %}
-        {{ e.name }}.{{ v.name }} -> {
+        {{ e.kotlin_name() }}.{{ v.kotlin_name() }} -> {
         }
         {%- else %}
-        is {{ e.name }}.{{ v.name }} -> {
+        is {{ e.kotlin_name() }}.{{ v.kotlin_name() }} -> {
             {%- for f in v.placements %}
             {{ ffm_write_value(&f.ty, &format!("value.{}", f.kotlin_name()), &f.offset) }}
             {%- endfor %}
@@ -221,13 +221,13 @@ private fun {{ e.to_ffm_ident() }}(value: {{ e.name }}, arena: Arena): MemorySeg
     return segment
 }
 
-private fun {{ e.from_ffm_ident() }}(segment: MemorySegment): {{ e.name }} {
+private fun {{ e.from_ffm_ident() }}(segment: MemorySegment): {{ e.kotlin_name() }} {
     val d = segment.get({{ e.discriminant.kotlin_ffm_value_layout() }}, 0L){{ e.discriminant.from_ffm_suffix() }}
     return when (d) {
         {%- for v in e.variants %}
-        {{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }} -> {% if v.placements.is_empty() %}{{ e.name }}.{{ v.name }}{% else %}{{ e.name }}.{{ v.name }}({% for f in v.placements %}{{ f.kotlin_name() }} = {{ segment_read_value(&f.ty, &f.offset) }}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
+        {{ e.discriminant.kotlin_discriminant_literal(v.discriminant) }} -> {% if v.placements.is_empty() %}{{ e.kotlin_name() }}.{{ v.kotlin_name() }}{% else %}{{ e.kotlin_name() }}.{{ v.kotlin_name() }}({% for f in v.placements %}{{ f.kotlin_name() }} = {{ segment_read_value(&f.ty, &f.offset) }}{% if !loop.last %}, {% endif %}{% endfor %}){% endif %}
         {%- endfor %}
-        else -> error("koffi: invalid {{ e.name }} discriminant $d")
+        else -> error("koffi: invalid {{ e.kotlin_name() }} discriminant $d")
     }
 }
 {%- endif %}{%- endfor %}
@@ -241,7 +241,7 @@ private fun {{ e.from_ffm_ident() }}(segment: MemorySegment): {{ e.name }} {
    declaration-order constraint that `val` properties do, so the
    iteration order here doesn't matter. -#}
 {%~ for s in schema.structs %}
-private fun {{ s.to_ffm_ident() }}(value: {{ s.name }}, arena: Arena): MemorySegment {
+private fun {{ s.to_ffm_ident() }}(value: {{ s.kotlin_name() }}, arena: Arena): MemorySegment {
     val segment = arena.allocate({{ s.kotlin_ffm_value_layout() }})
     {%- for placement in s.layout.placements %}
     {{ ffm_write_value(&placement.ty, &format!("value.{}", placement.kotlin_name()), &placement.offset) }}
@@ -249,8 +249,8 @@ private fun {{ s.to_ffm_ident() }}(value: {{ s.name }}, arena: Arena): MemorySeg
     return segment
 }
 
-private fun {{ s.from_ffm_ident() }}(segment: MemorySegment): {{ s.name }} {
-    return {{ s.name }}(
+private fun {{ s.from_ffm_ident() }}(segment: MemorySegment): {{ s.kotlin_name() }} {
+    return {{ s.kotlin_name() }}(
         {%- for placement in s.layout.placements %}
         {{ placement.kotlin_name() }} = {{ segment_read_value(&placement.ty, &placement.offset) }}{% if !loop.last %},{% endif %}
         {%- endfor -%}
@@ -325,7 +325,7 @@ actual object {{ schema.ffi_object_name() }} {
 }
 
 {%~ for f in schema.functions %}{%- if f.parent.is_none() %}
-{{ ffm_fn(&f, f.kotlin_name, "") }}
+{{ ffm_fn(&f, f.kotlin_name(), "") }}
 {%- endif %}{%- endfor %}
 
 object {{ schema.loader_object_name() }} {

@@ -63,6 +63,25 @@ impl From<::hello_kotlin::Window> for __koffi_opaque_hello_kotlin_Window {
         }
     }
 }
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_opaque_hello_kotlin_object {
+    pub addr: *mut (),
+}
+
+impl From<__koffi_opaque_hello_kotlin_object> for ::hello_kotlin::object {
+    fn from(w: __koffi_opaque_hello_kotlin_object) -> Self {
+        unsafe { (w.addr as *const ::hello_kotlin::object).read() }
+    }
+}
+
+impl From<::hello_kotlin::object> for __koffi_opaque_hello_kotlin_object {
+    fn from(v: ::hello_kotlin::object) -> Self {
+        Self {
+            addr: Box::into_raw(Box::new(v)) as *mut (),
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -109,6 +128,36 @@ impl From<::hello_kotlin::Greeting> for __koffi_struct_hello_kotlin_Greeting {
         Self {
             name: v.name.into(),
             blob: v.blob.into(),
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_KeywordBag {
+    pub object: u32,
+    pub when: u32,
+    pub class: u32,
+    pub fun: u32,
+}
+
+impl From<__koffi_struct_hello_kotlin_KeywordBag> for ::hello_kotlin::KeywordBag {
+    fn from(c: __koffi_struct_hello_kotlin_KeywordBag) -> Self {
+        Self {
+            object: c.object.into(),
+            when: c.when.into(),
+            class: c.class.into(),
+            fun: c.fun.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::KeywordBag> for __koffi_struct_hello_kotlin_KeywordBag {
+    fn from(v: ::hello_kotlin::KeywordBag) -> Self {
+        Self {
+            object: v.object.into(),
+            when: v.when.into(),
+            class: v.class.into(),
+            fun: v.fun.into(),
         }
     }
 }
@@ -310,6 +359,30 @@ impl From<::hello_kotlin::WindowPair> for __koffi_struct_hello_kotlin_WindowPair
         }
     }
 }
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_struct_hello_kotlin_when {
+    pub object: u32,
+    pub val: u32,
+}
+
+impl From<__koffi_struct_hello_kotlin_when> for ::hello_kotlin::when {
+    fn from(c: __koffi_struct_hello_kotlin_when) -> Self {
+        Self {
+            object: c.object.into(),
+            val: c.val.into(),
+        }
+    }
+}
+
+impl From<::hello_kotlin::when> for __koffi_struct_hello_kotlin_when {
+    fn from(v: ::hello_kotlin::when) -> Self {
+        Self {
+            object: v.object.into(),
+            val: v.val.into(),
+        }
+    }
+}
 
 
 #[repr(u32)]
@@ -333,6 +406,107 @@ impl From<::hello_kotlin::CStatus> for __koffi_enum_hello_kotlin_CStatus {
         match v {
             ::hello_kotlin::CStatus::Ok => Self::Ok,
             ::hello_kotlin::CStatus::Err => Self::Err,
+        }
+    }
+}
+
+
+
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_enum_hello_kotlin_KeywordData_fancy {
+    pub object: u32,
+    pub when: u32,
+    pub fun: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union __koffi_enum_hello_kotlin_KeywordData_payload {
+    fancy: __koffi_enum_hello_kotlin_KeywordData_fancy,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct __koffi_enum_hello_kotlin_KeywordData {
+    pub _d: i32,
+    pub _u: __koffi_enum_hello_kotlin_KeywordData_payload,
+}
+
+impl From<__koffi_enum_hello_kotlin_KeywordData> for ::hello_kotlin::KeywordData {
+    fn from(w: __koffi_enum_hello_kotlin_KeywordData) -> Self {
+        match w._d {
+            0 => {
+                Self::Plain
+            },
+            1 => {
+                Self::Fancy {
+                    object: 
+                        unsafe { w._u.fancy }.object.into(),
+                    
+                    when: 
+                        unsafe { w._u.fancy }.when.into(),
+                    
+                    fun: 
+                        unsafe { w._u.fancy }.fun.into(),
+                    
+                }
+            },
+            _ => unreachable!("koffi: invalid KeywordData discriminant"),
+        }
+    }
+}
+
+impl From<::hello_kotlin::KeywordData> for __koffi_enum_hello_kotlin_KeywordData {
+    fn from(v: ::hello_kotlin::KeywordData) -> Self {
+        match v {
+            ::hello_kotlin::KeywordData::Plain => Self {
+                _d: 0,
+                _u: unsafe { std::mem::zeroed() },
+            },
+            ::hello_kotlin::KeywordData::Fancy { object, when, fun } => Self {
+                _d: 1,
+                _u: __koffi_enum_hello_kotlin_KeywordData_payload {
+                    fancy: __koffi_enum_hello_kotlin_KeywordData_fancy {
+                        
+                        object: object.into(),
+                        
+                        when: when.into(),
+                        
+                        fun: fun.into(),
+                    }
+                },
+            },
+        }
+    }
+}
+
+
+#[repr(i32)]
+#[derive(Clone, Copy)]
+pub enum __koffi_enum_hello_kotlin_KeywordFlag {
+    when = 0,
+    val = 1,
+    fun = 2,
+}
+
+impl From<__koffi_enum_hello_kotlin_KeywordFlag> for ::hello_kotlin::KeywordFlag {
+    fn from(v: __koffi_enum_hello_kotlin_KeywordFlag) -> Self {
+        match v {
+            __koffi_enum_hello_kotlin_KeywordFlag::when => Self::when,
+            __koffi_enum_hello_kotlin_KeywordFlag::val => Self::val,
+            __koffi_enum_hello_kotlin_KeywordFlag::fun => Self::fun,
+        }
+    }
+}
+
+impl From<::hello_kotlin::KeywordFlag> for __koffi_enum_hello_kotlin_KeywordFlag {
+    fn from(v: ::hello_kotlin::KeywordFlag) -> Self {
+        match v {
+            ::hello_kotlin::KeywordFlag::when => Self::when,
+            ::hello_kotlin::KeywordFlag::val => Self::val,
+            ::hello_kotlin::KeywordFlag::fun => Self::fun,
         }
     }
 }

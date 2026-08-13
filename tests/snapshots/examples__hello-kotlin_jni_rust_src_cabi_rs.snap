@@ -17,6 +17,22 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_make_holder(
     })
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_fancy(
+) -> __koffi_enum_hello_kotlin_KeywordData {
+    guarded(|| {
+        ::hello_kotlin::fancy(
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_KeywordFlag_object(
+) -> __koffi_enum_hello_kotlin_KeywordFlag {
+    guarded(|| {
+        ::hello_kotlin::KeywordFlag::object(
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn __koffi_fn_hello_kotlin_c_status_is_err(
     _p_s: __koffi_enum_hello_kotlin_CStatus,
 ) -> bool {
@@ -46,6 +62,20 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_span_length(
         ::hello_kotlin::span_length(
             
 _p_s.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_in(
+    _p_obj: __koffi_struct_hello_kotlin_KeywordBag,
+    _p_when: u32,
+) -> u32 {
+    guarded(|| {
+        ::hello_kotlin::r#in(
+            
+_p_obj.into(),
+            
+_p_when.into(),
         ).into()
     })
 }
@@ -88,6 +118,16 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_make_rect(
     })
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_object_describe(
+    _p_self: *const ::hello_kotlin::object,
+) -> u64 {
+    guarded(|| {
+        ::hello_kotlin::object::describe(
+            unsafe { &*_p_self },
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn __koffi_fn_hello_kotlin_holder_status(
     _p_h: __koffi_struct_hello_kotlin_StatusHolder,
 ) -> __koffi_enum_hello_kotlin_Status {
@@ -95,6 +135,17 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_holder_status(
         ::hello_kotlin::holder_status(
             
 _p_h.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_type(
+    _p_in: u32,
+) -> u32 {
+    guarded(|| {
+        ::hello_kotlin::r#type(
+            
+_p_in.into(),
         ).into()
     })
 }
@@ -142,6 +193,17 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_Window_describe(
     })
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_flag_value(
+    _p_f: __koffi_enum_hello_kotlin_KeywordFlag,
+) -> i32 {
+    guarded(|| {
+        ::hello_kotlin::flag_value(
+            
+_p_f.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn __koffi_fn_hello_kotlin_upgrade(
     _p_m: __koffi_struct_hello_kotlin_Mail,
 ) -> __koffi_struct_hello_kotlin_Mail {
@@ -158,6 +220,18 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_nothing(
     guarded(|| {
         ::hello_kotlin::nothing(
         ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_object_open(
+    _p_id: u64,
+) -> *mut ::hello_kotlin::object {
+    guarded(|| {
+        let __ret: ::hello_kotlin::object = ::hello_kotlin::object::open(
+            
+_p_id.into(),
+        );
+        Box::leak(Box::new(__ret)) as *mut ::hello_kotlin::object
     })
 }
 #[unsafe(no_mangle)]
@@ -193,6 +267,20 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_describe_window(
     })
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_class(
+    _p_a: u32,
+    _p_fun: u32,
+) -> u32 {
+    guarded(|| {
+        ::hello_kotlin::class(
+            
+_p_a.into(),
+            
+_p_fun.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn __koffi_fn_hello_kotlin_ride(
     _p_dance: __koffi_option___koffi_struct_hello_kotlin_Dancer,
 ) -> __koffi_option___koffi_struct_hello_kotlin_Dancer {
@@ -200,6 +288,17 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_ride(
         ::hello_kotlin::ride(
             
 _p_dance.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_when_sum(
+    _p_w: __koffi_struct_hello_kotlin_when,
+) -> u32 {
+    guarded(|| {
+        ::hello_kotlin::when_sum(
+            
+_p_w.into(),
         ).into()
     })
 }
@@ -219,6 +318,17 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_c_status(
 ) -> __koffi_enum_hello_kotlin_CStatus {
     guarded(|| {
         ::hello_kotlin::c_status(
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_KeywordBag_match(
+    _p_self: __koffi_struct_hello_kotlin_KeywordBag,
+) -> u32 {
+    guarded(|| {
+        ::hello_kotlin::KeywordBag::r#match(
+            & 
+_p_self.into(),
         ).into()
     })
 }
@@ -334,6 +444,20 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_paint(
         ::hello_kotlin::paint(
             
 _p_color.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_KeywordBag_new(
+    _p_object: u32,
+    _p_when: u32,
+) -> __koffi_struct_hello_kotlin_KeywordBag {
+    guarded(|| {
+        ::hello_kotlin::KeywordBag::new(
+            
+_p_object.into(),
+            
+_p_when.into(),
         ).into()
     })
 }
@@ -486,6 +610,39 @@ pub unsafe extern "C" fn __koffi_fn_hello_kotlin_string_pair(
 _p_a.into(),
             
 unsafe { ::std::str::from_utf8_unchecked(::std::slice::from_raw_parts(_p_b.ptr, _p_b.len)) },
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_make_when(
+    _p_object: u32,
+    _p_val: u32,
+) -> __koffi_struct_hello_kotlin_when {
+    guarded(|| {
+        ::hello_kotlin::make_when(
+            
+_p_object.into(),
+            
+_p_val.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_keyword_data_sum(
+    _p_d: __koffi_enum_hello_kotlin_KeywordData,
+) -> u32 {
+    guarded(|| {
+        ::hello_kotlin::keyword_data_sum(
+            
+_p_d.into(),
+        ).into()
+    })
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn __koffi_fn_hello_kotlin_object(
+) -> u32 {
+    guarded(|| {
+        ::hello_kotlin::object(
         ).into()
     })
 }
