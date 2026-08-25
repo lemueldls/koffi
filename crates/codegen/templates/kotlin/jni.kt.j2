@@ -28,7 +28,7 @@ private fun allocateWire(size: Int): ByteBuffer =
    absolute offsets straight into the root buffer instead and never touch
    sections. -#}
 private fun ByteBuffer.section(offset: Int): ByteBuffer =
-    duplicate().position(offset).slice().order(ByteOrder.LITTLE_ENDIAN)
+    duplicate().apply { position(offset) }.slice().order(ByteOrder.LITTLE_ENDIAN)
 
 {% if schema.has_spans() %}
 {#~ Span wire helpers (only when the schema uses spans). Top-level

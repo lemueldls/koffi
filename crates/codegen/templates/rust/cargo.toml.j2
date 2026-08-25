@@ -24,10 +24,6 @@ cabi = []
 {{ dep.feature }} = ["dep:{{ dep.name }}"]
 {%- endfor %}
 
-# koffi ships this crate as the ABI bridge; `pack -r` builds it in release
-# like any other profile. `panic = "unwind"` is load-bearing:
-# the exported fns lean on catch_unwind (guarded()/env.with_env) to turn
-# Rust panics into a Kotlin-visible failure instead of aborting the process.
 [profile.release]
 opt-level = 3
 lto = "thin"
@@ -35,14 +31,6 @@ codegen-units = 1
 panic = "unwind"
 debug = false
 
-# The source crate (`{{ source_crate_name }}`) compiles once per cargo tree
-# per change: gen's extraction build compiles it as the root package, this
-# tree as a dependency, and cargo names artifacts per workspace, so neither
-# tree reuses the other's. These sections pin the source crate's own
-# manifest profile for the dependency build; gen pins the same values into
-# its extraction build with `--config`, so the two compiles always run at
-# the same flags. Edit them to change the profile koffi uses for the source
-# crate.
 [profile.dev.package.{{ source_crate_name }}]
 {%- for line in profile.dev_pin_lines() %}
 {{ line }}

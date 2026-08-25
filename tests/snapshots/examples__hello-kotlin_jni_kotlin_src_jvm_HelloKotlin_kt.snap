@@ -19,7 +19,7 @@ import java.nio.file.StandardCopyOption
 private fun allocateWire(size: Int): ByteBuffer =
     ByteBuffer.allocateDirect(size).order(ByteOrder.LITTLE_ENDIAN)
 private fun ByteBuffer.section(offset: Int): ByteBuffer =
-    duplicate().position(offset).slice().order(ByteOrder.LITTLE_ENDIAN)
+    duplicate().apply { position(offset) }.slice().order(ByteOrder.LITTLE_ENDIAN)
 
 
 private fun koffiStringToWire(buf: ByteBuffer, blob: IntArray, slot: Int, content: ByteArray) {
