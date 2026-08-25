@@ -39,7 +39,7 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiTakeBytes<'
         // box back to `koffi_free_bytes` so nobody else sees it.
         unsafe { std::ptr::copy_nonoverlapping(src, buf.as_mut_ptr() as *mut u8, len as usize) };
         out.set_region(&env, 0, &buf)?;
-        crate::cabi::koffi_free_bytes(ptr as *mut u8, len as usize);
+        unsafe { crate::cabi::koffi_free_bytes(ptr as *mut u8, len as usize) };
         Ok(0 as jint)
     });
 

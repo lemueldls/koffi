@@ -13,8 +13,19 @@ pub use template::*;
 
 use crate::{config::KoffiConfig, schema::Schema};
 
-pub fn render_all(schema: &Schema, dirs: &OutputDirs, config: &KoffiConfig) -> anyhow::Result<()> {
-    render_rust(schema, &dirs.crate_path, &dirs.rust_out_dir, config)?;
+pub fn render_all(
+    schema: &Schema,
+    dirs: &OutputDirs,
+    config: &KoffiConfig,
+    profile: &koffi_build::profile::SourceProfile,
+) -> anyhow::Result<()> {
+    render_rust(
+        schema,
+        &dirs.crate_path,
+        &dirs.rust_out_dir,
+        config,
+        profile,
+    )?;
     render_kotlin(schema, &dirs.kotlin_out_dir, config)?;
 
     Ok(())
@@ -25,6 +36,7 @@ fn render_rust(
     crate_path: &Path,
     rust_out_dir: &Path,
     config: &KoffiConfig,
+    profile: &koffi_build::profile::SourceProfile,
 ) -> anyhow::Result<()> {
     let src_dir = rust_out_dir.join("src");
     write_template(RustLib { schema }, &src_dir.join("lib.rs"))?;
@@ -42,6 +54,7 @@ fn render_rust(
     write_template(
         RustCargoToml {
             crate_name: &schema.glue_crate_ident(),
+            source_crate_name: &schema.crate_name,
             required_dependencies: &[CargoDep {
                 name: schema.crate_name.clone(),
                 path: rel_crate_path,
@@ -65,6 +78,7 @@ fn render_rust(
             } else {
                 &["cdylib", "staticlib"]
             },
+            profile,
         },
         &rust_out_dir.join("Cargo.toml"),
     )?;

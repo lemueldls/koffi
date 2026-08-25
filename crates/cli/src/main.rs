@@ -4,7 +4,9 @@ use facet::Facet;
 use figue::{
     self as args, ConfigFormat, ConfigFormatError, ConfigValue, FigueBuiltins, JsoncFormat,
 };
-use koffi_build::{OutputDirs, build_and_stage, build_crate, config::KoffiConfig};
+use koffi_build::{
+    OutputDirs, build_and_stage, build_crate, config::KoffiConfig, profile::read_source_profile,
+};
 use koffi_codegen::{extract::extract_schema, generator};
 use tracing::{Level, debug, info};
 
@@ -102,10 +104,10 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::Package(args) => {
-            let (dirs, crate_ident) = generate(&args, &cli.config)?;
+            let (dirs, crate_ident, profile) = generate(&args, &cli.config)?;
 
             info!("packaging the generated glue crate");
-            build_and_stage(&dirs, &crate_ident, &cli.config, args.release)?;
+            build_and_stage(&dirs, &crate_ident, &cli.config, args.release, &profile)?;
             info!("packaging completed successfully");
         }
         Command::Generate(args) => {
@@ -139,8 +141,22 @@ fn preload_config_file() -> Option<(String, String)> {
     None
 }
 
-fn generate(args: &PackageArgs, config: &KoffiConfig) -> anyhow::Result<(OutputDirs, String)> {
-    let (crate_name, cdylib_path) = build_crate(&args.crate_path, args.release, &[], None)?;
+fn generate(
+    args: &PackageArgs,
+    config: &KoffiConfig,
+) -> anyhow::Result<(OutputDirs, String, koffi_build::profile::SourceProfile)> {
+    // The source crate's profile, pinned identically on the extraction
+    // build (here) and the glue dep build (via the generated manifest), so
+    // both trees compile it with the same flags and the fingerprints
+    // share.
+    let profile = read_source_profile(&args.crate_path)?;
+    let (crate_name, cdylib_path) = build_crate(
+        &args.crate_path,
+        args.release,
+        &[],
+        None,
+        &profile.config_args(),
+    )?;
     info!("generating code for {crate_name}");
 
     debug!("extracting schema from {}", cdylib_path.display());
@@ -152,10 +168,10 @@ fn generate(args: &PackageArgs, config: &KoffiConfig) -> anyhow::Result<(OutputD
         kotlin_out_dir: args.out.join("kotlin"),
     };
 
-    generator::render_all(&schema, &dirs, config)?;
+    generator::render_all(&schema, &dirs, config, &profile)?;
     info!("code generation completed successfully");
 
-    Ok((dirs, crate_name))
+    Ok((dirs, crate_name, profile))
 }
 
 /// figue's built-in formats cover JSON and JSONC; TOML goes through

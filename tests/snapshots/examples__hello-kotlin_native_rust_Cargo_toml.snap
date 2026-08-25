@@ -34,3 +34,27 @@ lto = "thin"
 codegen-units = 1
 panic = "unwind"
 debug = false
+
+# The source crate (`hello-kotlin`) compiles once per cargo tree
+# per change: gen's extraction build compiles it as the root package, this
+# tree as a dependency, and cargo names artifacts per workspace, so neither
+# tree reuses the other's. These sections pin the source crate's own
+# manifest profile for the dependency build; gen pins the same values into
+# its extraction build with `--config`, so the two compiles always run at
+# the same flags. Edit them to change the profile koffi uses for the source
+# crate.
+[profile.dev.package.hello-kotlin]
+codegen-units = 256
+debug = 2
+incremental = true
+opt-level = 0
+overflow-checks = true
+strip = "none"
+
+[profile.release.package.hello-kotlin]
+codegen-units = 16
+debug = 0
+incremental = false
+opt-level = 3
+overflow-checks = false
+strip = "none"

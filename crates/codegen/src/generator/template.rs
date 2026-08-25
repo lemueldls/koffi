@@ -41,9 +41,11 @@ pub struct RustWasm<'a> {
 #[template(path = "rust/cargo.toml.j2", escape = "none")]
 pub struct RustCargoToml<'a> {
     pub crate_name: &'a str,
+    pub source_crate_name: &'a str,
     pub required_dependencies: &'a [CargoDep],
     pub optional_dependencies: &'a [CargoOptionalDep],
     pub crate_types: &'a [&'a str],
+    pub profile: &'a koffi_build::profile::SourceProfile,
 }
 
 pub struct CargoDep {

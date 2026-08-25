@@ -6,6 +6,7 @@ use std::{
 use koffi_build::{
     OutputDirs, build_crate,
     config::{AndroidAbi, JvmBackend, KoffiConfig, TargetPlatform},
+    profile::read_source_profile,
 };
 use koffi_codegen::{extract::extract_schema, generator::render_all};
 
@@ -18,7 +19,9 @@ fn examples() -> anyhow::Result<()> {
         let entry = entry.expect("failed to read example directory entry");
         let path = entry.path();
 
-        let (crate_name, cdylib_path) = build_crate(&path, false, &[], None)?;
+        let profile = read_source_profile(&path)?;
+        let (crate_name, cdylib_path) =
+            build_crate(&path, false, &[], None, &profile.config_args())?;
         let schema = extract_schema(&crate_name, &cdylib_path)?;
 
         insta::assert_debug_snapshot!(crate_name, schema);
@@ -72,7 +75,9 @@ fn render() -> anyhow::Result<()> {
     examples.sort();
 
     for path in examples {
-        let (crate_name, cdylib_path) = build_crate(&path, false, &[], None)?;
+        let profile = read_source_profile(&path)?;
+        let (crate_name, cdylib_path) =
+            build_crate(&path, false, &[], None, &profile.config_args())?;
         let schema = extract_schema(&crate_name, &cdylib_path)?;
 
         for (variant, config) in &variants {
@@ -91,7 +96,7 @@ fn render() -> anyhow::Result<()> {
                 rust_out_dir: render_dir.join("rust"),
                 kotlin_out_dir: render_dir.join("kotlin"),
             };
-            render_all(&schema, &dirs, config)?;
+            render_all(&schema, &dirs, config, &profile)?;
 
             let mut files = Vec::new();
             collect_files(&render_dir, &mut files)?;

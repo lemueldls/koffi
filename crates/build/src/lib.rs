@@ -1,4 +1,5 @@
 pub mod config;
+pub mod profile;
 
 use std::{
     path::{Path, PathBuf},
@@ -36,6 +37,7 @@ pub fn build_crate(
     release: bool,
     features: &[&str],
     shared_target_dir: Option<&Path>,
+    config_args: &[String],
 ) -> anyhow::Result<(String, PathBuf)> {
     let (crate_name, target_dir) = crate_metadata(crate_path)?;
 
@@ -50,6 +52,7 @@ pub fn build_crate(
         release,
         features,
         shared_target_dir,
+        config_args,
     )?;
 
     Ok((crate_name, cdylib_path))
@@ -87,8 +90,16 @@ pub fn build_host_cdylib(
     release: bool,
     features: &[&str],
     shared_target_dir: Option<&Path>,
+    config_args: &[String],
 ) -> anyhow::Result<PathBuf> {
-    run_cargo_build(crate_dir, None, release, features, shared_target_dir)?;
+    run_cargo_build(
+        crate_dir,
+        None,
+        release,
+        features,
+        shared_target_dir,
+        config_args,
+    )?;
 
     let cdylib_path = target_dir
         .join(if release { "release" } else { "debug" })
@@ -102,7 +113,7 @@ pub fn build_host_cdylib(
     Ok(cdylib_path)
 }
 
-/// Cross-builds the crate for `triple` (android abi or native platform) and
+/// Cross-builds the crate for `triple` (native platform) and
 /// returns the artifacts that exist afterwards. The build is one cargo
 /// invocation covering both crate-types; only the artifacts matching the
 /// requested type are looked up (`want_cdylib`/`want_staticlib`).
@@ -116,6 +127,7 @@ pub fn build_for_target(
     features: &[&str],
     kinds: &[TargetKind],
     shared_target_dir: Option<&Path>,
+    config_args: &[String],
 ) -> anyhow::Result<TargetArtifacts> {
     run_cargo_build(
         crate_dir,
@@ -123,6 +135,7 @@ pub fn build_for_target(
         release,
         features,
         shared_target_dir,
+        config_args,
     )?;
 
     let profile_dir = target_dir
@@ -139,12 +152,104 @@ pub fn build_for_target(
     })
 }
 
+/// Cross-builds the glue for one android abi through `cargo ndk`, which
+/// points the android triples at the NDK's clang toolchain (CC/AR/linker
+/// env vars) so no per-target linker config is needed. Returns the staged
+/// cdylib's path in the shared target dir; `build_and_stage` copies it
+/// into `jniLibs/<abi>/`. cargo-ndk needs the rustup target for `triple`
+/// and an NDK (`ANDROID_NDK_HOME` or `ANDROID_NDK_ROOT`, or an
+/// `$ANDROID_SDK_ROOT/ndk` directory), both checked on the failure path so
+/// the warning names the fix.
+fn build_for_android(
+    crate_name: &str,
+    crate_dir: &Path,
+    target_dir: &Path,
+    abi: &str,
+    triple: &str,
+    release: bool,
+    config_args: &[String],
+) -> anyhow::Result<PathBuf> {
+    let mut args = vec!["ndk", "-t", abi, "build"];
+    if release {
+        args.push("--release");
+    }
+    args.extend(["--features", "cabi,jni", "--target-dir"]);
+    args.push(target_dir.to_str().ok_or_else(|| {
+        anyhow::anyhow!("target dir is not valid UTF-8: {}", target_dir.display())
+    })?);
+    for config in config_args {
+        args.push("--config");
+        args.push(config);
+    }
+
+    let status = Command::new("cargo")
+        .args(&args)
+        .current_dir(crate_dir)
+        .status()
+        .map_err(|e| anyhow::anyhow!("failed to run cargo ndk for {}: {e}", crate_dir.display()))?;
+    if !status.success() {
+        let rustup = rustup_target_hint(triple);
+        let ndk = android_ndk_env_hint();
+        let ndk_hint = if ndk.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " ({ndk}; export ANDROID_NDK_HOME or install the NDK via `sdkmanager --install ndk`)"
+            )
+        };
+        anyhow::bail!(
+            "cargo ndk build failed for {}{rustup}{ndk_hint}",
+            crate_dir.display()
+        );
+    }
+
+    Ok(target_dir
+        .join(triple)
+        .join(if release { "release" } else { "debug" })
+        .join(platform_library_file_name(crate_name)))
+}
+
+/// Whether the `cargo ndk` subcommand exists (installed via
+/// `cargo install cargo-ndk`).
+fn cargo_ndk_available() -> bool {
+    Command::new("cargo")
+        .args(["ndk", "--version"])
+        .output()
+        .is_ok_and(|out| out.status.success())
+}
+
+/// Probe for the NDK paths cargo-ndk discovers: its env vars, plus the
+/// `~/Android/Sdk/ndk` convention. When none exist, a failed android build
+/// gets a hint naming the fix; otherwise cargo-ndk's own error stands.
+fn android_ndk_env_hint() -> &'static str {
+    let env_set = [
+        "ANDROID_NDK_HOME",
+        "ANDROID_NDK_ROOT",
+        "ANDROID_NDK_PATH",
+        "ANDROID_SDK_ROOT",
+        "ANDROID_SDK_HOME",
+        "ANDROID_HOME",
+    ]
+    .iter()
+    .any(|var| std::env::var_os(var).is_some());
+    let home_ndk = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .is_some_and(|home| home.join("Android/Sdk/ndk").is_dir());
+
+    if env_set || home_ndk {
+        ""
+    } else {
+        "no Android NDK found"
+    }
+}
+
 fn run_cargo_build(
     crate_dir: &Path,
     triple: Option<&str>,
     release: bool,
     features: &[&str],
     shared_target_dir: Option<&Path>,
+    config_args: &[String],
 ) -> anyhow::Result<()> {
     let mut args = vec!["build"];
     if let Some(triple) = triple {
@@ -157,6 +262,10 @@ fn run_cargo_build(
     for feature in features {
         args.push("--features");
         args.push(feature);
+    }
+    for config in config_args {
+        args.push("--config");
+        args.push(config);
     }
 
     let mut cmd = Command::new("cargo");
@@ -174,18 +283,27 @@ fn run_cargo_build(
         .map_err(|e| anyhow::anyhow!("failed to run cargo for {}: {e}", crate_dir.display()))?;
     if !status.success() {
         let hint = match triple {
-            Some(triple) if !rustup_target_installed(triple) => {
-                format!(
-                    " (the target toolchain is missing; run `rustup target add {triple}`, \
-                 or set `cross_compile = true` in the config to install it and try the cross build)"
-                )
-            }
+            Some(triple) => rustup_target_hint(triple),
             _ => String::new(),
         };
         anyhow::bail!("cargo build failed for {}{}", crate_dir.display(), hint);
     }
 
     Ok(())
+}
+
+/// What usually makes a cross build fail when the rustup target for
+/// `triple` isn't installed, with the fix spelled out. `false` also covers
+/// non-rustup setups, where the generic error stands on its own.
+fn rustup_target_hint(triple: &str) -> String {
+    if rustup_target_installed(triple) {
+        String::new()
+    } else {
+        format!(
+            " (the target toolchain is missing; run `rustup target add {triple}`, \
+             or set `cross_compile = true` in the config to install it and try the cross build)"
+        )
+    }
 }
 
 /// Best-effort check whether a cross-compile target exists in the rustup
@@ -309,17 +427,19 @@ fn triple_os(triple: &str) -> &'static str {
 /// - jvm: `resources@jvm/native/lib<ident>_glue.<ext>` (the JNI actual extracts
 ///   this from `/native/` at runtime)
 /// - android: `jniLibs/<abi>/lib<ident>_glue.so` (best-effort: a missing
-///   NDK/target warns and leaves the dir empty, the module still compiles)
+///   cargo-ndk/NDK warns and leaves the dir empty, the module still compiles)
 /// - native: `libs/<KotlinPlatform>/lib<ident>_glue.a` (cinterop links it)
 pub fn build_and_stage(
     dirs: &OutputDirs,
     source_crate_ident: &str,
     config: &KoffiConfig,
     release: bool,
+    profile: &profile::SourceProfile,
 ) -> anyhow::Result<()> {
     let (glue_name, _) = crate_metadata(&dirs.rust_out_dir)?;
     let (_, source_target_dir) = crate_metadata(&dirs.crate_path)?;
     let host = host_triple();
+    let glue_config_args = profile.glue_config_args();
 
     if config.cross_compile {
         ensure_cross_targets(config, &host)?;
@@ -335,6 +455,7 @@ pub fn build_and_stage(
             release,
             &features,
             Some(&source_target_dir),
+            &glue_config_args,
         )?;
         stage(
             &cdylib,
@@ -343,22 +464,26 @@ pub fn build_and_stage(
     }
 
     if config.has(&TargetPlatform::Android) {
-        for (abi, triple) in config.android_targets() {
-            match build_for_target(
-                &glue_name,
-                &dirs.rust_out_dir,
-                &source_target_dir,
-                triple,
-                release,
-                &["cabi", "jni"],
-                &[TargetKind::Cdylib],
-                Some(&source_target_dir),
-            ) {
-                Ok(artifacts) => {
-                    let so = artifacts.cdylib.expect("android wants the cdylib");
-                    stage(&so, &dirs.kotlin_out_dir.join("jniLibs").join(abi))?;
+        if !cargo_ndk_available() {
+            warn!(
+                "android staging skipped: cargo-ndk is not installed (run `cargo install cargo-ndk`)"
+            );
+        } else {
+            for (abi, triple) in config.android_targets() {
+                match build_for_android(
+                    &glue_name,
+                    &dirs.rust_out_dir,
+                    &source_target_dir,
+                    abi,
+                    triple,
+                    release,
+                    &glue_config_args,
+                ) {
+                    Ok(so) => {
+                        stage(&so, &dirs.kotlin_out_dir.join("jniLibs").join(abi))?;
+                    }
+                    Err(e) => warn!("skipping android abi {abi}: {e:#}"),
                 }
-                Err(e) => warn!("skipping android abi {abi}: {e:#}"),
             }
         }
     }
@@ -381,6 +506,7 @@ pub fn build_and_stage(
             &["cabi"],
             &[TargetKind::Staticlib],
             Some(&source_target_dir),
+            &glue_config_args,
         )
         .map_err(|e| {
             let linker = linker_hint(&host, triple).map_or_else(String::new, |hint| {
