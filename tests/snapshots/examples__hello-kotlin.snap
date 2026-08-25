@@ -6,903 +6,6 @@ Schema {
     crate_name: "hello-kotlin",
     functions: [
         SchemaFn {
-            rust_name: "make_holder",
-            kotlin_name: "makeHolder",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Struct {
-                name: "StatusHolder",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "fancy",
-            kotlin_name: "fancy",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Enum {
-                name: "KeywordData",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
-            rust_name: "object",
-            kotlin_name: "object",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Enum {
-                    name: "KeywordFlag",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: false,
-                },
-            ),
-            params: [],
-            return_type: Enum {
-                name: "KeywordFlag",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: false,
-            },
-        },
-        SchemaFn {
-            rust_name: "c_status_is_err",
-            kotlin_name: "cStatusIsErr",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "s",
-                    ty: Enum {
-                        name: "CStatus",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: U32,
-                        has_data: false,
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                Bool,
-            ),
-        },
-        SchemaFn {
-            rust_name: "positioned_sum",
-            kotlin_name: "positionedSum",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "p",
-                    ty: Struct {
-                        name: "Positioned",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U64,
-            ),
-        },
-        SchemaFn {
-            rust_name: "greet",
-            kotlin_name: "greet",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "g",
-                    ty: Struct {
-                        name: "Greeting",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: String,
-        },
-        SchemaFn {
-            rust_name: "span_length",
-            kotlin_name: "spanLength",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "s",
-                    ty: String,
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "r#in",
-            kotlin_name: "in",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "obj",
-                    ty: Struct {
-                        name: "KeywordBag",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "r#when",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "first_describe",
-            kotlin_name: "firstDescribe",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "WindowPair",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Struct {
-                        name: "WindowPair",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U64,
-            ),
-        },
-        SchemaFn {
-            rust_name: "swapped",
-            kotlin_name: "swapped",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Pair",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Struct {
-                        name: "Pair",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Struct {
-                name: "Pair",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "describe_format",
-            kotlin_name: "describeFormat",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "result_value",
-            kotlin_name: "resultValue",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "r",
-                    ty: Result {
-                        ok: Scalar(
-                            U32,
-                        ),
-                        err: Scalar(
-                            U8,
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "make_rect",
-            kotlin_name: "makeRect",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Struct {
-                name: "Rect",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "describe",
-            kotlin_name: "describe",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Opaque {
-                    name: "object",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Opaque {
-                        name: "object",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U64,
-            ),
-        },
-        SchemaFn {
-            rust_name: "holder_status",
-            kotlin_name: "holderStatus",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "h",
-                    ty: Struct {
-                        name: "StatusHolder",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
-            rust_name: "r#type",
-            kotlin_name: "type",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "r#in",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "divide",
-            kotlin_name: "divide",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "n",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "d",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Result {
-                ok: Scalar(
-                    U32,
-                ),
-                err: Scalar(
-                    U8,
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "drink",
-            kotlin_name: "drink",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "x",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Result {
-                ok: Option {
-                    inner: Scalar(
-                        U32,
-                    ),
-                },
-                err: Scalar(
-                    U8,
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "make_status",
-            kotlin_name: "makeStatus",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
-            rust_name: "describe",
-            kotlin_name: "describe",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Opaque {
-                    name: "Window",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Opaque {
-                        name: "Window",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U64,
-            ),
-        },
-        SchemaFn {
-            rust_name: "flag_value",
-            kotlin_name: "flagValue",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "f",
-                    ty: Enum {
-                        name: "KeywordFlag",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: I32,
-                        has_data: false,
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                I32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "upgrade",
-            kotlin_name: "upgrade",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "m",
-                    ty: Struct {
-                        name: "Mail",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Struct {
-                name: "Mail",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "nothing",
-            kotlin_name: "nothing",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Option {
-                inner: Scalar(
-                    U32,
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "make_pair",
-            kotlin_name: "makePair",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Struct {
-                name: "Pair",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "open",
-            kotlin_name: "open",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Opaque {
-                    name: "object",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "id",
-                    ty: Scalar(
-                        U64,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Opaque {
-                name: "object",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "echo_bytes",
-            kotlin_name: "echoBytes",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "b",
-                    ty: Bytes,
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Bytes,
-        },
-        SchemaFn {
-            rust_name: "describe",
-            kotlin_name: "describe",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Enum {
-                    name: "Status",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: true,
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Enum {
-                        name: "Status",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: I32,
-                        has_data: true,
-                    },
-                    is_receiver: true,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "describe_window",
-            kotlin_name: "describeWindow",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "w",
-                    ty: Opaque {
-                        name: "Window",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U64,
-            ),
-        },
-        SchemaFn {
-            rust_name: "class",
-            kotlin_name: "class",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "a",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "fun",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "ride",
-            kotlin_name: "ride",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "dance",
-                    ty: Option {
-                        inner: Struct {
-                            name: "Dancer",
-                            module_path: Some(
-                                "hello_kotlin",
-                            ),
-                        },
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Option {
-                inner: Struct {
-                    name: "Dancer",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            },
-        },
-        SchemaFn {
-            rust_name: "when_sum",
-            kotlin_name: "whenSum",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "w",
-                    ty: Struct {
-                        name: "when",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "how_long",
-            kotlin_name: "howLong",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "seconds",
-                    ty: Option {
-                        inner: Scalar(
-                            F64,
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                F64,
-            ),
-        },
-        SchemaFn {
-            rust_name: "c_status",
-            kotlin_name: "cStatus",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Enum {
-                name: "CStatus",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: U32,
-                has_data: false,
-            },
-        },
-        SchemaFn {
-            rust_name: "r#match",
-            kotlin_name: "match",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "KeywordBag",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Struct {
-                        name: "KeywordBag",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "with_data",
-            kotlin_name: "withData",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "self",
-                    ty: Struct {
-                        name: "Payload",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "data",
-                    ty: Scalar(
-                        U16,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Struct {
-                name: "Payload",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "favorite",
-            kotlin_name: "favorite",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Option {
-                inner: Scalar(
-                    U32,
-                ),
-            },
-        },
-        SchemaFn {
             rust_name: "new",
             kotlin_name: "new",
             module_path: Some(
@@ -942,6 +45,383 @@ Schema {
             },
         },
         SchemaFn {
+            rust_name: "make_when",
+            kotlin_name: "makeWhen",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "object",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "val",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "when",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "mood",
+            kotlin_name: "mood",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Mood",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "new_busy",
+            kotlin_name: "newBusy",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "code",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "fancy",
+            kotlin_name: "fancy",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "KeywordData",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "mood_is_flying",
+            kotlin_name: "moodIsFlying",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "m",
+                    ty: Enum {
+                        name: "Mood",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "positioned_sum",
+            kotlin_name: "positionedSum",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "p",
+                    ty: Struct {
+                        name: "Positioned",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "divide",
+            kotlin_name: "divide",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "n",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "d",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Scalar(
+                    U32,
+                ),
+                err: Scalar(
+                    U8,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "flag_value",
+            kotlin_name: "flagValue",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "f",
+                    ty: Enum {
+                        name: "KeywordFlag",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: false,
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                I32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "r#in",
+            kotlin_name: "in",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "obj",
+                    ty: Struct {
+                        name: "KeywordBag",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "r#when",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "nothing",
+            kotlin_name: "nothing",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Option {
+                inner: Scalar(
+                    U32,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "object",
+            kotlin_name: "object",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "describe_window",
+            kotlin_name: "describeWindow",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "w",
+                    ty: Opaque {
+                        name: "Window",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "drink",
+            kotlin_name: "drink",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "x",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Result {
+                ok: Option {
+                    inner: Scalar(
+                        U32,
+                    ),
+                },
+                err: Scalar(
+                    U8,
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "KeywordBag",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "object",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "when",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "KeywordBag",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "make_loading",
+            kotlin_name: "makeLoading",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
             rust_name: "nominate",
             kotlin_name: "nominate",
             module_path: Some(
@@ -974,6 +454,359 @@ Schema {
                     has_data: true,
                 },
             },
+        },
+        SchemaFn {
+            rust_name: "result_value",
+            kotlin_name: "resultValue",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "r",
+                    ty: Result {
+                        ok: Scalar(
+                            U32,
+                        ),
+                        err: Scalar(
+                            U8,
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "take_string",
+            kotlin_name: "takeString",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "s",
+                    ty: String,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "holder_status",
+            kotlin_name: "holderStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "h",
+                    ty: Struct {
+                        name: "StatusHolder",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "make_status",
+            kotlin_name: "makeStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "Status",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: true,
+            },
+        },
+        SchemaFn {
+            rust_name: "string_pair",
+            kotlin_name: "stringPair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: String,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: Str,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "r#type",
+            kotlin_name: "type",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "r#in",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "Status",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: true,
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Enum {
+                        name: "Status",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "echo_bytes",
+            kotlin_name: "echoBytes",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "b",
+                    ty: Bytes,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Bytes,
+        },
+        SchemaFn {
+            rust_name: "c_status",
+            kotlin_name: "cStatus",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Enum {
+                name: "CStatus",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: U32,
+                has_data: false,
+            },
+        },
+        SchemaFn {
+            rust_name: "rect_area",
+            kotlin_name: "rectArea",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "r",
+                    ty: Struct {
+                        name: "Rect",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                I32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "when_sum",
+            kotlin_name: "whenSum",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "w",
+                    ty: Struct {
+                        name: "when",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "upgrade",
+            kotlin_name: "upgrade",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "m",
+                    ty: Struct {
+                        name: "Mail",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Mail",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "c_status_is_err",
+            kotlin_name: "cStatusIsErr",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "s",
+                    ty: Enum {
+                        name: "CStatus",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: U32,
+                        has_data: false,
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "make_pair",
+            kotlin_name: "makePair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "Pair",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
         },
         SchemaFn {
             rust_name: "retag",
@@ -1015,25 +848,155 @@ Schema {
             ),
         },
         SchemaFn {
-            rust_name: "mood",
-            kotlin_name: "mood",
+            rust_name: "make_rect",
+            kotlin_name: "makeRect",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
             params: [],
-            return_type: Enum {
-                name: "Mood",
+            return_type: Struct {
+                name: "Rect",
                 module_path: Some(
                     "hello_kotlin",
                 ),
-                discriminant: I32,
-                has_data: true,
             },
         },
         SchemaFn {
-            rust_name: "describe",
-            kotlin_name: "describe",
+            rust_name: "first_describe",
+            kotlin_name: "firstDescribe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "WindowPair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "WindowPair",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "add_optional",
+            kotlin_name: "addOptional",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: Option {
+                        inner: Scalar(
+                            U32,
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "bytes_pair",
+            kotlin_name: "bytesPair",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Bytes,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "b",
+                    ty: ByteSlice,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "keyword_data_sum",
+            kotlin_name: "keywordDataSum",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "d",
+                    ty: Enum {
+                        name: "KeywordData",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                        discriminant: I32,
+                        has_data: true,
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "describe_format",
+            kotlin_name: "describeFormat",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
             module_path: Some(
                 "hello_kotlin",
             ),
@@ -1047,14 +1010,142 @@ Schema {
             ),
             params: [
                 SchemaParam {
-                    name: "self",
-                    ty: Struct {
-                        name: "Payload",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                    },
-                    is_receiver: true,
+                    name: "data",
+                    ty: Scalar(
+                        U16,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "span_length",
+            kotlin_name: "spanLength",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "s",
+                    ty: String,
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "hello",
+            kotlin_name: "hello",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "object",
+            kotlin_name: "object",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Enum {
+                    name: "KeywordFlag",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                    discriminant: I32,
+                    has_data: false,
+                },
+            ),
+            params: [],
+            return_type: Enum {
+                name: "KeywordFlag",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+                discriminant: I32,
+                has_data: false,
+            },
+        },
+        SchemaFn {
+            rust_name: "new",
+            kotlin_name: "new",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Pair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "x",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "y",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Pair",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "class",
+            kotlin_name: "class",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "a",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "fun",
+                    ty: Scalar(
+                        U32,
+                    ),
+                    is_receiver: false,
                     is_mut_receiver: false,
                 },
             ],
@@ -1102,6 +1193,250 @@ Schema {
             ),
         },
         SchemaFn {
+            rust_name: "greet",
+            kotlin_name: "greet",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "g",
+                    ty: Struct {
+                        name: "Greeting",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: String,
+        },
+        SchemaFn {
+            rust_name: "maybe_payload",
+            kotlin_name: "maybePayload",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "show",
+                    ty: Scalar(
+                        Bool,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Option {
+                inner: Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            },
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Opaque {
+                    name: "object",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Opaque {
+                        name: "object",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "describe",
+            kotlin_name: "describe",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Opaque {
+                    name: "Window",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Opaque {
+                        name: "Window",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "r#match",
+            kotlin_name: "match",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "KeywordBag",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "KeywordBag",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                U32,
+            ),
+        },
+        SchemaFn {
+            rust_name: "make_holder",
+            kotlin_name: "makeHolder",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [],
+            return_type: Struct {
+                name: "StatusHolder",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "paint",
+            kotlin_name: "paint",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "color",
+                    ty: Option {
+                        inner: Scalar(
+                            Bool,
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                Bool,
+            ),
+        },
+        SchemaFn {
+            rust_name: "how_long",
+            kotlin_name: "howLong",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: None,
+            params: [
+                SchemaParam {
+                    name: "seconds",
+                    ty: Option {
+                        inner: Scalar(
+                            F64,
+                        ),
+                    },
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Scalar(
+                F64,
+            ),
+        },
+        SchemaFn {
+            rust_name: "with_data",
+            kotlin_name: "withData",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Payload",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Payload",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+                SchemaParam {
+                    name: "data",
+                    ty: Scalar(
+                        U16,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Payload",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
             rust_name: "status_code",
             kotlin_name: "statusCode",
             module_path: Some(
@@ -1128,27 +1463,52 @@ Schema {
             ),
         },
         SchemaFn {
-            rust_name: "paint",
-            kotlin_name: "paint",
+            rust_name: "swapped",
+            kotlin_name: "swapped",
+            module_path: Some(
+                "hello_kotlin",
+            ),
+            parent: Some(
+                Struct {
+                    name: "Pair",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "self",
+                    ty: Struct {
+                        name: "Pair",
+                        module_path: Some(
+                            "hello_kotlin",
+                        ),
+                    },
+                    is_receiver: true,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Struct {
+                name: "Pair",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
+        },
+        SchemaFn {
+            rust_name: "favorite",
+            kotlin_name: "favorite",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
-            params: [
-                SchemaParam {
-                    name: "color",
-                    ty: Option {
-                        inner: Scalar(
-                            Bool,
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                Bool,
-            ),
+            params: [],
+            return_type: Option {
+                inner: Scalar(
+                    U32,
+                ),
+            },
         },
         SchemaFn {
             rust_name: "pair_sum",
@@ -1173,119 +1533,6 @@ Schema {
             return_type: Scalar(
                 U64,
             ),
-        },
-        SchemaFn {
-            rust_name: "new",
-            kotlin_name: "new",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Pair",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "x",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "y",
-                    ty: Scalar(
-                        U64,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Struct {
-                name: "Pair",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "new",
-            kotlin_name: "new",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "KeywordBag",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "object",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "when",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Struct {
-                name: "KeywordBag",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "new_busy",
-            kotlin_name: "newBusy",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Enum {
-                    name: "Status",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                    discriminant: I32,
-                    has_data: true,
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "code",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
         },
         SchemaFn {
             rust_name: "idle",
@@ -1314,54 +1561,45 @@ Schema {
             },
         },
         SchemaFn {
-            rust_name: "rect_area",
-            kotlin_name: "rectArea",
+            rust_name: "ride",
+            kotlin_name: "ride",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
             params: [
                 SchemaParam {
-                    name: "r",
-                    ty: Struct {
-                        name: "Rect",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
+                    name: "dance",
+                    ty: Option {
+                        inner: Struct {
+                            name: "Dancer",
+                            module_path: Some(
+                                "hello_kotlin",
+                            ),
+                        },
                     },
                     is_receiver: false,
                     is_mut_receiver: false,
                 },
             ],
-            return_type: Scalar(
-                I32,
-            ),
+            return_type: Option {
+                inner: Struct {
+                    name: "Dancer",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            },
         },
         SchemaFn {
-            rust_name: "mood_is_flying",
-            kotlin_name: "moodIsFlying",
+            rust_name: "empty_string",
+            kotlin_name: "emptyString",
             module_path: Some(
                 "hello_kotlin",
             ),
             parent: None,
-            params: [
-                SchemaParam {
-                    name: "m",
-                    ty: Enum {
-                        name: "Mood",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: I32,
-                        has_data: true,
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                Bool,
-            ),
+            params: [],
+            return_type: String,
         },
         SchemaFn {
             rust_name: "encrypt",
@@ -1391,14 +1629,35 @@ Schema {
             },
         },
         SchemaFn {
-            rust_name: "empty_string",
-            kotlin_name: "emptyString",
+            rust_name: "open",
+            kotlin_name: "open",
             module_path: Some(
                 "hello_kotlin",
             ),
-            parent: None,
-            params: [],
-            return_type: String,
+            parent: Some(
+                Opaque {
+                    name: "object",
+                    module_path: Some(
+                        "hello_kotlin",
+                    ),
+                },
+            ),
+            params: [
+                SchemaParam {
+                    name: "id",
+                    ty: Scalar(
+                        U64,
+                    ),
+                    is_receiver: false,
+                    is_mut_receiver: false,
+                },
+            ],
+            return_type: Opaque {
+                name: "object",
+                module_path: Some(
+                    "hello_kotlin",
+                ),
+            },
         },
         SchemaFn {
             rust_name: "open",
@@ -1432,128 +1691,6 @@ Schema {
             },
         },
         SchemaFn {
-            rust_name: "maybe_payload",
-            kotlin_name: "maybePayload",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "show",
-                    ty: Scalar(
-                        Bool,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Option {
-                inner: Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            },
-        },
-        SchemaFn {
-            rust_name: "new",
-            kotlin_name: "new",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: Some(
-                Struct {
-                    name: "Payload",
-                    module_path: Some(
-                        "hello_kotlin",
-                    ),
-                },
-            ),
-            params: [
-                SchemaParam {
-                    name: "data",
-                    ty: Scalar(
-                        U16,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Struct {
-                name: "Payload",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "take_string",
-            kotlin_name: "takeString",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "s",
-                    ty: String,
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                Bool,
-            ),
-        },
-        SchemaFn {
-            rust_name: "add_optional",
-            kotlin_name: "addOptional",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "a",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "b",
-                    ty: Option {
-                        inner: Scalar(
-                            U32,
-                        ),
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "hello",
-            kotlin_name: "hello",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Struct {
-                name: "Payload",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
             rust_name: "rect_top_left",
             kotlin_name: "rectTopLeft",
             module_path: Some(
@@ -1579,143 +1716,6 @@ Schema {
                     "hello_kotlin",
                 ),
             },
-        },
-        SchemaFn {
-            rust_name: "string_pair",
-            kotlin_name: "stringPair",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "a",
-                    ty: String,
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "b",
-                    ty: Str,
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                Bool,
-            ),
-        },
-        SchemaFn {
-            rust_name: "make_when",
-            kotlin_name: "makeWhen",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "object",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "val",
-                    ty: Scalar(
-                        U32,
-                    ),
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Struct {
-                name: "when",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-            },
-        },
-        SchemaFn {
-            rust_name: "make_loading",
-            kotlin_name: "makeLoading",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Enum {
-                name: "Status",
-                module_path: Some(
-                    "hello_kotlin",
-                ),
-                discriminant: I32,
-                has_data: true,
-            },
-        },
-        SchemaFn {
-            rust_name: "keyword_data_sum",
-            kotlin_name: "keywordDataSum",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "d",
-                    ty: Enum {
-                        name: "KeywordData",
-                        module_path: Some(
-                            "hello_kotlin",
-                        ),
-                        discriminant: I32,
-                        has_data: true,
-                    },
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "object",
-            kotlin_name: "object",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [],
-            return_type: Scalar(
-                U32,
-            ),
-        },
-        SchemaFn {
-            rust_name: "bytes_pair",
-            kotlin_name: "bytesPair",
-            module_path: Some(
-                "hello_kotlin",
-            ),
-            parent: None,
-            params: [
-                SchemaParam {
-                    name: "a",
-                    ty: Bytes,
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-                SchemaParam {
-                    name: "b",
-                    ty: ByteSlice,
-                    is_receiver: false,
-                    is_mut_receiver: false,
-                },
-            ],
-            return_type: Scalar(
-                Bool,
-            ),
         },
     ],
     structs: [

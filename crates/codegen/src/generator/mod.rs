@@ -153,7 +153,8 @@ fn render_kotlin(
         write_template(
             CHeader { schema },
             &kotlin_out_dir
-                .join("cinterop")
+                .join("cinterop@native")
+                .join("include")
                 .join(format!("{}.h", schema.crate_ident())),
         )?;
         write_template(
@@ -162,7 +163,7 @@ fn render_kotlin(
                 native_platforms: &native_platforms,
             },
             &kotlin_out_dir
-                .join("cinterop")
+                .join("cinterop@native")
                 .join(format!("{}.def", schema.crate_ident())),
         )?;
     }

@@ -640,263 +640,6 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
-    external fun makeHolderImpl(
-        out: ByteBuffer,
-    )
-
-
-
-    external fun fancyImpl(
-        out: ByteBuffer,
-    )
-
-
-
-    actual fun helloKotlinKeywordFlagObject(): KeywordFlag =
-        helloKotlinKeywordFlagObjectImpl().let { KeywordFlag.fromDiscriminant(it) }
-
-    external fun helloKotlinKeywordFlagObjectImpl(): Int
-
-
-
-    external fun cStatusIsErrImpl(
-        s: Int,
-    ): Boolean
-
-
-
-    external fun positionedSumImpl(
-        p: ByteBuffer,
-    ): Long
-
-
-
-    external fun greetImpl(
-        g: ByteBuffer,
-    ): String
-
-
-
-    external fun spanLengthImpl(
-        s: String,
-    ): Int
-
-
-
-    external fun inImpl(
-        obj: ByteBuffer,
-        `when`: Int,
-    ): Int
-
-
-
-    actual fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong =
-        helloKotlinWindowPairFirstDescribeImpl(window_pairToBuf(self)).toULong()
-
-    external fun helloKotlinWindowPairFirstDescribeImpl(
-        self: ByteBuffer,
-    ): Long
-
-
-
-    actual fun helloKotlinPairSwapped(self: Pair): Pair {
-        val out = allocateWire(16)
-        helloKotlinPairSwappedImpl(pairToBuf(self), out)
-        return pairFromWire(out, 0)
-    }
-
-    external fun helloKotlinPairSwappedImpl(
-        self: ByteBuffer,
-        out: ByteBuffer,
-    )
-
-
-
-    actual fun helloKotlinPayloadDescribeFormat(): UInt =
-        helloKotlinPayloadDescribeFormatImpl().toUInt()
-
-    external fun helloKotlinPayloadDescribeFormatImpl(): Int
-
-
-
-    external fun resultValueImpl(
-        r: ByteBuffer,
-    ): Int
-
-
-
-    external fun makeRectImpl(
-        out: ByteBuffer,
-    )
-
-
-
-    actual fun helloKotlinObjectDescribe(self: `object`): ULong =
-        helloKotlinObjectDescribeImpl(self.handle).toULong()
-
-    external fun helloKotlinObjectDescribeImpl(
-        self: Long,
-    ): Long
-
-
-
-    external fun holderStatusImpl(
-        h: ByteBuffer,
-        out: ByteBuffer,
-    )
-
-
-
-    external fun typeImpl(
-        `in`: Int,
-    ): Int
-
-
-
-    external fun divideImpl(
-        n: Int,
-        d: Int,
-        out: ByteBuffer,
-    )
-
-
-
-    external fun drinkImpl(
-        x: Int,
-        out: ByteBuffer,
-    )
-
-
-
-    external fun makeStatusImpl(
-        out: ByteBuffer,
-    )
-
-
-
-    actual fun helloKotlinWindowDescribe(self: Window): ULong =
-        helloKotlinWindowDescribeImpl(self.handle).toULong()
-
-    external fun helloKotlinWindowDescribeImpl(
-        self: Long,
-    ): Long
-
-
-
-    external fun flagValueImpl(
-        f: Int,
-    ): Int
-
-
-
-    external fun upgradeImpl(
-        m: ByteBuffer,
-        out: ByteBuffer,
-    )
-
-
-
-    external fun nothingImpl(
-        out: ByteBuffer,
-    )
-
-
-
-    external fun makePairImpl(
-        out: ByteBuffer,
-    )
-
-
-
-    actual fun helloKotlinObjectOpen(id: ULong): `object` =
-        helloKotlinObjectOpenImpl(id.toLong()).let { `object`(it) }
-
-    external fun helloKotlinObjectOpenImpl(
-        id: Long,
-    ): Long
-
-
-
-    external fun echoBytesImpl(
-        b: ByteArray,
-    ): ByteArray
-
-
-
-    actual fun helloKotlinStatusDescribe(self: Status): UInt =
-        helloKotlinStatusDescribeImpl(statusToBuf(self)).toUInt()
-
-    external fun helloKotlinStatusDescribeImpl(
-        self: ByteBuffer,
-    ): Int
-
-
-
-    external fun describeWindowImpl(
-        w: Long,
-    ): Long
-
-
-
-    external fun classImpl(
-        a: Int,
-        `fun`: Int,
-    ): Int
-
-
-
-    external fun rideImpl(
-        dance: ByteBuffer,
-        out: ByteBuffer,
-    )
-
-
-
-    external fun whenSumImpl(
-        w: ByteBuffer,
-    ): Int
-
-
-
-    external fun howLongImpl(
-        seconds: ByteBuffer,
-    ): Double
-
-
-
-    external fun cStatusImpl(): Int
-
-
-
-    actual fun helloKotlinKeywordBagMatch(self: KeywordBag): UInt =
-        helloKotlinKeywordBagMatchImpl(keyword_bagToBuf(self)).toUInt()
-
-    external fun helloKotlinKeywordBagMatchImpl(
-        self: ByteBuffer,
-    ): Int
-
-
-
-    actual fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload {
-        val out = allocateWire(2)
-        helloKotlinPayloadWithDataImpl(payloadToBuf(self), data.toShort(), out)
-        return payloadFromWire(out, 0)
-    }
-
-    external fun helloKotlinPayloadWithDataImpl(
-        self: ByteBuffer,
-        data: Short,
-        out: ByteBuffer,
-    )
-
-
-
-    external fun favoriteImpl(
-        out: ByteBuffer,
-    )
-
-
-
     actual fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair {
         val out = allocateWire(24)
         helloKotlinWindowPairNewImpl(a.toLong(), b.toLong(), out)
@@ -911,20 +654,11 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
-    external fun nominateImpl(
-        x: Int,
+    external fun makeWhenImpl(
+        `object`: Int,
+        `val`: Int,
         out: ByteBuffer,
     )
-
-
-
-    actual fun helloKotlinWindowRetag(self: Window, id: ULong): ULong =
-        helloKotlinWindowRetagImpl(self.handle, id.toLong()).toULong()
-
-    external fun helloKotlinWindowRetagImpl(
-        self: Long,
-        id: Long,
-    ): Long
 
 
 
@@ -934,52 +668,76 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
-    actual fun helloKotlinPayloadDescribe(self: Payload): UInt =
-        helloKotlinPayloadDescribeImpl(payloadToBuf(self)).toUInt()
+    actual fun helloKotlinStatusNewBusy(code: UInt): Status {
+        val out = allocateWire(12)
+        helloKotlinStatusNewBusyImpl(code.toInt(), out)
+        return statusFromWire(out, 0)
+    }
 
-    external fun helloKotlinPayloadDescribeImpl(
-        self: ByteBuffer,
-    ): Int
-
-
-
-    actual fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong =
-        helloKotlinWindowPairRetagAImpl(window_pairToBuf(self), id.toLong()).toULong()
-
-    external fun helloKotlinWindowPairRetagAImpl(
-        self: ByteBuffer,
-        id: Long,
-    ): Long
+    external fun helloKotlinStatusNewBusyImpl(
+        code: Int,
+        out: ByteBuffer,
+    )
 
 
 
-    external fun statusCodeImpl(
-        s: ByteBuffer,
-    ): Int
+    external fun fancyImpl(
+        out: ByteBuffer,
+    )
 
 
 
-    external fun paintImpl(
-        color: ByteBuffer,
+    external fun moodIsFlyingImpl(
+        m: ByteBuffer,
     ): Boolean
 
 
 
-    external fun pairSumImpl(
+    external fun positionedSumImpl(
         p: ByteBuffer,
     ): Long
 
 
 
-    actual fun helloKotlinPairNew(x: UInt, y: ULong): Pair {
-        val out = allocateWire(16)
-        helloKotlinPairNewImpl(x.toInt(), y.toLong(), out)
-        return pairFromWire(out, 0)
-    }
+    external fun divideImpl(
+        n: Int,
+        d: Int,
+        out: ByteBuffer,
+    )
 
-    external fun helloKotlinPairNewImpl(
+
+
+    external fun flagValueImpl(
+        f: Int,
+    ): Int
+
+
+
+    external fun inImpl(
+        obj: ByteBuffer,
+        `when`: Int,
+    ): Int
+
+
+
+    external fun nothingImpl(
+        out: ByteBuffer,
+    )
+
+
+
+    external fun objectImpl(): Int
+
+
+
+    external fun describeWindowImpl(
+        w: Long,
+    ): Long
+
+
+
+    external fun drinkImpl(
         x: Int,
-        y: Long,
         out: ByteBuffer,
     )
 
@@ -999,28 +757,73 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
-    actual fun helloKotlinStatusNewBusy(code: UInt): Status {
-        val out = allocateWire(12)
-        helloKotlinStatusNewBusyImpl(code.toInt(), out)
-        return statusFromWire(out, 0)
-    }
-
-    external fun helloKotlinStatusNewBusyImpl(
-        code: Int,
+    external fun makeLoadingImpl(
         out: ByteBuffer,
     )
 
 
 
-    actual fun helloKotlinStatusIdle(): Status {
-        val out = allocateWire(12)
-        helloKotlinStatusIdleImpl(out)
-        return statusFromWire(out, 0)
-    }
-
-    external fun helloKotlinStatusIdleImpl(
+    external fun nominateImpl(
+        x: Int,
         out: ByteBuffer,
     )
+
+
+
+    external fun resultValueImpl(
+        r: ByteBuffer,
+    ): Int
+
+
+
+    external fun takeStringImpl(
+        s: String,
+    ): Boolean
+
+
+
+    external fun holderStatusImpl(
+        h: ByteBuffer,
+        out: ByteBuffer,
+    )
+
+
+
+    external fun makeStatusImpl(
+        out: ByteBuffer,
+    )
+
+
+
+    external fun stringPairImpl(
+        a: String,
+        b: String,
+    ): Boolean
+
+
+
+    external fun typeImpl(
+        `in`: Int,
+    ): Int
+
+
+
+    actual fun helloKotlinStatusDescribe(self: Status): UInt =
+        helloKotlinStatusDescribeImpl(statusToBuf(self)).toUInt()
+
+    external fun helloKotlinStatusDescribeImpl(
+        self: ByteBuffer,
+    ): Int
+
+
+
+    external fun echoBytesImpl(
+        b: ByteArray,
+    ): ByteArray
+
+
+
+    external fun cStatusImpl(): Int
 
 
 
@@ -1030,37 +833,89 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
-    external fun moodIsFlyingImpl(
+    external fun whenSumImpl(
+        w: ByteBuffer,
+    ): Int
+
+
+
+    external fun upgradeImpl(
         m: ByteBuffer,
-    ): Boolean
-
-
-
-    external fun encryptImpl(
-        secret: ByteBuffer,
         out: ByteBuffer,
     )
 
 
 
-    external fun emptyStringImpl(
-    ): String
+    external fun cStatusIsErrImpl(
+        s: Int,
+    ): Boolean
 
 
 
-    actual fun helloKotlinWindowOpen(id: ULong): Window =
-        helloKotlinWindowOpenImpl(id.toLong()).let { Window(it) }
+    external fun makePairImpl(
+        out: ByteBuffer,
+    )
 
-    external fun helloKotlinWindowOpenImpl(
+
+
+    actual fun helloKotlinPayloadDescribe(self: Payload): UInt =
+        helloKotlinPayloadDescribeImpl(payloadToBuf(self)).toUInt()
+
+    external fun helloKotlinPayloadDescribeImpl(
+        self: ByteBuffer,
+    ): Int
+
+
+
+    actual fun helloKotlinWindowRetag(self: Window, id: ULong): ULong =
+        helloKotlinWindowRetagImpl(self.handle, id.toLong()).toULong()
+
+    external fun helloKotlinWindowRetagImpl(
+        self: Long,
         id: Long,
     ): Long
 
 
 
-    external fun maybePayloadImpl(
-        show: Boolean,
+    external fun makeRectImpl(
         out: ByteBuffer,
     )
+
+
+
+    actual fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong =
+        helloKotlinWindowPairFirstDescribeImpl(window_pairToBuf(self)).toULong()
+
+    external fun helloKotlinWindowPairFirstDescribeImpl(
+        self: ByteBuffer,
+    ): Long
+
+
+
+    external fun addOptionalImpl(
+        a: Int,
+        b: ByteBuffer,
+    ): Int
+
+
+
+    external fun bytesPairImpl(
+        a: ByteArray,
+        b: ByteArray,
+    ): Boolean
+
+
+
+    external fun keywordDataSumImpl(
+        d: ByteBuffer,
+    ): Int
+
+
+
+    actual fun helloKotlinPayloadDescribeFormat(): UInt =
+        helloKotlinPayloadDescribeFormatImpl().toUInt()
+
+    external fun helloKotlinPayloadDescribeFormatImpl(): Int
 
 
 
@@ -1077,15 +932,8 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
-    external fun takeStringImpl(
+    external fun spanLengthImpl(
         s: String,
-    ): Boolean
-
-
-
-    external fun addOptionalImpl(
-        a: Int,
-        b: ByteBuffer,
     ): Int
 
 
@@ -1096,200 +944,352 @@ external fun koffiTakeBytes(ptr: Long, len: Long, out: ByteArray)
 
 
 
+    actual fun helloKotlinKeywordFlagObject(): KeywordFlag =
+        helloKotlinKeywordFlagObjectImpl().let { KeywordFlag.fromDiscriminant(it) }
+
+    external fun helloKotlinKeywordFlagObjectImpl(): Int
+
+
+
+    actual fun helloKotlinPairNew(x: UInt, y: ULong): Pair {
+        val out = allocateWire(16)
+        helloKotlinPairNewImpl(x.toInt(), y.toLong(), out)
+        return pairFromWire(out, 0)
+    }
+
+    external fun helloKotlinPairNewImpl(
+        x: Int,
+        y: Long,
+        out: ByteBuffer,
+    )
+
+
+
+    external fun classImpl(
+        a: Int,
+        `fun`: Int,
+    ): Int
+
+
+
+    actual fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong =
+        helloKotlinWindowPairRetagAImpl(window_pairToBuf(self), id.toLong()).toULong()
+
+    external fun helloKotlinWindowPairRetagAImpl(
+        self: ByteBuffer,
+        id: Long,
+    ): Long
+
+
+
+    external fun greetImpl(
+        g: ByteBuffer,
+    ): String
+
+
+
+    external fun maybePayloadImpl(
+        show: Boolean,
+        out: ByteBuffer,
+    )
+
+
+
+    actual fun helloKotlinObjectDescribe(self: `object`): ULong =
+        helloKotlinObjectDescribeImpl(self.handle).toULong()
+
+    external fun helloKotlinObjectDescribeImpl(
+        self: Long,
+    ): Long
+
+
+
+    actual fun helloKotlinWindowDescribe(self: Window): ULong =
+        helloKotlinWindowDescribeImpl(self.handle).toULong()
+
+    external fun helloKotlinWindowDescribeImpl(
+        self: Long,
+    ): Long
+
+
+
+    actual fun helloKotlinKeywordBagMatch(self: KeywordBag): UInt =
+        helloKotlinKeywordBagMatchImpl(keyword_bagToBuf(self)).toUInt()
+
+    external fun helloKotlinKeywordBagMatchImpl(
+        self: ByteBuffer,
+    ): Int
+
+
+
+    external fun makeHolderImpl(
+        out: ByteBuffer,
+    )
+
+
+
+    external fun paintImpl(
+        color: ByteBuffer,
+    ): Boolean
+
+
+
+    external fun howLongImpl(
+        seconds: ByteBuffer,
+    ): Double
+
+
+
+    actual fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload {
+        val out = allocateWire(2)
+        helloKotlinPayloadWithDataImpl(payloadToBuf(self), data.toShort(), out)
+        return payloadFromWire(out, 0)
+    }
+
+    external fun helloKotlinPayloadWithDataImpl(
+        self: ByteBuffer,
+        data: Short,
+        out: ByteBuffer,
+    )
+
+
+
+    external fun statusCodeImpl(
+        s: ByteBuffer,
+    ): Int
+
+
+
+    actual fun helloKotlinPairSwapped(self: Pair): Pair {
+        val out = allocateWire(16)
+        helloKotlinPairSwappedImpl(pairToBuf(self), out)
+        return pairFromWire(out, 0)
+    }
+
+    external fun helloKotlinPairSwappedImpl(
+        self: ByteBuffer,
+        out: ByteBuffer,
+    )
+
+
+
+    external fun favoriteImpl(
+        out: ByteBuffer,
+    )
+
+
+
+    external fun pairSumImpl(
+        p: ByteBuffer,
+    ): Long
+
+
+
+    actual fun helloKotlinStatusIdle(): Status {
+        val out = allocateWire(12)
+        helloKotlinStatusIdleImpl(out)
+        return statusFromWire(out, 0)
+    }
+
+    external fun helloKotlinStatusIdleImpl(
+        out: ByteBuffer,
+    )
+
+
+
+    external fun rideImpl(
+        dance: ByteBuffer,
+        out: ByteBuffer,
+    )
+
+
+
+    external fun emptyStringImpl(
+    ): String
+
+
+
+    external fun encryptImpl(
+        secret: ByteBuffer,
+        out: ByteBuffer,
+    )
+
+
+
+    actual fun helloKotlinObjectOpen(id: ULong): `object` =
+        helloKotlinObjectOpenImpl(id.toLong()).let { `object`(it) }
+
+    external fun helloKotlinObjectOpenImpl(
+        id: Long,
+    ): Long
+
+
+
+    actual fun helloKotlinWindowOpen(id: ULong): Window =
+        helloKotlinWindowOpenImpl(id.toLong()).let { Window(it) }
+
+    external fun helloKotlinWindowOpenImpl(
+        id: Long,
+    ): Long
+
+
+
     external fun rectTopLeftImpl(
         r: ByteBuffer,
         out: ByteBuffer,
     )
 
-
-
-    external fun stringPairImpl(
-        a: String,
-        b: String,
-    ): Boolean
-
-
-
-    external fun makeWhenImpl(
-        `object`: Int,
-        `val`: Int,
-        out: ByteBuffer,
-    )
-
-
-
-    external fun makeLoadingImpl(
-        out: ByteBuffer,
-    )
-
-
-
-    external fun keywordDataSumImpl(
-        d: ByteBuffer,
-    ): Int
-
-
-
-    external fun objectImpl(): Int
-
-
-
-    external fun bytesPairImpl(
-        a: ByteArray,
-        b: ByteArray,
-    ): Boolean
-
 }
 
-actual fun makeHolder(): StatusHolder {
-    val out = allocateWire(16)
-    HelloKotlinFfi.makeHolderImpl(out)
-    return status_holderFromWire(out, 0)
-}
-actual fun fancy(): KeywordData {
-    val out = allocateWire(16)
-    HelloKotlinFfi.fancyImpl(out)
-    return keyword_dataFromWire(out, 0)
-}
-actual fun cStatusIsErr(s: CStatus): Boolean =
-    HelloKotlinFfi.cStatusIsErrImpl(s.discriminant.toInt())
-actual fun positionedSum(p: Positioned): ULong =
-    HelloKotlinFfi.positionedSumImpl(positionedToBuf(p)).toULong()
-actual fun greet(g: Greeting): String =
-    HelloKotlinFfi.greetImpl(greetingToBuf(g))
-actual fun spanLength(s: String): UInt =
-    HelloKotlinFfi.spanLengthImpl(s).toUInt()
-actual fun `in`(obj: KeywordBag, `when`: UInt): UInt =
-    HelloKotlinFfi.inImpl(keyword_bagToBuf(obj), `when`.toInt()).toUInt()
-actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt =
-    HelloKotlinFfi.resultValueImpl(__koffi_result_u32_u8ToBuf(r)).toUInt()
-actual fun makeRect(): Rect {
-    val out = allocateWire(16)
-    HelloKotlinFfi.makeRectImpl(out)
-    return rectFromWire(out, 0)
-}
-actual fun holderStatus(h: StatusHolder): Status {
-    val out = allocateWire(12)
-    HelloKotlinFfi.holderStatusImpl(status_holderToBuf(h), out)
-    return statusFromWire(out, 0)
-}
-actual fun type(`in`: UInt): UInt =
-    HelloKotlinFfi.typeImpl(`in`.toInt()).toUInt()
-actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
+actual fun makeWhen(`object`: UInt, `val`: UInt): `when` {
     val out = allocateWire(8)
-    HelloKotlinFfi.divideImpl(n.toInt(), d.toInt(), out)
-    return __koffi_result_u32_u8FromWire(out)
-}
-actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
-    val out = allocateWire(12)
-    HelloKotlinFfi.drinkImpl(x.toInt(), out)
-    return __koffi_result___koffi_option_u32_u8FromWire(out)
-}
-actual fun makeStatus(): Status {
-    val out = allocateWire(12)
-    HelloKotlinFfi.makeStatusImpl(out)
-    return statusFromWire(out, 0)
-}
-actual fun flagValue(f: KeywordFlag): Int =
-    HelloKotlinFfi.flagValueImpl(f.discriminant)
-actual fun upgrade(m: Mail): Mail {
-    val out = allocateWire(40)
-    HelloKotlinFfi.upgradeImpl(mailToBuf(m), out)
-    return mailFromWire(out, 0)
-}
-actual fun nothing(): UInt? {
-    val out = allocateWire(8)
-    HelloKotlinFfi.nothingImpl(out)
-    return __koffi_option_u32FromWire(out)
-}
-actual fun makePair(): Pair {
-    val out = allocateWire(16)
-    HelloKotlinFfi.makePairImpl(out)
-    return pairFromWire(out, 0)
-}
-actual fun echoBytes(b: ByteArray): ByteArray =
-    HelloKotlinFfi.echoBytesImpl(b)
-actual fun describeWindow(w: Window): ULong =
-    HelloKotlinFfi.describeWindowImpl(w.handle).toULong()
-actual fun `class`(a: UInt, `fun`: UInt): UInt =
-    HelloKotlinFfi.classImpl(a.toInt(), `fun`.toInt()).toUInt()
-actual fun ride(dance: Dancer?): Dancer? {
-    val out = allocateWire(12)
-    HelloKotlinFfi.rideImpl(__koffi_option___koffi_struct_hello_kotlin_DancerToBuf(dance), out)
-    return __koffi_option___koffi_struct_hello_kotlin_DancerFromWire(out)
-}
-actual fun whenSum(w: `when`): UInt =
-    HelloKotlinFfi.whenSumImpl(whenToBuf(w)).toUInt()
-actual fun howLong(seconds: Double?): Double =
-    HelloKotlinFfi.howLongImpl(__koffi_option_f64ToBuf(seconds))
-actual fun cStatus(): CStatus =
-    HelloKotlinFfi.cStatusImpl().let { CStatus.fromDiscriminant(it.toUInt()) }
-actual fun favorite(): UInt? {
-    val out = allocateWire(8)
-    HelloKotlinFfi.favoriteImpl(out)
-    return __koffi_option_u32FromWire(out)
-}
-actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
-    val out = allocateWire(16)
-    HelloKotlinFfi.nominateImpl(x.toInt(), out)
-    return __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromWire(out)
+    HelloKotlinFfi.makeWhenImpl(`object`.toInt(), `val`.toInt(), out)
+    return whenFromWire(out, 0)
 }
 actual fun mood(): Mood {
     val out = allocateWire(8)
     HelloKotlinFfi.moodImpl(out)
     return moodFromWire(out, 0)
 }
-actual fun statusCode(s: Status): UInt =
-    HelloKotlinFfi.statusCodeImpl(statusToBuf(s)).toUInt()
-actual fun paint(color: Boolean?): Boolean =
-    HelloKotlinFfi.paintImpl(__koffi_option_boolToBuf(color))
-actual fun pairSum(p: Pair): ULong =
-    HelloKotlinFfi.pairSumImpl(pairToBuf(p)).toULong()
-actual fun rectArea(r: Rect): Int =
-    HelloKotlinFfi.rectAreaImpl(rectToBuf(r))
+actual fun fancy(): KeywordData {
+    val out = allocateWire(16)
+    HelloKotlinFfi.fancyImpl(out)
+    return keyword_dataFromWire(out, 0)
+}
 actual fun moodIsFlying(m: Mood): Boolean =
     HelloKotlinFfi.moodIsFlyingImpl(moodToBuf(m))
-actual fun encrypt(secret: SafePacket): SafePacket {
-    val out = allocateWire(5)
-    HelloKotlinFfi.encryptImpl(safe_packetToBuf(secret), out)
-    return safe_packetFromWire(out, 0)
-}
-actual fun emptyString(): String =
-    HelloKotlinFfi.emptyStringImpl()
-actual fun maybePayload(show: Boolean): Payload? {
-    val out = allocateWire(4)
-    HelloKotlinFfi.maybePayloadImpl(show, out)
-    return __koffi_option___koffi_struct_hello_kotlin_PayloadFromWire(out)
-}
-actual fun takeString(s: String): Boolean =
-    HelloKotlinFfi.takeStringImpl(s)
-actual fun addOptional(a: UInt, b: UInt?): UInt =
-    HelloKotlinFfi.addOptionalImpl(a.toInt(), __koffi_option_u32ToBuf(b)).toUInt()
-actual fun hello(): Payload {
-    val out = allocateWire(2)
-    HelloKotlinFfi.helloImpl(out)
-    return payloadFromWire(out, 0)
-}
-actual fun rectTopLeft(r: Rect): Point {
+actual fun positionedSum(p: Positioned): ULong =
+    HelloKotlinFfi.positionedSumImpl(positionedToBuf(p)).toULong()
+actual fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte> {
     val out = allocateWire(8)
-    HelloKotlinFfi.rectTopLeftImpl(rectToBuf(r), out)
-    return pointFromWire(out, 0)
+    HelloKotlinFfi.divideImpl(n.toInt(), d.toInt(), out)
+    return __koffi_result_u32_u8FromWire(out)
 }
-actual fun stringPair(a: String, b: String): Boolean =
-    HelloKotlinFfi.stringPairImpl(a, b)
-actual fun makeWhen(`object`: UInt, `val`: UInt): `when` {
+actual fun flagValue(f: KeywordFlag): Int =
+    HelloKotlinFfi.flagValueImpl(f.discriminant)
+actual fun `in`(obj: KeywordBag, `when`: UInt): UInt =
+    HelloKotlinFfi.inImpl(keyword_bagToBuf(obj), `when`.toInt()).toUInt()
+actual fun nothing(): UInt? {
     val out = allocateWire(8)
-    HelloKotlinFfi.makeWhenImpl(`object`.toInt(), `val`.toInt(), out)
-    return whenFromWire(out, 0)
+    HelloKotlinFfi.nothingImpl(out)
+    return __koffi_option_u32FromWire(out)
+}
+actual fun `object`(): UInt =
+    HelloKotlinFfi.objectImpl().toUInt()
+actual fun describeWindow(w: Window): ULong =
+    HelloKotlinFfi.describeWindowImpl(w.handle).toULong()
+actual fun drink(x: UInt): KoffiResult<UInt?, UByte> {
+    val out = allocateWire(12)
+    HelloKotlinFfi.drinkImpl(x.toInt(), out)
+    return __koffi_result___koffi_option_u32_u8FromWire(out)
 }
 actual fun makeLoading(): Status {
     val out = allocateWire(12)
     HelloKotlinFfi.makeLoadingImpl(out)
     return statusFromWire(out, 0)
 }
-actual fun keywordDataSum(d: KeywordData): UInt =
-    HelloKotlinFfi.keywordDataSumImpl(keyword_dataToBuf(d)).toUInt()
-actual fun `object`(): UInt =
-    HelloKotlinFfi.objectImpl().toUInt()
+actual fun nominate(x: UInt): KoffiResult<Payload, Status> {
+    val out = allocateWire(16)
+    HelloKotlinFfi.nominateImpl(x.toInt(), out)
+    return __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_StatusFromWire(out)
+}
+actual fun resultValue(r: KoffiResult<UInt, UByte>): UInt =
+    HelloKotlinFfi.resultValueImpl(__koffi_result_u32_u8ToBuf(r)).toUInt()
+actual fun takeString(s: String): Boolean =
+    HelloKotlinFfi.takeStringImpl(s)
+actual fun holderStatus(h: StatusHolder): Status {
+    val out = allocateWire(12)
+    HelloKotlinFfi.holderStatusImpl(status_holderToBuf(h), out)
+    return statusFromWire(out, 0)
+}
+actual fun makeStatus(): Status {
+    val out = allocateWire(12)
+    HelloKotlinFfi.makeStatusImpl(out)
+    return statusFromWire(out, 0)
+}
+actual fun stringPair(a: String, b: String): Boolean =
+    HelloKotlinFfi.stringPairImpl(a, b)
+actual fun type(`in`: UInt): UInt =
+    HelloKotlinFfi.typeImpl(`in`.toInt()).toUInt()
+actual fun echoBytes(b: ByteArray): ByteArray =
+    HelloKotlinFfi.echoBytesImpl(b)
+actual fun cStatus(): CStatus =
+    HelloKotlinFfi.cStatusImpl().let { CStatus.fromDiscriminant(it.toUInt()) }
+actual fun rectArea(r: Rect): Int =
+    HelloKotlinFfi.rectAreaImpl(rectToBuf(r))
+actual fun whenSum(w: `when`): UInt =
+    HelloKotlinFfi.whenSumImpl(whenToBuf(w)).toUInt()
+actual fun upgrade(m: Mail): Mail {
+    val out = allocateWire(40)
+    HelloKotlinFfi.upgradeImpl(mailToBuf(m), out)
+    return mailFromWire(out, 0)
+}
+actual fun cStatusIsErr(s: CStatus): Boolean =
+    HelloKotlinFfi.cStatusIsErrImpl(s.discriminant.toInt())
+actual fun makePair(): Pair {
+    val out = allocateWire(16)
+    HelloKotlinFfi.makePairImpl(out)
+    return pairFromWire(out, 0)
+}
+actual fun makeRect(): Rect {
+    val out = allocateWire(16)
+    HelloKotlinFfi.makeRectImpl(out)
+    return rectFromWire(out, 0)
+}
+actual fun addOptional(a: UInt, b: UInt?): UInt =
+    HelloKotlinFfi.addOptionalImpl(a.toInt(), __koffi_option_u32ToBuf(b)).toUInt()
 actual fun bytesPair(a: ByteArray, b: ByteArray): Boolean =
     HelloKotlinFfi.bytesPairImpl(a, b)
+actual fun keywordDataSum(d: KeywordData): UInt =
+    HelloKotlinFfi.keywordDataSumImpl(keyword_dataToBuf(d)).toUInt()
+actual fun spanLength(s: String): UInt =
+    HelloKotlinFfi.spanLengthImpl(s).toUInt()
+actual fun hello(): Payload {
+    val out = allocateWire(2)
+    HelloKotlinFfi.helloImpl(out)
+    return payloadFromWire(out, 0)
+}
+actual fun `class`(a: UInt, `fun`: UInt): UInt =
+    HelloKotlinFfi.classImpl(a.toInt(), `fun`.toInt()).toUInt()
+actual fun greet(g: Greeting): String =
+    HelloKotlinFfi.greetImpl(greetingToBuf(g))
+actual fun maybePayload(show: Boolean): Payload? {
+    val out = allocateWire(4)
+    HelloKotlinFfi.maybePayloadImpl(show, out)
+    return __koffi_option___koffi_struct_hello_kotlin_PayloadFromWire(out)
+}
+actual fun makeHolder(): StatusHolder {
+    val out = allocateWire(16)
+    HelloKotlinFfi.makeHolderImpl(out)
+    return status_holderFromWire(out, 0)
+}
+actual fun paint(color: Boolean?): Boolean =
+    HelloKotlinFfi.paintImpl(__koffi_option_boolToBuf(color))
+actual fun howLong(seconds: Double?): Double =
+    HelloKotlinFfi.howLongImpl(__koffi_option_f64ToBuf(seconds))
+actual fun statusCode(s: Status): UInt =
+    HelloKotlinFfi.statusCodeImpl(statusToBuf(s)).toUInt()
+actual fun favorite(): UInt? {
+    val out = allocateWire(8)
+    HelloKotlinFfi.favoriteImpl(out)
+    return __koffi_option_u32FromWire(out)
+}
+actual fun pairSum(p: Pair): ULong =
+    HelloKotlinFfi.pairSumImpl(pairToBuf(p)).toULong()
+actual fun ride(dance: Dancer?): Dancer? {
+    val out = allocateWire(12)
+    HelloKotlinFfi.rideImpl(__koffi_option___koffi_struct_hello_kotlin_DancerToBuf(dance), out)
+    return __koffi_option___koffi_struct_hello_kotlin_DancerFromWire(out)
+}
+actual fun emptyString(): String =
+    HelloKotlinFfi.emptyStringImpl()
+actual fun encrypt(secret: SafePacket): SafePacket {
+    val out = allocateWire(5)
+    HelloKotlinFfi.encryptImpl(safe_packetToBuf(secret), out)
+    return safe_packetFromWire(out, 0)
+}
+actual fun rectTopLeft(r: Rect): Point {
+    val out = allocateWire(8)
+    HelloKotlinFfi.rectTopLeftImpl(rectToBuf(r), out)
+    return pointFromWire(out, 0)
+}

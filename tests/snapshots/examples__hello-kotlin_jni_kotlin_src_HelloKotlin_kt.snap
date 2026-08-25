@@ -15,10 +15,10 @@ sealed class KoffiResult<out Ok, out Err> {
 class Window internal constructor(
     internal val handle: Long,
 ) {
-    fun describe(): ULong =
-        HelloKotlinFfi.helloKotlinWindowDescribe(this)
     fun retag(id: ULong): ULong =
         HelloKotlinFfi.helloKotlinWindowRetag(this, id)
+    fun describe(): ULong =
+        HelloKotlinFfi.helloKotlinWindowDescribe(this)
 
     companion object {
         operator fun invoke(id: ULong): Window =
@@ -84,10 +84,10 @@ data class Pair(
 data class Payload(
     val data: UShort
 ) {
-    fun withData(data: UShort): Payload =
-        HelloKotlinFfi.helloKotlinPayloadWithData(this, data)
     fun describe(): UInt =
         HelloKotlinFfi.helloKotlinPayloadDescribe(this)
+    fun withData(data: UShort): Payload =
+        HelloKotlinFfi.helloKotlinPayloadWithData(this, data)
 
     companion object {
         fun describeFormat(): UInt =
@@ -225,72 +225,72 @@ sealed class Status(val discriminant: Int) {
 }
 
 
-expect fun makeHolder(): StatusHolder
-expect fun fancy(): KeywordData
-expect fun cStatusIsErr(s: CStatus): Boolean
-expect fun positionedSum(p: Positioned): ULong
-expect fun greet(g: Greeting): String
-expect fun spanLength(s: String): UInt
-expect fun `in`(obj: KeywordBag, `when`: UInt): UInt
-expect fun resultValue(r: KoffiResult<UInt, UByte>): UInt
-expect fun makeRect(): Rect
-expect fun holderStatus(h: StatusHolder): Status
-expect fun type(`in`: UInt): UInt
-expect fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte>
-expect fun drink(x: UInt): KoffiResult<UInt?, UByte>
-expect fun makeStatus(): Status
-expect fun flagValue(f: KeywordFlag): Int
-expect fun upgrade(m: Mail): Mail
-expect fun nothing(): UInt?
-expect fun makePair(): Pair
-expect fun echoBytes(b: ByteArray): ByteArray
-expect fun describeWindow(w: Window): ULong
-expect fun `class`(a: UInt, `fun`: UInt): UInt
-expect fun ride(dance: Dancer?): Dancer?
-expect fun whenSum(w: `when`): UInt
-expect fun howLong(seconds: Double?): Double
-expect fun cStatus(): CStatus
-expect fun favorite(): UInt?
-expect fun nominate(x: UInt): KoffiResult<Payload, Status>
-expect fun mood(): Mood
-expect fun statusCode(s: Status): UInt
-expect fun paint(color: Boolean?): Boolean
-expect fun pairSum(p: Pair): ULong
-expect fun rectArea(r: Rect): Int
-expect fun moodIsFlying(m: Mood): Boolean
-expect fun encrypt(secret: SafePacket): SafePacket
-expect fun emptyString(): String
-expect fun maybePayload(show: Boolean): Payload?
-expect fun takeString(s: String): Boolean
-expect fun addOptional(a: UInt, b: UInt?): UInt
-expect fun hello(): Payload
-expect fun rectTopLeft(r: Rect): Point
-expect fun stringPair(a: String, b: String): Boolean
 expect fun makeWhen(`object`: UInt, `val`: UInt): `when`
-expect fun makeLoading(): Status
-expect fun keywordDataSum(d: KeywordData): UInt
+expect fun mood(): Mood
+expect fun fancy(): KeywordData
+expect fun moodIsFlying(m: Mood): Boolean
+expect fun positionedSum(p: Positioned): ULong
+expect fun divide(n: UInt, d: UInt): KoffiResult<UInt, UByte>
+expect fun flagValue(f: KeywordFlag): Int
+expect fun `in`(obj: KeywordBag, `when`: UInt): UInt
+expect fun nothing(): UInt?
 expect fun `object`(): UInt
+expect fun describeWindow(w: Window): ULong
+expect fun drink(x: UInt): KoffiResult<UInt?, UByte>
+expect fun makeLoading(): Status
+expect fun nominate(x: UInt): KoffiResult<Payload, Status>
+expect fun resultValue(r: KoffiResult<UInt, UByte>): UInt
+expect fun takeString(s: String): Boolean
+expect fun holderStatus(h: StatusHolder): Status
+expect fun makeStatus(): Status
+expect fun stringPair(a: String, b: String): Boolean
+expect fun type(`in`: UInt): UInt
+expect fun echoBytes(b: ByteArray): ByteArray
+expect fun cStatus(): CStatus
+expect fun rectArea(r: Rect): Int
+expect fun whenSum(w: `when`): UInt
+expect fun upgrade(m: Mail): Mail
+expect fun cStatusIsErr(s: CStatus): Boolean
+expect fun makePair(): Pair
+expect fun makeRect(): Rect
+expect fun addOptional(a: UInt, b: UInt?): UInt
 expect fun bytesPair(a: ByteArray, b: ByteArray): Boolean
+expect fun keywordDataSum(d: KeywordData): UInt
+expect fun spanLength(s: String): UInt
+expect fun hello(): Payload
+expect fun `class`(a: UInt, `fun`: UInt): UInt
+expect fun greet(g: Greeting): String
+expect fun maybePayload(show: Boolean): Payload?
+expect fun makeHolder(): StatusHolder
+expect fun paint(color: Boolean?): Boolean
+expect fun howLong(seconds: Double?): Double
+expect fun statusCode(s: Status): UInt
+expect fun favorite(): UInt?
+expect fun pairSum(p: Pair): ULong
+expect fun ride(dance: Dancer?): Dancer?
+expect fun emptyString(): String
+expect fun encrypt(secret: SafePacket): SafePacket
+expect fun rectTopLeft(r: Rect): Point
 
 expect object HelloKotlinFfi {
-    fun helloKotlinKeywordFlagObject(): KeywordFlag
+    fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair
+    fun helloKotlinStatusNewBusy(code: UInt): Status
+    fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag
+    fun helloKotlinStatusDescribe(self: Status): UInt
+    fun helloKotlinPayloadDescribe(self: Payload): UInt
+    fun helloKotlinWindowRetag(self: Window, id: ULong): ULong
     fun helloKotlinWindowPairFirstDescribe(self: WindowPair): ULong
-    fun helloKotlinPairSwapped(self: Pair): Pair
     fun helloKotlinPayloadDescribeFormat(): UInt
+    fun helloKotlinPayloadNew(data: UShort): Payload
+    fun helloKotlinKeywordFlagObject(): KeywordFlag
+    fun helloKotlinPairNew(x: UInt, y: ULong): Pair
+    fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong
     fun helloKotlinObjectDescribe(self: `object`): ULong
     fun helloKotlinWindowDescribe(self: Window): ULong
-    fun helloKotlinObjectOpen(id: ULong): `object`
-    fun helloKotlinStatusDescribe(self: Status): UInt
     fun helloKotlinKeywordBagMatch(self: KeywordBag): UInt
     fun helloKotlinPayloadWithData(self: Payload, data: UShort): Payload
-    fun helloKotlinWindowPairNew(a: ULong, b: ULong): WindowPair
-    fun helloKotlinWindowRetag(self: Window, id: ULong): ULong
-    fun helloKotlinPayloadDescribe(self: Payload): UInt
-    fun helloKotlinWindowPairRetagA(self: WindowPair, id: ULong): ULong
-    fun helloKotlinPairNew(x: UInt, y: ULong): Pair
-    fun helloKotlinKeywordBagNew(`object`: UInt, `when`: UInt): KeywordBag
-    fun helloKotlinStatusNewBusy(code: UInt): Status
+    fun helloKotlinPairSwapped(self: Pair): Pair
     fun helloKotlinStatusIdle(): Status
+    fun helloKotlinObjectOpen(id: ULong): `object`
     fun helloKotlinWindowOpen(id: ULong): Window
-    fun helloKotlinPayloadNew(data: UShort): Payload
 }

@@ -47,16 +47,77 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_koffiTakeBytes<'
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeHolderImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindowPairNewImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_a: jlong,
+    p_b: jlong,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_struct_hello_kotlin_WindowPair = ::hello_kotlin::WindowPair::new(
+(p_a as u64).into(),
+(p_b as u64).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_WindowPair;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeWhenImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_object: jint,
+    p_val: jint,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_struct_hello_kotlin_when = ::hello_kotlin::make_when(
+(p_object as u32).into(),
+(p_val as u32).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_when;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_moodImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_StatusHolder = ::hello_kotlin::make_holder(
+        let v: __koffi_enum_hello_kotlin_Mood = ::hello_kotlin::mood(
         ).into();
 
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_StatusHolder;
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_enum_hello_kotlin_Mood;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinStatusNewBusyImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_code: jint,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_enum_hello_kotlin_Status = ::hello_kotlin::Status::new_busy(
+(p_code as u32).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_enum_hello_kotlin_Status;
         unsafe { ptr.write(v) };
         Ok(0 as jint)
     });
@@ -81,28 +142,18 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_fancyImpl<'c>(
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinKeywordFlagObjectImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_moodIsFlyingImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_enum_hello_kotlin_KeywordFlag = ::hello_kotlin::KeywordFlag::object(
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_cStatusIsErrImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_s: jint,
+    p_m: JByteBuffer<'c>,
 ) -> jboolean {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: bool = ::hello_kotlin::c_status_is_err(
-unsafe { std::mem::transmute::<jint, __koffi_enum_hello_kotlin_CStatus>(p_s) }.into()
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_m = env.get_direct_buffer_address(&p_m)? as *mut u8;
+        let v: bool = ::hello_kotlin::mood_is_flying(
+unsafe { (__base_m as *const __koffi_enum_hello_kotlin_Mood).read() }.into()
         ).into();
 
         Ok(v as jboolean)
@@ -131,43 +182,35 @@ unsafe { (__base_p as *const __koffi_struct_hello_kotlin_Positioned).read() }.in
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_greetImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_divideImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_g: JByteBuffer<'c>,
-) -> jstring {
+    p_n: jint,
+    p_d: jint,
+    out: JByteBuffer<'c>,
+) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_g = env.get_direct_buffer_address(&p_g)? as *mut u8;
-        // Kotlin wrote each embedded span's pointer slot as a byte offset
-        // into the wire blob; re-point them at the direct buffer so the
-        // `.into()`s in `call_args` read the right spans.
-        unsafe {
-            *(__base_g.add(0) as *mut usize) = __base_g as usize + *(__base_g.add(0) as *const usize);
-            *(__base_g.add(16) as *mut usize) = __base_g as usize + *(__base_g.add(16) as *const usize);
-        }
-        let v: ::std::string::String = ::hello_kotlin::greet(
-unsafe { (__base_g as *const __koffi_struct_hello_kotlin_Greeting).read() }.into()
-        );
-        Ok(env.new_string(&v)?.into_raw())
+        let v: __koffi_result_u32_u8 = ::hello_kotlin::divide(
+(p_n as u32).into(),
+(p_d as u32).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_result_u32_u8;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_spanLengthImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_flagValueImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_s: jni::objects::JString<'c>,
+    p_f: jint,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // JNI passes string/byte-array references, not raw memory: fetch a
-        // copy the callee can own (JNI's own string conversion guard).
-        let __call_s = p_s.try_to_string(env)?;
-        let v: u32 = ::hello_kotlin::span_length(
-__call_s
+        let v: i32 = ::hello_kotlin::flag_value(
+unsafe { std::mem::transmute::<jint, __koffi_enum_hello_kotlin_KeywordFlag>(p_f) }.into()
         ).into();
 
         Ok(v as jint)
@@ -198,18 +241,45 @@ unsafe { (__base_obj as *const __koffi_struct_hello_kotlin_KeywordBag).read() }.
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindowPairFirstDescribeImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_nothingImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_self: JByteBuffer<'c>,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_option_u32 = ::hello_kotlin::nothing(
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option_u32;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_objectImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: u32 = ::hello_kotlin::object(
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_describeWindowImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_w: jlong,
 ) -> jlong {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
-        let v: u64 = ::hello_kotlin::WindowPair::first_describe(
-&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_WindowPair).read() }.into())
+        let v: u64 = ::hello_kotlin::describe_window(
+unsafe { std::ptr::read(p_w as usize as *const ::hello_kotlin::Window) }
         ).into();
 
         Ok(v as jlong)
@@ -218,22 +288,18 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindo
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPairSwappedImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_drinkImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_self: JByteBuffer<'c>,
+    p_x: jint,
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
-        let v: __koffi_struct_hello_kotlin_Pair = ::hello_kotlin::Pair::swapped(
-&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Pair).read() }.into())
+        let v: __koffi_result___koffi_option_u32_u8 = ::hello_kotlin::drink(
+(p_x as u32).into()
         ).into();
 
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Pair;
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_result___koffi_option_u32_u8;
         unsafe { ptr.write(v) };
         Ok(0 as jint)
     });
@@ -241,15 +307,58 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPairS
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadDescribeFormatImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinKeywordBagNewImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
+    p_object: jint,
+    p_when: jint,
+    out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: u32 = ::hello_kotlin::Payload::describe_format(
+        let v: __koffi_struct_hello_kotlin_KeywordBag = ::hello_kotlin::KeywordBag::new(
+(p_object as u32).into(),
+(p_when as u32).into()
         ).into();
 
-        Ok(v as jint)
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_KeywordBag;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeLoadingImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_enum_hello_kotlin_Status = ::hello_kotlin::make_loading(
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_enum_hello_kotlin_Status;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_nominateImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_x: jint,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status = ::hello_kotlin::nominate(
+(p_x as u32).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -275,34 +384,20 @@ unsafe { (__base_r as *const __koffi_result_u32_u8).read() }.into()
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeRectImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_takeStringImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    out: JByteBuffer<'c>,
-) -> jint {
+    p_s: jni::objects::JString<'c>,
+) -> jboolean {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_Rect = ::hello_kotlin::make_rect(
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_s = p_s.try_to_string(env)?;
+        let v: bool = ::hello_kotlin::take_string(
+__call_s
         ).into();
 
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Rect;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinObjectDescribeImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_self: jlong,
-) -> jlong {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: u64 = ::hello_kotlin::object::describe(
-unsafe { &*(p_self as usize as *const ::hello_kotlin::object) }
-        ).into();
-
-        Ok(v as jlong)
+        Ok(v as jboolean)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -331,62 +426,6 @@ unsafe { (__base_h as *const __koffi_struct_hello_kotlin_StatusHolder).read() }.
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_typeImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_in: jint,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: u32 = ::hello_kotlin::r#type(
-(p_in as u32).into()
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_divideImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_n: jint,
-    p_d: jint,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_result_u32_u8 = ::hello_kotlin::divide(
-(p_n as u32).into(),
-(p_d as u32).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_result_u32_u8;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_drinkImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_x: jint,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_result___koffi_option_u32_u8 = ::hello_kotlin::drink(
-(p_x as u32).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_result___koffi_option_u32_u8;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeStatusImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
@@ -404,30 +443,130 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeStatusImpl<'
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindowDescribeImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_stringPairImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_self: jlong,
-) -> jlong {
+    p_a: jni::objects::JString<'c>,
+    p_b: jni::objects::JString<'c>,
+) -> jboolean {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: u64 = ::hello_kotlin::Window::describe(
-unsafe { &*(p_self as usize as *const ::hello_kotlin::Window) }
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_a = p_a.try_to_string(env)?;
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_b = p_b.try_to_string(env)?;
+        let v: bool = ::hello_kotlin::string_pair(
+__call_a,
+&__call_b
         ).into();
 
-        Ok(v as jlong)
+        Ok(v as jboolean)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_flagValueImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_typeImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_f: jint,
+    p_in: jint,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: i32 = ::hello_kotlin::flag_value(
-unsafe { std::mem::transmute::<jint, __koffi_enum_hello_kotlin_KeywordFlag>(p_f) }.into()
+        let v: u32 = ::hello_kotlin::r#type(
+(p_in as u32).into()
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinStatusDescribeImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_self: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
+        let v: u32 = ::hello_kotlin::Status::describe(
+&(unsafe { (__base_self as *const __koffi_enum_hello_kotlin_Status).read() }.into())
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_echoBytesImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_b: jni::objects::JByteArray<'c>,
+) -> jbyteArray {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_b = recover_bytes(env, &p_b)?;
+        let v: ::std::vec::Vec<u8> = ::hello_kotlin::echo_bytes(
+__call_b
+        );
+        Ok(env.byte_array_from_slice(&v)?.into_raw())
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_cStatusImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_enum_hello_kotlin_CStatus = ::hello_kotlin::c_status(
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rectAreaImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_r: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_r = env.get_direct_buffer_address(&p_r)? as *mut u8;
+        let v: i32 = ::hello_kotlin::rect_area(
+unsafe { (__base_r as *const __koffi_struct_hello_kotlin_Rect).read() }.into()
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_whenSumImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_w: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_w = env.get_direct_buffer_address(&p_w)? as *mut u8;
+        let v: u32 = ::hello_kotlin::when_sum(
+unsafe { (__base_w as *const __koffi_struct_hello_kotlin_when).read() }.into()
         ).into();
 
         Ok(v as jint)
@@ -466,18 +605,17 @@ unsafe { (__base_m as *const __koffi_struct_hello_kotlin_Mail).read() }.into()
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_nothingImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_cStatusIsErrImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    out: JByteBuffer<'c>,
-) -> jint {
+    p_s: jint,
+) -> jboolean {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_option_u32 = ::hello_kotlin::nothing(
+        let v: bool = ::hello_kotlin::c_status_is_err(
+unsafe { std::mem::transmute::<jint, __koffi_enum_hello_kotlin_CStatus>(p_s) }.into()
         ).into();
 
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option_u32;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
+        Ok(v as jboolean)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -500,44 +638,7 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makePairImpl<'c>
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinObjectOpenImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_id: jlong,
-) -> jlong {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // The returned handle is leaked on purpose, same contract as the
-        // opaque From impls in types.rs: the caller owns it.
-        let v: *mut ::hello_kotlin::object =
-            Box::leak(Box::new(::hello_kotlin::object::open(
-(p_id as u64).into()
-            ))) as *mut ::hello_kotlin::object;
-
-        Ok(v as usize as jlong)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_echoBytesImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_b: jni::objects::JByteArray<'c>,
-) -> jbyteArray {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // JNI passes string/byte-array references, not raw memory: fetch a
-        // copy the callee can own (JNI's own string conversion guard).
-        let __call_b = recover_bytes(env, &p_b)?;
-        let v: ::std::vec::Vec<u8> = ::hello_kotlin::echo_bytes(
-__call_b
-        );
-        Ok(env.byte_array_from_slice(&v)?.into_raw())
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinStatusDescribeImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadDescribeImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
     p_self: JByteBuffer<'c>,
@@ -547,224 +648,11 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinStatu
         // span pointer slots, and let `call_args` reuse the address below
         // instead of asking JNI for it a second time.
         let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
-        let v: u32 = ::hello_kotlin::Status::describe(
-&(unsafe { (__base_self as *const __koffi_enum_hello_kotlin_Status).read() }.into())
+        let v: u32 = ::hello_kotlin::Payload::describe(
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Payload).read() }.into())
         ).into();
 
         Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_describeWindowImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_w: jlong,
-) -> jlong {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: u64 = ::hello_kotlin::describe_window(
-unsafe { std::ptr::read(p_w as usize as *const ::hello_kotlin::Window) }
-        ).into();
-
-        Ok(v as jlong)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_classImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_a: jint,
-    p_fun: jint,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: u32 = ::hello_kotlin::class(
-(p_a as u32).into(),
-(p_fun as u32).into()
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rideImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_dance: JByteBuffer<'c>,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_dance = env.get_direct_buffer_address(&p_dance)? as *mut u8;
-        let v: __koffi_option___koffi_struct_hello_kotlin_Dancer = ::hello_kotlin::ride(
-unsafe { (__base_dance as *const __koffi_option___koffi_struct_hello_kotlin_Dancer).read() }.into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option___koffi_struct_hello_kotlin_Dancer;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_whenSumImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_w: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_w = env.get_direct_buffer_address(&p_w)? as *mut u8;
-        let v: u32 = ::hello_kotlin::when_sum(
-unsafe { (__base_w as *const __koffi_struct_hello_kotlin_when).read() }.into()
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_howLongImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_seconds: JByteBuffer<'c>,
-) -> jdouble {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_seconds = env.get_direct_buffer_address(&p_seconds)? as *mut u8;
-        let v: f64 = ::hello_kotlin::how_long(
-unsafe { (__base_seconds as *const __koffi_option_f64).read() }.into()
-        ).into();
-
-        Ok(v as jdouble)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_cStatusImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_enum_hello_kotlin_CStatus = ::hello_kotlin::c_status(
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinKeywordBagMatchImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_self: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
-        let v: u32 = ::hello_kotlin::KeywordBag::r#match(
-&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_KeywordBag).read() }.into())
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadWithDataImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_self: JByteBuffer<'c>,
-    p_data: jshort,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
-        let v: __koffi_struct_hello_kotlin_Payload = ::hello_kotlin::Payload::with_data(
-&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Payload).read() }.into()),
-(p_data as u16).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Payload;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_favoriteImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_option_u32 = ::hello_kotlin::favorite(
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option_u32;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindowPairNewImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_a: jlong,
-    p_b: jlong,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_WindowPair = ::hello_kotlin::WindowPair::new(
-(p_a as u64).into(),
-(p_b as u64).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_WindowPair;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_nominateImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_x: jint,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status = ::hello_kotlin::nominate(
-(p_x as u32).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_result___koffi_struct_hello_kotlin_Payload___koffi_enum_hello_kotlin_Status;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -788,16 +676,16 @@ unsafe { &mut *(p_self as usize as *mut ::hello_kotlin::Window) },
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_moodImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeRectImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
     out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_enum_hello_kotlin_Mood = ::hello_kotlin::mood(
+        let v: __koffi_struct_hello_kotlin_Rect = ::hello_kotlin::make_rect(
         ).into();
 
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_enum_hello_kotlin_Mood;
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Rect;
         unsafe { ptr.write(v) };
         Ok(0 as jint)
     });
@@ -805,18 +693,206 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_moodImpl<'c>(
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadDescribeImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindowPairFirstDescribeImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
     p_self: JByteBuffer<'c>,
-) -> jint {
+) -> jlong {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
         // Fetch each memory-backed param's base once, patch its embedded
         // span pointer slots, and let `call_args` reuse the address below
         // instead of asking JNI for it a second time.
         let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
-        let v: u32 = ::hello_kotlin::Payload::describe(
-&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Payload).read() }.into())
+        let v: u64 = ::hello_kotlin::WindowPair::first_describe(
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_WindowPair).read() }.into())
+        ).into();
+
+        Ok(v as jlong)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_addOptionalImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_a: jint,
+    p_b: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_b = env.get_direct_buffer_address(&p_b)? as *mut u8;
+        let v: u32 = ::hello_kotlin::add_optional(
+(p_a as u32).into(),
+unsafe { (__base_b as *const __koffi_option_u32).read() }.into()
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_bytesPairImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_a: jni::objects::JByteArray<'c>,
+    p_b: jni::objects::JByteArray<'c>,
+) -> jboolean {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_a = recover_bytes(env, &p_a)?;
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_b = recover_bytes(env, &p_b)?;
+        let v: bool = ::hello_kotlin::bytes_pair(
+__call_a,
+&__call_b[..]
+        ).into();
+
+        Ok(v as jboolean)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_keywordDataSumImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_d: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_d = env.get_direct_buffer_address(&p_d)? as *mut u8;
+        let v: u32 = ::hello_kotlin::keyword_data_sum(
+unsafe { (__base_d as *const __koffi_enum_hello_kotlin_KeywordData).read() }.into()
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadDescribeFormatImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: u32 = ::hello_kotlin::Payload::describe_format(
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadNewImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_data: jshort,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_struct_hello_kotlin_Payload = ::hello_kotlin::Payload::new(
+(p_data as u16).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Payload;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_spanLengthImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_s: jni::objects::JString<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // JNI passes string/byte-array references, not raw memory: fetch a
+        // copy the callee can own (JNI's own string conversion guard).
+        let __call_s = p_s.try_to_string(env)?;
+        let v: u32 = ::hello_kotlin::span_length(
+__call_s
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_struct_hello_kotlin_Payload = ::hello_kotlin::hello(
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Payload;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinKeywordFlagObjectImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_enum_hello_kotlin_KeywordFlag = ::hello_kotlin::KeywordFlag::object(
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPairNewImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_x: jint,
+    p_y: jlong,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_struct_hello_kotlin_Pair = ::hello_kotlin::Pair::new(
+(p_x as u32).into(),
+(p_y as u64).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Pair;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_classImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_a: jint,
+    p_fun: jint,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: u32 = ::hello_kotlin::class(
+(p_a as u32).into(),
+(p_fun as u32).into()
         ).into();
 
         Ok(v as jint)
@@ -847,21 +923,115 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindo
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_statusCodeImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_greetImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_s: JByteBuffer<'c>,
+    p_g: JByteBuffer<'c>,
+) -> jstring {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_g = env.get_direct_buffer_address(&p_g)? as *mut u8;
+        // Kotlin wrote each embedded span's pointer slot as a byte offset
+        // into the wire blob; re-point them at the direct buffer so the
+        // `.into()`s in `call_args` read the right spans.
+        unsafe {
+            *(__base_g.add(0) as *mut usize) = __base_g as usize + *(__base_g.add(0) as *const usize);
+            *(__base_g.add(16) as *mut usize) = __base_g as usize + *(__base_g.add(16) as *const usize);
+        }
+        let v: ::std::string::String = ::hello_kotlin::greet(
+unsafe { (__base_g as *const __koffi_struct_hello_kotlin_Greeting).read() }.into()
+        );
+        Ok(env.new_string(&v)?.into_raw())
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_maybePayloadImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_show: jboolean,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_option___koffi_struct_hello_kotlin_Payload = ::hello_kotlin::maybe_payload(
+(p_show as bool).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option___koffi_struct_hello_kotlin_Payload;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinObjectDescribeImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_self: jlong,
+) -> jlong {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: u64 = ::hello_kotlin::object::describe(
+unsafe { &*(p_self as usize as *const ::hello_kotlin::object) }
+        ).into();
+
+        Ok(v as jlong)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindowDescribeImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_self: jlong,
+) -> jlong {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: u64 = ::hello_kotlin::Window::describe(
+unsafe { &*(p_self as usize as *const ::hello_kotlin::Window) }
+        ).into();
+
+        Ok(v as jlong)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinKeywordBagMatchImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_self: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
         // Fetch each memory-backed param's base once, patch its embedded
         // span pointer slots, and let `call_args` reuse the address below
         // instead of asking JNI for it a second time.
-        let __base_s = env.get_direct_buffer_address(&p_s)? as *mut u8;
-        let v: u32 = ::hello_kotlin::status_code(
-unsafe { (__base_s as *const __koffi_enum_hello_kotlin_Status).read() }.into()
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
+        let v: u32 = ::hello_kotlin::KeywordBag::r#match(
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_KeywordBag).read() }.into())
         ).into();
 
         Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeHolderImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_struct_hello_kotlin_StatusHolder = ::hello_kotlin::make_holder(
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_StatusHolder;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -887,6 +1057,111 @@ unsafe { (__base_color as *const __koffi_option_bool).read() }.into()
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_howLongImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_seconds: JByteBuffer<'c>,
+) -> jdouble {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_seconds = env.get_direct_buffer_address(&p_seconds)? as *mut u8;
+        let v: f64 = ::hello_kotlin::how_long(
+unsafe { (__base_seconds as *const __koffi_option_f64).read() }.into()
+        ).into();
+
+        Ok(v as jdouble)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadWithDataImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_self: JByteBuffer<'c>,
+    p_data: jshort,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
+        let v: __koffi_struct_hello_kotlin_Payload = ::hello_kotlin::Payload::with_data(
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Payload).read() }.into()),
+(p_data as u16).into()
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Payload;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_statusCodeImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_s: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_s = env.get_direct_buffer_address(&p_s)? as *mut u8;
+        let v: u32 = ::hello_kotlin::status_code(
+unsafe { (__base_s as *const __koffi_enum_hello_kotlin_Status).read() }.into()
+        ).into();
+
+        Ok(v as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPairSwappedImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    p_self: JByteBuffer<'c>,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        // Fetch each memory-backed param's base once, patch its embedded
+        // span pointer slots, and let `call_args` reuse the address below
+        // instead of asking JNI for it a second time.
+        let __base_self = env.get_direct_buffer_address(&p_self)? as *mut u8;
+        let v: __koffi_struct_hello_kotlin_Pair = ::hello_kotlin::Pair::swapped(
+&(unsafe { (__base_self as *const __koffi_struct_hello_kotlin_Pair).read() }.into())
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Pair;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_favoriteImpl<'c>(
+    mut env: jni::EnvUnowned<'c>,
+    _this: JObject<'c>,
+    out: JByteBuffer<'c>,
+) -> jint {
+    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
+        let v: __koffi_option_u32 = ::hello_kotlin::favorite(
+        ).into();
+
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option_u32;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
+    });
+
+    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_pairSumImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
@@ -902,67 +1177,6 @@ unsafe { (__base_p as *const __koffi_struct_hello_kotlin_Pair).read() }.into()
         ).into();
 
         Ok(v as jlong)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPairNewImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_x: jint,
-    p_y: jlong,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_Pair = ::hello_kotlin::Pair::new(
-(p_x as u32).into(),
-(p_y as u64).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Pair;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinKeywordBagNewImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_object: jint,
-    p_when: jint,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_KeywordBag = ::hello_kotlin::KeywordBag::new(
-(p_object as u32).into(),
-(p_when as u32).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_KeywordBag;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinStatusNewBusyImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_code: jint,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_enum_hello_kotlin_Status = ::hello_kotlin::Status::new_busy(
-(p_code as u32).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_enum_hello_kotlin_Status;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -985,41 +1199,37 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinStatu
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rectAreaImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rideImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_r: JByteBuffer<'c>,
+    p_dance: JByteBuffer<'c>,
+    out: JByteBuffer<'c>,
 ) -> jint {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
         // Fetch each memory-backed param's base once, patch its embedded
         // span pointer slots, and let `call_args` reuse the address below
         // instead of asking JNI for it a second time.
-        let __base_r = env.get_direct_buffer_address(&p_r)? as *mut u8;
-        let v: i32 = ::hello_kotlin::rect_area(
-unsafe { (__base_r as *const __koffi_struct_hello_kotlin_Rect).read() }.into()
+        let __base_dance = env.get_direct_buffer_address(&p_dance)? as *mut u8;
+        let v: __koffi_option___koffi_struct_hello_kotlin_Dancer = ::hello_kotlin::ride(
+unsafe { (__base_dance as *const __koffi_option___koffi_struct_hello_kotlin_Dancer).read() }.into()
         ).into();
 
-        Ok(v as jint)
+        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option___koffi_struct_hello_kotlin_Dancer;
+        unsafe { ptr.write(v) };
+        Ok(0 as jint)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_moodIsFlyingImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_emptyStringImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-    p_m: JByteBuffer<'c>,
-) -> jboolean {
+) -> jstring {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_m = env.get_direct_buffer_address(&p_m)? as *mut u8;
-        let v: bool = ::hello_kotlin::mood_is_flying(
-unsafe { (__base_m as *const __koffi_enum_hello_kotlin_Mood).read() }.into()
-        ).into();
-
-        Ok(v as jboolean)
+        let v: ::std::string::String = ::hello_kotlin::empty_string(
+        );
+        Ok(env.new_string(&v)?.into_raw())
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -1048,14 +1258,20 @@ unsafe { (__base_secret as *const __koffi_struct_hello_kotlin_SafePacket).read()
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_emptyStringImpl<'c>(
+pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinObjectOpenImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
-) -> jstring {
+    p_id: jlong,
+) -> jlong {
     let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: ::std::string::String = ::hello_kotlin::empty_string(
-        );
-        Ok(env.new_string(&v)?.into_raw())
+        // The returned handle is leaked on purpose, same contract as the
+        // opaque From impls in types.rs: the caller owns it.
+        let v: *mut ::hello_kotlin::object =
+            Box::leak(Box::new(::hello_kotlin::object::open(
+(p_id as u64).into()
+            ))) as *mut ::hello_kotlin::object;
+
+        Ok(v as usize as jlong)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
@@ -1080,102 +1296,6 @@ pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinWindo
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_maybePayloadImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_show: jboolean,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_option___koffi_struct_hello_kotlin_Payload = ::hello_kotlin::maybe_payload(
-(p_show as bool).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_option___koffi_struct_hello_kotlin_Payload;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloKotlinPayloadNewImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_data: jshort,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_Payload = ::hello_kotlin::Payload::new(
-(p_data as u16).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Payload;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_takeStringImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_s: jni::objects::JString<'c>,
-) -> jboolean {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // JNI passes string/byte-array references, not raw memory: fetch a
-        // copy the callee can own (JNI's own string conversion guard).
-        let __call_s = p_s.try_to_string(env)?;
-        let v: bool = ::hello_kotlin::take_string(
-__call_s
-        ).into();
-
-        Ok(v as jboolean)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_addOptionalImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_a: jint,
-    p_b: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_b = env.get_direct_buffer_address(&p_b)? as *mut u8;
-        let v: u32 = ::hello_kotlin::add_optional(
-(p_a as u32).into(),
-unsafe { (__base_b as *const __koffi_option_u32).read() }.into()
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_helloImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_Payload = ::hello_kotlin::hello(
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Payload;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
 pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_rectTopLeftImpl<'c>(
     mut env: jni::EnvUnowned<'c>,
     _this: JObject<'c>,
@@ -1194,126 +1314,6 @@ unsafe { (__base_r as *const __koffi_struct_hello_kotlin_Rect).read() }.into()
         let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_Point;
         unsafe { ptr.write(v) };
         Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_stringPairImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_a: jni::objects::JString<'c>,
-    p_b: jni::objects::JString<'c>,
-) -> jboolean {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // JNI passes string/byte-array references, not raw memory: fetch a
-        // copy the callee can own (JNI's own string conversion guard).
-        let __call_a = p_a.try_to_string(env)?;
-        // JNI passes string/byte-array references, not raw memory: fetch a
-        // copy the callee can own (JNI's own string conversion guard).
-        let __call_b = p_b.try_to_string(env)?;
-        let v: bool = ::hello_kotlin::string_pair(
-__call_a,
-&__call_b
-        ).into();
-
-        Ok(v as jboolean)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeWhenImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_object: jint,
-    p_val: jint,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_struct_hello_kotlin_when = ::hello_kotlin::make_when(
-(p_object as u32).into(),
-(p_val as u32).into()
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_struct_hello_kotlin_when;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_makeLoadingImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    out: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: __koffi_enum_hello_kotlin_Status = ::hello_kotlin::make_loading(
-        ).into();
-
-        let ptr = env.get_direct_buffer_address(&out)? as *mut __koffi_enum_hello_kotlin_Status;
-        unsafe { ptr.write(v) };
-        Ok(0 as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_keywordDataSumImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_d: JByteBuffer<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // Fetch each memory-backed param's base once, patch its embedded
-        // span pointer slots, and let `call_args` reuse the address below
-        // instead of asking JNI for it a second time.
-        let __base_d = env.get_direct_buffer_address(&p_d)? as *mut u8;
-        let v: u32 = ::hello_kotlin::keyword_data_sum(
-unsafe { (__base_d as *const __koffi_enum_hello_kotlin_KeywordData).read() }.into()
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_objectImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-) -> jint {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        let v: u32 = ::hello_kotlin::object(
-        ).into();
-
-        Ok(v as jint)
-    });
-
-    outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()
-}
-#[unsafe(no_mangle)]
-pub unsafe extern "system" fn Java_hello_1kotlin_HelloKotlinFfi_bytesPairImpl<'c>(
-    mut env: jni::EnvUnowned<'c>,
-    _this: JObject<'c>,
-    p_a: jni::objects::JByteArray<'c>,
-    p_b: jni::objects::JByteArray<'c>,
-) -> jboolean {
-    let outcome = env.with_env(|env| -> jni::errors::Result<_> {
-        // JNI passes string/byte-array references, not raw memory: fetch a
-        // copy the callee can own (JNI's own string conversion guard).
-        let __call_a = recover_bytes(env, &p_a)?;
-        // JNI passes string/byte-array references, not raw memory: fetch a
-        // copy the callee can own (JNI's own string conversion guard).
-        let __call_b = recover_bytes(env, &p_b)?;
-        let v: bool = ::hello_kotlin::bytes_pair(
-__call_a,
-&__call_b[..]
-        ).into();
-
-        Ok(v as jboolean)
     });
 
     outcome.resolve::<jni::errors::ThrowRuntimeExAndDefault>()

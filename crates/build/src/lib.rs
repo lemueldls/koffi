@@ -544,33 +544,25 @@ fn stage(src: &Path, dest_dir: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Rewrites the rendered `.def` in place: `headers = <crate>.h` becomes the
-/// absolute `<kotlin>/cinterop/<crate>.h`, and every
-/// `__KOFFI_LIBS__/<platform>` becomes the absolute `<kotlin>/libs/<platform>`.
-/// `gen` keeps the placeholders so snapshots stay stable; only `pack`
-/// absolutizes.
+/// Rewrites the rendered `.def` in place: every `__KOFFI_LIBS__/<platform>`
+/// becomes the absolute `<kotlin>/libs/<platform>`. The header line stays
+/// relative - `headers = <crate>.h` resolves through the toolchain's
+/// automatic `-I<kotlin>/cinterop@native/include`. `gen` keeps the
+/// placeholders so snapshots stay stable; only `pack` absolutizes.
 fn absolutize_def(
     kotlin_out_dir: &Path,
     crate_ident: &str,
     config: &KoffiConfig,
 ) -> anyhow::Result<()> {
     let def_path = kotlin_out_dir
-        .join("cinterop")
+        .join("cinterop@native")
         .join(format!("{crate_ident}.def"));
     if !def_path.exists() {
         return Ok(());
     }
 
     let kotlin_abs = absolute_path(kotlin_out_dir);
-    let header_abs = kotlin_abs.join("cinterop").join(format!("{crate_ident}.h"));
     let mut def = std::fs::read_to_string(&def_path)?;
-    def = def.replace(
-        &format!("headers = {crate_ident}.h"),
-        &format!(
-            "headers = {}",
-            header_abs.to_string_lossy().replace("\\", "/")
-        ),
-    );
 
     for platform in config.native_platforms() {
         let platform = platform.as_str();
